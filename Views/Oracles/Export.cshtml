@@ -1,0 +1,132 @@
+@using GM_Toolbox.Models.ViewModels
+
+@model ExportViewModel
+
+@{
+    ViewData["Title"] = "Export";
+}
+
+<h1>Export Oracles</h1>
+
+@if (!Model.Available.Any())
+{
+    <p class="text-muted">
+        Nothing to export yet. Use <strong>Create New</strong> to build an oracle first.
+    </p>
+
+    <div>
+        <a asp-action="Index">Back to List</a>
+    </div>
+}
+else
+{
+    <p class="text-muted">
+        Downloads a portable JSON file. It carries no database IDs, so it imports cleanly
+        into any other instance of the toolbox.
+    </p>
+
+    <form asp-action="Export" method="post">
+        <div asp-validation-summary="All" class="text-danger"></div>
+
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="Scope" id="scopeAll"
+                   value="@ExportScope.All" checked="@(Model.Scope == ExportScope.All)" />
+            <label class="form-check-label" for="scopeAll">
+                Export all oracles <span class="text-muted">(@Model.Available.Count)</span>
+            </label>
+        </div>
+
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="radio" name="Scope" id="scopeSelected"
+                   value="@ExportScope.Selected" checked="@(Model.Scope == ExportScope.Selected)" />
+            <label class="form-check-label" for="scopeSelected">
+                Choose which to export
+            </label>
+        </div>
+
+        @* A fieldset so one disabled attribute switches the whole block off. With JavaScript
+           turned off it simply stays enabled, and the server ignores it under Scope = All. *@
+        <fieldset id="oraclePicker" class="mt-3 ms-4">
+            <p class="mb-2" id="pickerLinks">
+                <a href="#" id="selectAll">Select all</a> |
+                <a href="#" id="selectNone">Select none</a>
+            </p>
+
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Oracle Type</th>
+                        <th>Game System</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Available)
+                    {
+                        <tr>
+                            <td>
+                                <input class="form-check-input oracle-pick" type="checkbox"
+                                       name="SelectedIds" value="@item.ID"
+                                       id="oracle-@item.ID"
+                                       checked="@Model.SelectedIds.Contains(item.ID)" />
+                            </td>
+                            <td>
+                                <label class="form-check-label" for="oracle-@item.ID">@item.Name</label>
+                                @if (item.NeedsSetup)
+                                {
+                                    <span class="badge bg-warning text-dark">Needs setup</span>
+                                }
+                            </td>
+                            <td>@Html.DisplayFor(m => item.OracleSubtype)</td>
+                            <td>@item.GameSystemName</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary">Export</button>
+        <a asp-action="Index" class="btn btn-link">Back to List</a>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        // Progressive enhancement only. Without this the picker stays enabled and the server
+        // still ignores it when "Export all" is chosen, so the form works either way.
+        (function () {
+            var picker = document.getElementById('oraclePicker');
+            if (!picker) return;
+
+            var selected = document.getElementById('scopeSelected');
+
+            function sync() {
+                picker.disabled = !selected.checked;
+                picker.style.opacity = selected.checked ? '1' : '0.5';
+            }
+
+            function setAll(value) {
+                picker.querySelectorAll('.oracle-pick').forEach(function (box) {
+                    box.checked = value;
+                });
+            }
+
+            document.getElementsByName('Scope').forEach(function (radio) {
+                radio.addEventListener('change', sync);
+            });
+
+            document.getElementById('selectAll').addEventListener('click', function (e) {
+                e.preventDefault();
+                setAll(true);
+            });
+
+            document.getElementById('selectNone').addEventListener('click', function (e) {
+                e.preventDefault();
+                setAll(false);
+            });
+
+            sync();
+        })();
+    </script>
+}

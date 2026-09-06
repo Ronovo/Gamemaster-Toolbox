@@ -1,0 +1,76 @@
+@using GM_Toolbox.Models.Enums;
+
+@model GM_Toolbox.Models.Oracle
+
+@{
+    ViewData["Title"] = "Create";
+
+    // A new database starts with no game systems. Without this, Create shows an empty
+    // dropdown and the [Range(1, int.MaxValue)] on GameSystemID means the form can never
+    // be submitted — a dead end with nothing on screen explaining why.
+    var gameSystems = ViewBag.GameSystemID as SelectList;
+    var hasGameSystems = gameSystems is not null && gameSystems.Any();
+}
+
+<h1>Create Oracle</h1>
+
+<h4>Oracle</h4>
+<hr />
+
+@if (!hasGameSystems)
+{
+    <div class="row">
+        <div class="col-md-6">
+            <div class="alert alert-info" role="alert">
+                <h5 class="alert-heading">Create a game system first</h5>
+                <p>
+                    Every oracle belongs to a game system, and there aren't any yet.
+                    Add the game you're running &mdash; then come back and build its oracles.
+                </p>
+                <a asp-controller="GameSystems" asp-action="Create" class="btn btn-primary">Add a game system</a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <form asp-action="Create">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="form-group">
+                    <label asp-for="Name" class="control-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mt-4">
+                    <label asp-for="OracleSubtype" class="control-label"></label>
+                    <select asp-for="OracleSubtype" class="form-control" asp-items="Html.GetEnumSelectList<OracleSubtype>()"></select>
+                    <span asp-validation-for="OracleSubtype" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mt-4">
+                    <label asp-for="GameSystemID" class="control-label"></label>
+                    <select asp-for="GameSystemID" class="form-control" asp-items="ViewBag.GameSystemID"></select>
+                    <span asp-validation-for="GameSystemID" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mt-4">
+                    <input type="submit" value="Create" class="btn btn-primary" />
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

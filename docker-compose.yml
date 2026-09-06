@@ -1,0 +1,41 @@
+# Everything needed to run the toolbox on your own machine:
+#
+#   docker compose up -d      then open http://localhost:9000
+#   docker compose down       stop it; your data stays
+#
+# The point of this file is that the two things you must not forget -- publishing a port and
+# mounting somewhere for the database to live -- are written down once instead of being typed
+# correctly every time. Forgetting the volume on a plain `docker run` puts gmtoolbox.db in the
+# container's writable layer, where it is destroyed the next time the container is replaced.
+
+# Pinned so the container and volume are named the same for everyone. Left unset, Compose uses
+# the folder name, and someone who cloned into a differently-named directory would quietly get
+# their own separate volume -- and wonder where their oracles went.
+name: gm-toolbox
+
+services:
+  gm-toolbox:
+    build: .
+    image: gm-toolbox
+    container_name: gm-toolbox
+
+    ports:
+      # host:container. The container always serves plain HTTP on 8080 -- that is baked into the
+      # ASP.NET base image -- but it is published on 9000, which is the one port number this
+      # project uses everywhere, container or not. Binding all interfaces is deliberate: the
+      # people this is for are on the same network, reaching it at http://<this-machine's-ip>:9000.
+      # Change the left number to move it off 9000; use "127.0.0.1:9000:8080" to keep it local.
+      - "9000:8080"
+
+    volumes:
+      # A named volume, not a bind mount to a host folder. The image runs as a non-root user and
+      # chowns /app/App_Data to it; a named volume inherits that ownership, while a host folder
+      # keeps its own and the app cannot create the database. This is where gmtoolbox.db and the
+      # export archives live, and it survives `docker compose down` and rebuilds.
+      - gmtoolbox-data:/app/App_Data
+
+    # Comes back after a reboot or a crash, but stays down if you deliberately stopped it.
+    restart: unless-stopped
+
+volumes:
+  gmtoolbox-data:

@@ -1,0 +1,64 @@
+﻿@model GM_Toolbox.Models.Oracle
+@using GM_Toolbox.Models.Enums
+
+@{
+    ViewData["Title"] = "Configure";
+    var returnTo = ViewData["ReturnTo"] as string;
+}
+
+<h1>Configure: @Model.Name</h1>
+
+@switch (Model.OracleSubtype.Category())
+{
+    case OracleCategory.Dice:
+        {
+            var outcomeCount = Model.OracleEntries.Count;
+
+			var faceCount = Model.OracleSubtype.FaceCount();
+			
+            <p>This is a d@(faceCount) oracle. How many outcomes do you want on the table?</p>
+
+            @if (outcomeCount > 0)
+            {
+                <p class="text-muted">
+                    This oracle currently has @outcomeCount outcomes. Changing the number 
+                    keeps the text you've already entered where the rows line up
+                </p>
+            }
+
+            <form asp-action="Configure" asp-route-id="@Model.ID" asp-route-returnTo="@returnTo" method="post">
+                <div asp-validation-summary="All" class="text-danger"></div>
+
+                <div class="row">
+                    <div class="col-md-2">
+                        <label for="outcomeCount">Number of outcomes</label>
+                        <input type="number" id="outcomeCount" name="outcomeCount"
+                        min="1" max="@faceCount" class="form-control" 
+                        value="@(outcomeCount > 0 ? outcomeCount.ToString() : null)"/>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create outcomes</button>
+            </form>
+        }
+    break;
+ 
+    case OracleCategory.Cards:
+        <p>This will generate the full deck for you to fill in.</p>
+
+        <form asp-action="Configure" asp-route-id="@Model.ID" asp-route-returnTo="@returnTo" method="post">
+            <button type="submit" class="btn btn-primary">Generate deck</button>
+        </form>
+    break;
+}
+
+<p>
+    @if (returnTo == "Index")
+    {
+        <a asp-action="Index">Cancel</a>
+    }
+    else
+    {
+        <a asp-action="Details" asp-route-id="@Model.ID">Cancel</a>
+    }
+</p>

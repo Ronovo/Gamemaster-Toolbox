@@ -1,0 +1,23 @@
+﻿@model GM_Toolbox.Models.ViewModels.ClearAllViewModel
+
+@{
+    ViewData["Title"] = "Clear All";
+}
+
+<h1>Clear All Oracles</h1>
+
+<div class="alert alert-danger">
+    <p>
+        This permanently deletes <strong>@Model.OracleCount</strong> oracle(s)
+        and <strong>@Model.EntryCount</strong> entries. It cannot be undone.
+    </p>
+    <p class="mb-0">Export first if you want a copy you can import back.</p>
+</div>
+
+<a asp-action="Export" class="btn btn-secondary">Export All First</a>
+
+<form asp-action="ClearAll" method="post" class="d-inline">
+    <button type="submit" class="btn btn-danger">Delete Everything</button>
+</form>
+
+<a asp-action="Index" class="btn btn-link">Cancel</a>

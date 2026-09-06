@@ -1,0 +1,23 @@
+﻿@{
+    ViewData["Title"] = "Import";
+}
+
+<h1>Import Oracles</h1>
+
+<p class="text-muted">
+    Adds the oracles in the file to what you already have — it never merges or replaces.
+    Importing the same file twice gives you two copies of everything. Use Clear All first
+    if you want a clean slate.
+</p>
+
+<form asp-action="Import" method="post" enctype="multipart/form-data">
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <div class="form-group mb-3">
+        <label for="file" class="control-label">Export file (.json)</label>
+        <input type="file" id="file" name="file" accept=".json,application/json" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Import</button>
+    <a asp-action="Index" class="btn btn-link">Cancel</a>
+</form>

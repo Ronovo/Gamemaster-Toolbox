@@ -1,0 +1,103 @@
+## .NET / Visual Studio ignore file for GM Toolbox
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+[Bb]uild[Ll]og.*
+artifacts/
+publish/
+[Pp]ublish[Oo]utput/
+*.publishproj
+*.pubxml
+*.pubxml.user
+*.azurePubxml
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.csproj.user
+*.dbmdl
+*.jfm
+*.VisualState.xml
+*.ncrunch*
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Test / coverage results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+project.lock.json
+project.fragment.lock.json
+.nuget/
+
+# Node (only if front-end tooling is added later)
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+# Local secrets and environment overrides
+# NOTE: appsettings.json and appsettings.Development.json are tracked; keep real
+# secrets out of them and use `dotnet user-secrets` or environment variables.
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+*.pfx
+*.snk
+.env
+.env.local
+
+# Databases and EF local artifacts
+*.mdf
+*.ldf
+*.ndf
+*.sdf
+*.db
+*.db-shm
+*.db-wal
+
+# Server-side export archive (runtime data, not source)
+App_Data/Exports/
+App_Data/**/*.json
+
+# Logs
+*.log
+logs/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~

@@ -1,0 +1,68 @@
+@model IEnumerable<GM_Toolbox.Models.ViewModels.OracleListItem>
+
+@{
+    ViewData["Title"] = "Oracles";
+}
+
+<h1>Your Oracles</h1>
+@if (TempData["ImportMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["ImportMessage"]</div>
+}
+<p>
+    <a asp-action="Create">Create New</a>
+    <a asp-action="Export">Export</a>
+    <a asp-action="Import">Import</a>
+    <a asp-action="ClearAll" class="text-danger">Clear All</a>
+</p>
+@if (!Model.Any())
+{
+    <p class="text-muted">No oracles yet. Use <strong>Create New</strong> to build your first one.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>
+                    @Html.DisplayNameFor(model => model.Name)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.OracleSubtype)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.GameSystemName)
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        @Html.DisplayFor(model => item.Name)
+
+                        @if (item.NeedsSetup)
+                        {
+                            <span class="badge bg-warning text-dark">Needs setup</span>
+                        }
+                    </td>
+                    <td>
+                        @Html.DisplayFor(model => item.OracleSubtype)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(model => item.GameSystemName)
+                    </td>
+
+                    <td>
+                        <a asp-action="Configure" asp-route-id="@item.ID" asp-route-returnTo="Index">Configure</a> |
+                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
+                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

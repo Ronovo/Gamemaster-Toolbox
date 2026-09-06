@@ -1,0 +1,43 @@
+﻿@model IEnumerable<GM_Toolbox.Models.GameSystem>
+
+@{
+    ViewData["Title"] = "Game Systems";
+}
+
+<h1>Game Systems</h1>
+
+<p>
+    <a asp-action="Create">Add New</a>
+</p>
+
+@if (!Model.Any())
+{
+    <p class="text-muted">No game systems yet. Use <strong>Add New</strong> to create one.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>@Html.DisplayNameFor(model => model.Name)</th>
+                <th>@Html.DisplayNameFor(model => model.Genre)</th>
+                <th>@Html.DisplayNameFor(model => model.PrimaryOracleType)</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Genre</td>
+                    <td>@(item.PrimaryOracleType?.ToString() ?? "—")</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

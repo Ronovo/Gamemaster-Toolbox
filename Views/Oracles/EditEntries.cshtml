@@ -1,0 +1,39 @@
+﻿@model GM_Toolbox.Models.ViewModels.EditEntriesViewModel
+
+@{
+    ViewData["Title"] = "Edit Entries";
+}
+
+<h1>Outcomes: @Model.Name</h1>
+
+<form asp-action="EditEntries" method="post">
+    <input type="hidden" asp-for="OracleID" />
+
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    @for (int i = 0; i < Model.Rows.Count; i++)
+    {
+        <input type="hidden" asp-for="Rows[i].EntryId" />
+
+        <div class="form-group mb-3">
+            <label asp-for="Rows[i].Result">@Model.Rows[i].Label</label>
+
+            @if (Model.IsDice)
+            {
+                <label asp-for="Rows[i].StartsAt">Roll Starts at</label>
+                <div class="row">
+                    <div class="col-md-2">
+                        <input asp-for="Rows[i].StartsAt" type="number"
+                            min="1" max="@Model.FaceCount"
+                            class="form-control"
+                            readonly="@(i == 0)" />
+                    </div>
+                </div>
+            }
+            <input asp-for="Rows[i].Result" class="form-control" />
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a asp-action="Details" asp-route-id="@Model.OracleID" class="btn btn-link">Cancel</a>
+</form>

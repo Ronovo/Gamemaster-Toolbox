@@ -1,0 +1,48 @@
+@using GM_Toolbox.Models.Enums;
+
+@model GM_Toolbox.Models.Oracle
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+
+<h1>Edit Oracle</h1>
+
+<h4>Oracle</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="ID" />
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group mt-4">
+                <label asp-for="OracleSubtype" class="control-label"></label>
+                <select asp-for="OracleSubtype" class="form-control" asp-items="Html.GetEnumSelectList<OracleSubtype>()"></select>
+                <span asp-validation-for="OracleSubtype" class="text-danger"></span>
+				<small class="text-muted">Changing the type clears this oracle's outcomes and sends you back to Configure.</small>
+            </div>
+            <div class="form-group mt-4">
+                <label asp-for="GameSystemID" class="control-label"></label>
+                <select asp-for="GameSystemID" class="form-control" asp-items="ViewBag.GameSystemID"></select>
+                <span asp-validation-for="GameSystemID" class="text-danger"></span>
+            </div>
+            <div class="form-group mt-4">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
