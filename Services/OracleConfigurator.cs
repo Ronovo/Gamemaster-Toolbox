@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Data;
+using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 
@@ -25,9 +25,12 @@ namespace GM_Toolbox.Services
             switch (oracle.OracleSubtype.Category())
             {
                 case OracleCategory.Dice:
-                    int faceCount = oracle.OracleSubtype.FaceCount();
-                    if (outcomeCount == null || outcomeCount < 1 || outcomeCount > faceCount)
-                        return $"Enter a number between 1 and {faceCount}.";
+                    var spec = oracle.Dice();
+                    if (spec == null)
+                        return "Set this oracle's dice before choosing outcomes.";
+
+                    if (outcomeCount == null || outcomeCount < 1 || outcomeCount > spec.Span)
+                        return $"Enter a number between 1 and {spec.Span}.";
 
                     ReconcileDice(oracle, existing, outcomeCount.Value);
                     break;
@@ -69,6 +72,7 @@ namespace GM_Toolbox.Services
                 if (entry.CardCode == null || !deckCodes.Contains(entry.CardCode))
                     _context.OracleEntries.Remove(entry);
 
+            // Add the net entries to the deck
             for (int n = 0; n < deck.Count; n++)
             {
                 if (existingByCode.TryGetValue(deck[n].CardCode, out var entry))

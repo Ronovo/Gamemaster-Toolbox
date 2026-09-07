@@ -1,4 +1,4 @@
-﻿@model GM_Toolbox.Models.Oracle
+@model GM_Toolbox.Models.Oracle
 @using GM_Toolbox.Models.Enums
 
 @{
@@ -13,33 +13,52 @@
     case OracleCategory.Dice:
         {
             var outcomeCount = Model.OracleEntries.Count;
+            var spec = Model.Dice();
 
-			var faceCount = Model.OracleSubtype.FaceCount();
-			
-            <p>This is a d@(faceCount) oracle. How many outcomes do you want on the table?</p>
-
-            @if (outcomeCount > 0)
+            if (spec == null)
             {
-                <p class="text-muted">
-                    This oracle currently has @outcomeCount outcomes. Changing the number 
-                    keeps the text you've already entered where the rows line up
-                </p>
-            }
-
-            <form asp-action="Configure" asp-route-id="@Model.ID" asp-route-returnTo="@returnTo" method="post">
-                <div asp-validation-summary="All" class="text-danger"></div>
-
-                <div class="row">
-                    <div class="col-md-2">
-                        <label for="outcomeCount">Number of outcomes</label>
-                        <input type="number" id="outcomeCount" name="outcomeCount"
-                        min="1" max="@faceCount" class="form-control" 
-                        value="@(outcomeCount > 0 ? outcomeCount.ToString() : null)"/>
-                    </div>
+                <div class="alert alert-warning">
+                    This oracle's dice haven't been set.
+                    <a asp-action="Edit" asp-route-id="@Model.ID">Set them</a> before choosing outcomes.
                 </div>
+            }
+            else
+            {
+                if (spec.Count > 1)
+                {
+                    <p>
+                        This is a @spec.Label oracle. Totals run @spec.Min to @spec.Max,
+                        so you can have up to @spec.Span outcomes. How many do you want?
+                    </p>
+                }
+                else
+                {
+                    <p>This is a @spec.Label oracle. How many outcomes do you want on the table?</p>
+                }
 
-                <button type="submit" class="btn btn-primary">Create outcomes</button>
-            </form>
+                if (outcomeCount > 0)
+                {
+                    <p class="text-muted">
+                        This oracle currently has @outcomeCount outcomes. Changing the number
+                        keeps the text you've already entered where the rows line up
+                    </p>
+                }
+
+                <form asp-action="Configure" asp-route-id="@Model.ID" asp-route-returnTo="@returnTo" method="post">
+                    <div asp-validation-summary="All" class="text-danger"></div>
+
+                    <div class="row">
+                        <div class="col-md-2">
+                            <label for="outcomeCount">Number of outcomes</label>
+                            <input type="text" inputmode="numeric" id="outcomeCount" name="outcomeCount"
+                                   class="form-control"
+                                   value="@(outcomeCount > 0 ? outcomeCount.ToString() : null)" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Create outcomes</button>
+                </form>
+            }
         }
     break;
  

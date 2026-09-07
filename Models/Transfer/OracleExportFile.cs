@@ -1,4 +1,4 @@
-﻿namespace GM_Toolbox.Models.Transfer
+namespace GM_Toolbox.Models.Transfer
 {
     /// <summary>
     /// The whole export file — one of these is what gets serialised to the .json
@@ -8,7 +8,7 @@
     /// </summary>
     public class OracleExportFile
     {
-        public int FormatVersion { get; set; } = 1;
+        public int FormatVersion { get; set; } = 2;
         public DateTime ExportedUtc { get; set; }
         public List<OracleDto> Oracles { get; set; } = new List<OracleDto>();
     }
@@ -17,8 +17,12 @@
     /// One oracle, as it appears in the file.
     ///
     /// GameSystem and Subtype are strings, not enums, on purpose: an unknown value
-    /// like "D7" should come back as a readable error naming the oracle, not as a
+    /// like "Runes" should come back as a readable error naming the oracle, not as a
     /// deserialisation crash. The importer parses them itself.
+    ///
+    /// Subtype is "Dice", "PlayingCards" or "TarotCards". A dice oracle also carries
+    /// DiceCount / DiceFaces (both required for it, held to the same 1-10 / 2-100 rules
+    /// the form uses); the two card kinds leave them null.
     ///
     /// MULTI-USER: no owner field belongs here, now or later. Ownership is a fact
     /// about a database row, not about a portable file — importing someone else's
@@ -29,6 +33,10 @@
         public string Name { get; set; } = string.Empty;
         public string GameSystem { get; set; } = string.Empty;
         public string Subtype { get; set; } = string.Empty;
+
+        public int? DiceCount { get; set; }
+        public int? DiceFaces { get; set; }
+
         public List<OracleEntryDto> Entries { get; set; } = new List<OracleEntryDto>();
     }
 

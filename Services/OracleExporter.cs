@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Models;
+using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
 
@@ -16,7 +16,7 @@ namespace GM_Toolbox.Services
         {
             var file = new OracleExportFile
             {
-                FormatVersion = 1,
+                FormatVersion = 2,
                 ExportedUtc = DateTime.UtcNow
             };
 
@@ -26,7 +26,9 @@ namespace GM_Toolbox.Services
                 {
                     Name = oracle.Name,
                     GameSystem = oracle.GameSystem!.Name,
-                    Subtype = oracle.OracleSubtype.ToString()
+                    Subtype = oracle.OracleSubtype.ToString(),
+                    DiceCount = oracle.DiceCount,
+                    DiceFaces = oracle.DiceFaces
                 };
 
                 foreach (var entry in oracle.OracleEntries.OrderBy(e => e.SortOrder))

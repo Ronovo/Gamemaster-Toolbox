@@ -23,8 +23,7 @@
                 <label asp-for="Rows[i].StartsAt">Roll Starts at</label>
                 <div class="row">
                     <div class="col-md-2">
-                        <input asp-for="Rows[i].StartsAt" type="number"
-                            min="1" max="@Model.FaceCount"
+                        <input asp-for="Rows[i].StartsAt" type="text" inputmode="numeric"
                             class="form-control"
                             readonly="@(i == 0)" />
                     </div>

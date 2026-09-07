@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Data;
+using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Rendering;
-
 
 public class OraclesController : Controller
 {
@@ -41,16 +40,89 @@ public class OraclesController : Controller
         return View(existing);
     }
 
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Roll(int? id)
     {
-        ViewData["GameSystemID"] = await GameSystemSelectList();
-        return View();
+        if (id == null) return NotFound();
+
+        var oracle = await LoadOracleWithEntries(id);
+        if (oracle == null) return NotFound();
+
+        if (oracle.OracleSubtype.Category() == OracleCategory.Cards)
+        {
+            ViewData["CardsRemaining"] = OracleRoller.CardsRemaining(oracle, HttpContext.Session);
+        }
+
+        if (TempData["RollOutcome"] is string rollJson)
+        {
+            ViewData["RollOutcome"] = JsonSerializer.Deserialize<RollOutcome>(rollJson);
+        }
+
+        if (TempData["RollError"] is string rollError)
+        {
+            ViewData["RollError"] = rollError;
+        }
+
+        return View(oracle);
+    }
+
+    [HttpPost, ActionName("Roll")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RollOnce(int id)
+    {
+        var oracle = await LoadOracleWithEntries(id);
+        if (oracle == null) return NotFound();
+
+        var blocked = oracle.RollBlockedReason();
+        if (blocked != null)
+        {
+            return RollResponse(id, null, blocked);
+        }
+
+        var error = OracleRoller.TryRoll(oracle, HttpContext.Session, out var outcome);
+        if (error != null || outcome == null)
+        {
+            return RollResponse(id, null, error ?? "That roll produced no outcome.");
+        }
+
+        return RollResponse(id, outcome, null);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,OracleSubtype,GameSystemID")] Oracle oracle)
+    public async Task<IActionResult> Reshuffle(int id)
     {
+        var oracle = await LoadOracleWithEntries(id);
+        if (oracle == null) return NotFound();
+
+        if (oracle.OracleSubtype.Category() != OracleCategory.Cards)
+        {
+            return BadRequest("Only card oracles have a deck to reshuffle.");
+        }
+
+        OracleRoller.Reshuffle(oracle, HttpContext.Session);
+
+        if (IsAjaxRequest)
+        {
+            return Json(new { cardsRemaining = OracleRoller.CardsRemaining(oracle, HttpContext.Session) });
+        }
+
+        return RedirectToAction(nameof(Roll), new { id });
+    }
+
+    public async Task<IActionResult> Create()
+    {
+        ViewData["GameSystemID"] = await GameSystemSelectList();
+        ViewData["OracleSubtype"] = SubtypeSelectList();
+        // Start on a plain d6 so the die preset and its fields have something to show.
+        return View(new Oracle { DiceCount = 1, DiceFaces = 6 });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create([Bind("Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
+    {
+        ClearDiceForCards(oracle);
+
         if (ModelState.IsValid)
         {
             _context.Add(oracle);
@@ -58,6 +130,7 @@ public class OraclesController : Controller
             return RedirectToAction(nameof(Configure), new { id = oracle.ID });
         }
         ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
+        ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
         return View(oracle);
     }
 
@@ -77,26 +150,31 @@ public class OraclesController : Controller
         }
 
         ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
+        ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
         return View(oracle);
     }
 
-    // Changing the subtype deletes every existing entry and sends the user to Configure:
-    // a d6's three bands mean nothing on a tarot deck, so there is nothing to carry over.
+    // Changing the subtype, or a custom oracle's dice, deletes every existing entry and
+    // sends the user to Configure: a d6's three bands mean nothing on a tarot deck, so there
+    // is nothing to carry over.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID")] Oracle oracle)
+    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
     {
         if (id != oracle.ID)
         {
             return NotFound();
         }
 
+        ClearDiceForCards(oracle);
+
 		if (!ModelState.IsValid)
 		{
             ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
+            ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
             return View(oracle);
 		}
-		
+
 		// Load-then-assign, never _context.Update() on the bound object. Update() marks
 		// every scalar modified, so any property missing from the [Bind] list above is
 		// written back as its default. That list happens to be complete today; it silently
@@ -108,21 +186,25 @@ public class OraclesController : Controller
 			return NotFound();
 		}
 
-		bool subtypeChanged = existing.OracleSubtype != oracle.OracleSubtype;
-		
+		bool rollChanged = existing.OracleSubtype != oracle.OracleSubtype
+			|| existing.DiceCount != oracle.DiceCount
+			|| existing.DiceFaces != oracle.DiceFaces;
+
 		existing.Name = oracle.Name;
 		existing.GameSystemID = oracle.GameSystemID;
 		existing.OracleSubtype = oracle.OracleSubtype;
-		
-		if (subtypeChanged)
+		existing.DiceCount = oracle.DiceCount;
+		existing.DiceFaces = oracle.DiceFaces;
+
+		if (rollChanged)
 		{
 			_context.OracleEntries.RemoveRange(existing.OracleEntries.ToList());
 		}
-		
+
 		await _context.SaveChangesAsync();
-		
-		if (subtypeChanged)
-		{ 
+
+		if (rollChanged)
+		{
 			return RedirectToAction(nameof(Configure), new { id = existing.ID });
 		}
 		
@@ -204,12 +286,14 @@ public class OraclesController : Controller
         if (oracle == null) return NotFound();
 
         var isDice = oracle.OracleSubtype.Category() == OracleCategory.Dice;
+        var spec = oracle.Dice();
         var vm = new EditEntriesViewModel
         {
             OracleID = oracle.ID,
             Name = oracle.Name,
             IsDice = isDice,
-            FaceCount = isDice ? oracle.OracleSubtype.FaceCount() : 0,
+            MinRoll = spec?.Min ?? 0,
+            MaxRoll = spec?.Max ?? 0,
             Rows = oracle.OracleEntries
            .OrderBy(e => e.SortOrder)
            .Select(e => new EntryRow
@@ -217,7 +301,7 @@ public class OraclesController : Controller
                EntryId = e.ID,
                Label = e.CardLabel ?? $"Outcome {e.SortOrder}",
                Result = e.Result,
-               StartsAt = e.RangeStart ?? e.SortOrder
+               StartsAt = e.RangeStart ?? (spec?.Min ?? 1) + e.SortOrder - 1
            })
            .ToList()
         };
@@ -235,8 +319,10 @@ public class OraclesController : Controller
 
         var entries = oracle.OracleEntries.OrderBy(e => e.SortOrder).ToList();
         var isDice = oracle.OracleSubtype.Category() == OracleCategory.Dice;
+        var spec = oracle.Dice();
 
-        int faceCount = isDice ? oracle.OracleSubtype.FaceCount() : 0;
+        int minRoll = spec?.Min ?? 0;
+        int maxRoll = spec?.Max ?? 0;
 
         if (isDice)
         {
@@ -244,23 +330,24 @@ public class OraclesController : Controller
             {
                 int startsAt = vm.Rows[i].StartsAt;
 
-                if (i == 0 && startsAt != 1)
-                    ModelState.AddModelError("", "The first outcome must start at 1.");
+                if (i == 0 && startsAt != minRoll)
+                    ModelState.AddModelError("", $"The first outcome must start at {minRoll}.");
 
-                if (startsAt < 1 || startsAt > faceCount)
-                    ModelState.AddModelError("", $"Row {i + 1}: start must be between 1 and {faceCount}.");
+                if (startsAt < minRoll || startsAt > maxRoll)
+                    ModelState.AddModelError("", $"Row {i + 1}: start must be between {minRoll} and {maxRoll}.");
 
                 if (i > 0 && startsAt <= vm.Rows[i - 1].StartsAt)
                     ModelState.AddModelError("", $"Row {i + 1}: start must be greater than the row above.");
             }
         }
 
-        if (!ModelState.IsValid) 
+        if (!ModelState.IsValid)
         {
             // Rebuild the fields the form didn't post back, then re-show
             vm.Name = oracle.Name;
             vm.IsDice = isDice;
-            vm.FaceCount = faceCount;
+            vm.MinRoll = minRoll;
+            vm.MaxRoll = maxRoll;
             for (int i = 0; i < vm.Rows.Count && i < entries.Count; i++)
                 vm.Rows[i].Label = entries[i].CardLabel ?? $"Outcome {entries[i].SortOrder}";
             return View(vm);
@@ -278,11 +365,11 @@ public class OraclesController : Controller
             {
                 // Bands are derived, not entered. The user gives only each band's start;
                 // a band ends one before the next one begins, and the last runs to the
-                // die's face count. Starts 1/3/5 on a d6 give 1-2, 3-4, 5-6.
+                // highest total the dice can roll. Starts 1/3/5 on a d6 give 1-2, 3-4, 5-6.
                 entry.RangeStart = row.StartsAt;
                 entry.RangeEnd = (i < vm.Rows.Count - 1)
                     ? vm.Rows[i + 1].StartsAt - 1
-                    : faceCount;
+                    : maxRoll;
             }
         }
 
@@ -433,6 +520,27 @@ public class OraclesController : Controller
 
     // ------------------------------------------------------------------------ helpers
 
+    private bool IsAjaxRequest => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+    private IActionResult RollResponse(int id, RollOutcome? outcome, string? error)
+    {
+        if (IsAjaxRequest)
+        {
+            return error != null ? Json(new { error }) : Json(outcome);
+        }
+
+        if (error != null)
+        {
+            TempData["RollError"] = error;
+        }
+        else
+        {
+            TempData["RollOutcome"] = JsonSerializer.Serialize(outcome);
+        }
+
+        return RedirectToAction(nameof(Roll), new { id });
+    }
+
     // Projects rather than .Include()s on purpose. The list needs OracleListItem.NeedsSetup,
     // which calls Category() — a C# switch EF cannot translate to SQL. So the two raw counts
     // it depends on come back from the database and NeedsSetup is worked out in memory.
@@ -446,6 +554,8 @@ public class OraclesController : Controller
                 ID = o.ID,
                 Name = o.Name,
                 OracleSubtype = o.OracleSubtype,
+                DiceCount = o.DiceCount,
+                DiceFaces = o.DiceFaces,
                 GameSystemName = o.GameSystem!.Name,
                 EntryCount = o.OracleEntries.Count,
                 HasUnbandedEntries = o.OracleEntries.Any(e => e.RangeStart == null)
@@ -471,6 +581,36 @@ public class OraclesController : Controller
             .Include(o => o.OracleEntries)
             .Include(o => o.GameSystem)
             .FirstOrDefaultAsync(o => o.ID == id);
+    }
+
+    // A card oracle has no dice geometry: null the columns whatever the form posted. A dice
+    // oracle keeps whatever came in (the die preset on the form fills them; Validate() then
+    // guarantees both are set).
+    private static void ClearDiceForCards(Oracle oracle)
+    {
+        if (oracle.OracleSubtype.Category() != OracleCategory.Cards)
+        {
+            return;
+        }
+
+        oracle.DiceCount = null;
+        oracle.DiceFaces = null;
+    }
+
+    private static SelectList SubtypeSelectList(OracleSubtype? selected = null)
+    {
+        var ordered = new[]
+        {
+            OracleSubtype.Dice,
+            OracleSubtype.PlayingCards,
+            OracleSubtype.TarotCards,
+        };
+
+        var items = ordered
+            .Select(s => new { Value = s.ToString(), Text = s.DisplayName() })
+            .ToList();
+
+        return new SelectList(items, "Value", "Text", (selected ?? OracleSubtype.Dice).ToString());
     }
 
     private async Task<SelectList> GameSystemSelectList(int? selected = null)

@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Models;
+using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
 
@@ -16,14 +16,12 @@ namespace GM_Toolbox.Services
     /// </summary>
     public static class OracleImporter
     {
-        public const int SupportedFormatVersion = 1;
+        public const int SupportedFormatVersion = 2;
 
         public static string? TryBuild(OracleExportFile? file, IEnumerable<GameSystem> existingSystems, out List<Oracle> oracles)
         {
             // Two lists on purpose. Work accumulates in `imported`, and `oracles` is only
-            // pointed at it once every oracle in the file has validated. Adding straight to
-            // the out parameter would hand the caller a half-built graph on the error paths
-            // below, which is exactly the all-or-nothing guarantee this must not break.
+            // pointed at it once every oracle in the file has validated.
             oracles = new List<Oracle>();
             var imported = new List<Oracle>();
             var systemsByName = existingSystems.ToDictionary(
@@ -61,7 +59,17 @@ namespace GM_Toolbox.Services
                     systemsByName[dto.GameSystem] = system;
                 }
 
-                var error = BuildEntries(label, dto.Name, subtype, dto.Entries ?? new List<OracleEntryDto>(), out var built);
+                bool isDice = subtype.Category() == OracleCategory.Dice;
+                int? diceCount = isDice ? dto.DiceCount : null;
+                int? diceFaces = isDice ? dto.DiceFaces : null;
+
+                var diceError = ValidateDice(label, dto.Name, subtype, diceCount, diceFaces);
+                if (diceError != null)
+                    return diceError;
+
+                var spec = DiceSpec.For(subtype, diceCount, diceFaces);
+
+                var error = BuildEntries(label, dto.Name, subtype, spec, dto.Entries ?? new List<OracleEntryDto>(), out var built);
                 if (error != null)
                     return error;
 
@@ -69,7 +77,9 @@ namespace GM_Toolbox.Services
                 {
                     Name = dto.Name,
                     GameSystem = system,
-                    OracleSubtype = subtype
+                    OracleSubtype = subtype,
+                    DiceCount = diceCount,
+                    DiceFaces = diceFaces
                 };
 
                 foreach (var entry in built)
@@ -82,8 +92,26 @@ namespace GM_Toolbox.Services
             return null;
         }
 
+        private static string? ValidateDice(string label, string name, OracleSubtype subtype,
+            int? diceCount, int? diceFaces)
+        {
+            if (subtype.Category() != OracleCategory.Dice)
+                return null;
+
+            if (diceCount == null || diceFaces == null)
+                return $"{label} (\"{name}\"): a dice oracle needs both diceCount and diceFaces.";
+
+            if (diceCount < 1 || diceCount > 10)
+                return $"{label} (\"{name}\"): diceCount is {diceCount}; it must be between 1 and 10.";
+
+            if (diceFaces < 2 || diceFaces > 100)
+                return $"{label} (\"{name}\"): diceFaces is {diceFaces}; it must be between 2 and 100.";
+
+            return null;
+        }
+
         private static string? BuildEntries(string label, string name, OracleSubtype subtype,
-            List<OracleEntryDto> entries, out List<OracleEntry> built)
+            DiceSpec? spec, List<OracleEntryDto> entries, out List<OracleEntry> built)
         {
             built = new List<OracleEntry>();
 
@@ -95,10 +123,8 @@ namespace GM_Toolbox.Services
 
             if (subtype.Category() == OracleCategory.Dice)
             {
-                int faceCount = subtype.FaceCount();
-
-                if (entries.Count > faceCount)
-                    return $"{label} (\"{name}\"): {entries.Count} outcomes on a {subtype}, which has only {faceCount} faces.";
+                if (spec != null && entries.Count > spec.Span)
+                    return $"{label} (\"{name}\"): {entries.Count} outcomes on a {spec.Label}, which has only {spec.Span} totals.";
 
                 for (int n = 0; n < entries.Count; n++)
                 {

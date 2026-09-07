@@ -8,10 +8,12 @@ There is no database server to install: your whole toolbox is one file at
 
 ## Features
 - **Game Systems** - Add the name of any game and set a custom genre.
-- **Oracle Builder** — create an oracle, pick a game system and a subtype, and the app
+- **Oracle Builder** — create an oracle, pick a game system and a type, and the app
   generates the outcome rows for you.
-  - *Dice oracles* (D4, D6, D8, D10, D12, D20, D100)
-  - *Card oracles*
+  - *Dice Oracles* — any die from a d2 to a d100, one or several at once (2d6, 3d10, …).
+    The type picker offers the common dice as one-click presets; "Custom" is there for a
+    d3, a d7, or a pool of several.
+- **Rolling and Drawing**
 - **Export / Import** — download every oracle as a single versioned JSON file, and read one
   back in. The format carries no database IDs, so a file exported from one instance imports
   cleanly into another. Exports are also archived server-side under `App_Data/Exports/`.
@@ -72,25 +74,37 @@ Currently Supported Import/Export Systems:
 
 ### How an oracle is put together
 
-An `Oracle` is a name, a `GameSystem`, and an `OracleSubtype`. The subtype decides its
-category — dice or cards — and that in turn decides how its `OracleEntry` rows are shaped:
+An `Oracle` is a name, a `GameSystem`, and an `OracleSubtype`. The subtype is just the
+kind of oracle — `Dice`, `PlayingCards` or `TarotCards`. `Category()` folds that to dice
+or cards, and that in turn decides how its `OracleEntry` rows are shaped:
 
 | Category | Keyed by | Rows come from |
 | --- | --- | --- |
 | Dice | `RangeStart` / `RangeEnd` | The outcome count you ask for; you set each band's start, the end is derived |
 | Cards | `CardCode` / `CardLabel` | `DeckFactory`, which builds the whole deck |
 
+Every dice oracle stores its die in two columns, `DiceCount` and `DiceFaces` — a plain d8
+is `1` and `8`, a 2d6 is `2` and `6`. They are the single source of truth for the die
+(null only on the two card kinds); the type picker's "d4…d100" presets are just a shortcut
+that fills them in. `DiceSpec` is the one place they are read, and it also answers what a
+set of dice can roll: a 2d6 has a minimum of 2, a maximum of 12 and eleven distinct
+totals, so eleven outcomes fit on it and the first band has to start at 2 rather than 1.
+A card draw deals off a shuffled list of that oracle's entries held in your browser session.
+Which cards are left is per-person and per-sitting, and is never exported, imported or saved to the database.
+
 #### JSON export format
 
 ```json
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "exportedUtc": "2026-09-03T11:08:28Z",
   "oracles": [
     {
       "name": "Wilderness Encounter",
       "gameSystem": "Dungeons & Dragons",
-      "subtype": "D20",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 20,
       "entries": [
         { "sortOrder": 1, "rangeStart": 1, "rangeEnd": 10, "result": "Nothing happens." },
         { "sortOrder": 2, "rangeStart": 11, "rangeEnd": 20, "result": "A patrol spots you." }
@@ -109,9 +123,14 @@ nothing matches, that system is created for you with its genre set to "Unknown".
 someone else's file never fails because you don't happen to run their game — you just get their
 system added, ready to rename or fill in.
 
-`subtype` is a fixed set (`D4`…`D100`, `PlayingCards`, `Tarot`). An unrecognised value there is
-a real error, and import stops with a message naming the oracle rather than crashing on
-deserialisation.
+`subtype` is a fixed set — `Dice`, `PlayingCards`, `TarotCards`. An unrecognised value
+there is a real error, and import stops with a message naming the oracle rather than
+crashing on deserialisation. Allows for addition of oracles in the future.
+
+A `Dice` oracle also carries `diceCount` and `diceFaces` (both required, held to the same
+1–10 / 2–100 rules the form uses); the two card kinds write neither. Collapsing the old
+per-size subtypes (`D4`…`D100`, `Custom`) into `Dice` plus those two fields is the change
+that took the format to version 2; version 1 files no longer import.
 
 Entries carry either the dice fields or the card fields, never both.
 

@@ -13,8 +13,7 @@ namespace GM_Toolbox.Models
         [Required, MaxLength(100)]
         public string Genre { get; set; } = string.Empty;
 
-        // Stored and editable, but nothing reads it yet. Intended as the pre-selected subtype
-        // when creating an oracle for this system. Not a wiring bug — just not wired up.
+        // Stored and editable, but nothing reads it yet. 
         [Display(Name = "Primary Oracle Type")]
         public OracleSubtype? PrimaryOracleType { get; set; }
     }

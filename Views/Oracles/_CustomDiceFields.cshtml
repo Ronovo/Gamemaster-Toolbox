@@ -1,0 +1,36 @@
+@using GM_Toolbox.Models.Enums
+@model GM_Toolbox.Models.Oracle
+
+@{
+    var standardFaces = new[] { 4, 6, 8, 10, 12, 20, 100 };
+    var preset = Model.DiceCount == 1 && Model.DiceFaces is int f && standardFaces.Contains(f)
+        ? $"d{f}"
+        : "custom";
+    var isCustom = preset == "custom";
+}
+
+<div id="diceFields" class="form-group mt-4" hidden="@(Model.OracleSubtype.Category() != OracleCategory.Dice)">
+    <select id="dicePreset" class="form-control">
+        <option value="d4" selected="@(preset == "d4")">d4</option>
+        <option value="d6" selected="@(preset == "d6")">d6</option>
+        <option value="d8" selected="@(preset == "d8")">d8</option>
+        <option value="d10" selected="@(preset == "d10")">d10</option>
+        <option value="d12" selected="@(preset == "d12")">d12</option>
+        <option value="d20" selected="@(preset == "d20")">d20</option>
+        <option value="d100" selected="@(preset == "d100")">d100</option>
+        <option value="custom" selected="@isCustom">Custom&hellip;</option>
+    </select>
+
+    <div class="row g-2 mt-1">
+        <div class="col-6">
+            <label asp-for="DiceCount" class="control-label"></label>
+            <input asp-for="DiceCount" type="text" inputmode="numeric" class="form-control" />
+            <span asp-validation-for="DiceCount" class="text-danger"></span>
+        </div>
+        <div class="col-6">
+            <label asp-for="DiceFaces" class="control-label"></label>
+            <input asp-for="DiceFaces" type="text" inputmode="numeric" class="form-control" />
+            <span asp-validation-for="DiceFaces" class="text-danger"></span>
+        </div>
+    </div>
+</div>

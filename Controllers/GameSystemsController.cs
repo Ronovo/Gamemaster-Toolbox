@@ -102,10 +102,6 @@ public class GameSystemsController : Controller
 
     // Renamed because the POST would otherwise share a signature with the GET;
     // [ActionName] keeps the route as Delete.
-    //
-    // The in-use guard below pairs with OnDelete(DeleteBehavior.Restrict) on the FK, the
-    // same way the name check pairs with the unique index: the guard writes the message,
-    // the constraint is the guarantee.
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)

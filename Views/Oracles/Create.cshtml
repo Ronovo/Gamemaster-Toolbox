@@ -47,9 +47,11 @@ else
 
                 <div class="form-group mt-4">
                     <label asp-for="OracleSubtype" class="control-label"></label>
-                    <select asp-for="OracleSubtype" class="form-control" asp-items="Html.GetEnumSelectList<OracleSubtype>()"></select>
+                    <select asp-for="OracleSubtype" class="form-control" asp-items="ViewBag.OracleSubtype"></select>
                     <span asp-validation-for="OracleSubtype" class="text-danger"></span>
                 </div>
+
+                <partial name="_CustomDiceFields" model="Model" />
 
                 <div class="form-group mt-4">
                     <label asp-for="GameSystemID" class="control-label"></label>

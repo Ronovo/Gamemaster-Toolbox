@@ -51,6 +51,12 @@ namespace GM_Toolbox.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("DiceCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("DiceFaces")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("GameSystemID")
                         .HasColumnType("INTEGER");
 

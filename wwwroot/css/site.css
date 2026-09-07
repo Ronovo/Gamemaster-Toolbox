@@ -29,3 +29,28 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+.roll-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.roll-log-key {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.outcome-list > summary {
+  cursor: pointer;
+  color: var(--bs-link-color);
+}
+
+.outcome-list > summary .summary-hide,
+.outcome-list[open] > summary .summary-show {
+  display: none;
+}
+
+.outcome-list[open] > summary .summary-hide {
+  display: inline;
+}

@@ -49,13 +49,17 @@ else
                         }
                     </td>
                     <td>
-                        @Html.DisplayFor(model => item.OracleSubtype)
+                        @item.TypeLabel
                     </td>
                     <td>
                         @Html.DisplayFor(model => item.GameSystemName)
                     </td>
 
                     <td>
+                        @if (!item.NeedsSetup)
+                        {
+                            <a asp-action="Roll" asp-route-id="@item.ID"><strong>Roll</strong></a><text> | </text>
+                        }
                         <a asp-action="Configure" asp-route-id="@item.ID" asp-route-returnTo="Index">Configure</a> |
                         <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
                         <a asp-action="Details" asp-route-id="@item.ID">Details</a> |

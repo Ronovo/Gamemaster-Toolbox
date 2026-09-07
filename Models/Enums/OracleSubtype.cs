@@ -1,23 +1,20 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models.Enums
 {
-    // The numbering is out of order on purpose, and it is safe: the value is persisted as a
-    // string via HasConversion<string>(), so these numbers never reach the database. Do not
-    // tidy them anyway — 0 is what an unset OracleSubtype takes, and D6 is the right default
-    // for that. Renumbering would silently change what a new oracle starts as.
+    // Persisted as a string via HasConversion<string>(), so the numeric values never reach
+    // the database and are free to be tidy. Dice = 0 is what an unset OracleSubtype takes,
+    // and a dice oracle is the right default.
+    //
+    // This says only what kind of oracle it is. A dice oracle's geometry lives in the
+    // Oracle.DiceCount / Oracle.DiceFaces columns (every dice oracle, not just "custom"
+    // ones); the two card kinds pick which deck DeckFactory builds.
     public enum OracleSubtype
     {
-        D4 = 1,
-        D6 = 0,
-        D8 = 2, 
-        D10 = 3, 
-        D12 = 4, 
-        D20 = 5, 
-        D100 = 6,
+        Dice = 0,
         [Display(Name = "Playing Cards")]
-        PlayingCards = 7,
+        PlayingCards = 1,
         [Display(Name = "Tarot Cards")]
-        TarotCards = 8
+        TarotCards = 2,
     }
 }

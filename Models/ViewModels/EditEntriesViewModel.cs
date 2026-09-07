@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models.ViewModels
 {
@@ -7,7 +7,9 @@ namespace GM_Toolbox.Models.ViewModels
         public int OracleID { get; set; }
         public string? Name { get; set; }
         public bool IsDice { get; set; }
-        public int FaceCount {  get; set; }
+
+        public int MinRoll { get; set; }
+        public int MaxRoll { get; set; }
         public List<EntryRow> Rows { get; set; } = new List<EntryRow>();
     }
 

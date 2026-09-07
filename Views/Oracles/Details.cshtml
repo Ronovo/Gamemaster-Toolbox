@@ -6,10 +6,20 @@
 
     var isDice = Model.OracleSubtype.Category() == OracleCategory.Dice;
     var entries = Model.OracleEntries.OrderBy(e => e.SortOrder).ToList();
-    var missingBands = isDice && entries.Any(e => e.RangeStart == null);
+
+    var blockedReason = Model.RollBlockedReason();
+
+    // Long outcome lists (a big die, or a whole card deck) get paged 10 at a time
+    var spec = Model.Dice();
+    var pageOutcomes = !isDice || (spec != null && spec.Faces > 11);
 }
 
 <h1>@Model.Name</h1>
+
+@if (blockedReason != null)
+{
+    <div class="alert alert-warning">@blockedReason</div>
+}
 
 <div>
     <h4>Oracle</h4>
@@ -25,7 +35,7 @@
             @Html.DisplayNameFor(model => model.OracleSubtype)
         </dt>
         <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.OracleSubtype)
+            @Model.TypeLabel()
         </dd>
         <dt class="col-sm-2">
             Game System
@@ -35,24 +45,15 @@
         </dd>
     </dl>
 </div>
-<div>
-    <h4>Outcomes</h4>
-    <hr />
 
-    @if (entries.Count == 0)
-    {
-        <p class="text-muted">This oracle has no outcomes yet. Use Configure to create them.</p>
-    }
-    else
-    {
-        @if (missingBands)
-        {
-            <div class="alert alert-warning">
-                The roll ranges haven't been set yet. Use Configure to finish this oracle.
-            </div>
-        }
-
-        <table class="table">
+@if (entries.Count > 0)
+{
+    <details class="outcome-list mb-3">
+        <summary class="mb-2">
+            <span class="summary-show">Show</span><span class="summary-hide">Hide</span>
+            all @entries.Count @(isDice ? "outcomes" : "cards")
+        </summary>
+        <table class="table" id="outcomeTable">
             <thead>
                 <tr>
                     <th>@(isDice ? "Roll" : "Card")</th>
@@ -69,11 +70,64 @@
                 }
             </tbody>
         </table>
-    }
-</div>
+
+        @if (pageOutcomes)
+        {
+            <nav id="outcomePager" class="d-flex align-items-center gap-2" hidden>
+                <button type="button" id="outcomePrev" class="btn btn-sm btn-outline-secondary">Previous</button>
+                <span id="outcomePageInfo" class="small text-muted"></span>
+                <button type="button" id="outcomeNext" class="btn btn-sm btn-outline-secondary">Next</button>
+            </nav>
+        }
+    </details>
+}
+
+@if (blockedReason == null)
+{
+    <p>
+        <a asp-action="Roll" asp-route-id="@Model.ID" class="btn btn-primary">Roll this oracle</a>
+    </p>
+}
+
 <div>
     <a asp-action="Configure" asp-route-id="@Model?.ID">Configure</a> |
     <a asp-action="Edit" asp-route-id="@Model?.ID">Edit</a> |
     <a asp-action="Delete" asp-route-id="@Model?.ID">Delete</a> |
     <a asp-action="Index">Back to List</a>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var pager = document.getElementById("outcomePager");
+            if (!pager) return;
+
+            var PAGE_SIZE = 10;
+            var rows = Array.prototype.slice.call(
+                document.querySelectorAll("#outcomeTable tbody tr"));
+            if (rows.length <= PAGE_SIZE) return;
+
+            var prev = document.getElementById("outcomePrev");
+            var next = document.getElementById("outcomeNext");
+            var info = document.getElementById("outcomePageInfo");
+            var totalPages = Math.ceil(rows.length / PAGE_SIZE);
+            var page = 1;
+
+            function render() {
+                var start = (page - 1) * PAGE_SIZE;
+                for (var i = 0; i < rows.length; i++) {
+                    rows[i].classList.toggle("d-none", i < start || i >= start + PAGE_SIZE);
+                }
+                info.textContent = "Page " + page + " of " + totalPages;
+                prev.disabled = page === 1;
+                next.disabled = page === totalPages;
+            }
+
+            prev.addEventListener("click", function () { if (page > 1) { page--; render(); } });
+            next.addEventListener("click", function () { if (page < totalPages) { page++; render(); } });
+
+            pager.hidden = false;
+            render();
+        })();
+    </script>
+}

@@ -1,0 +1,256 @@
+@model GM_Toolbox.Models.Oracle
+@using GM_Toolbox.Models.Enums
+@using GM_Toolbox.Models.ViewModels
+
+@{
+    ViewData["Title"] = "Roll";
+
+    var isDice = Model.OracleSubtype.Category() == OracleCategory.Dice;
+    var entries = Model.OracleEntries.OrderBy(e => e.SortOrder).ToList();
+
+    var blockedReason = Model.RollBlockedReason();
+
+    var outcome = ViewData["RollOutcome"] as RollOutcome;
+    var rollError = ViewData["RollError"] as string;
+
+    var cardsRemaining = ViewData["CardsRemaining"] as int? ?? entries.Count;
+    var actionLabel = isDice ? $"Roll {Model.TypeLabel()}" : "Draw a card";
+}
+
+<h1>Roll: @Model.Name</h1>
+
+@if (blockedReason != null)
+{
+    <div class="alert alert-warning">@blockedReason</div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-start">
+                <div class="col-12 col-sm-auto d-grid gap-2">
+                    <form asp-action="Roll" asp-route-id="@Model.ID" method="post" id="rollForm">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">@actionLabel</button>
+                    </form>
+
+                    @if (!isDice)
+                    {
+                        <form asp-action="Reshuffle" asp-route-id="@Model.ID" method="post" id="reshuffleForm">
+                            <button type="submit" class="btn btn-outline-secondary w-100">Reshuffle deck</button>
+                        </form>
+                        <span class="small text-muted text-center">
+                            <span id="cardsRemaining">@cardsRemaining</span> cards remaining
+                        </span>
+                    }
+                </div>
+
+                <div class="col">
+                    <div id="rollError" class="alert alert-warning mb-0" hidden="@(rollError == null)">@rollError</div>
+
+                    <div id="rollResult" hidden="@(outcome == null)">
+                        <div class="d-flex flex-wrap align-items-baseline column-gap-3">
+                            <span id="rollValue" class="roll-value">@(outcome == null ? "" : outcome.IsDice ? outcome.Value?.ToString() : outcome.Key)</span>
+                            <span id="rollKey" class="small text-muted">@(outcome?.Caption)</span>
+                        </div>
+                        <div id="rollText" class="fs-5 @(outcome != null && string.IsNullOrWhiteSpace(outcome.Result) ? "text-muted" : "")">
+                            @(outcome == null ? "" : string.IsNullOrWhiteSpace(outcome.Result) ? "(no result text)" : outcome.Result)
+                        </div>
+                        <div id="rollReshuffled" class="small text-muted" hidden="@(outcome == null || !outcome.Reshuffled)">
+                            The deck ran out, so it was reshuffled for this draw.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rollLogWrap" hidden>
+        <h4 id="rollLogHeading">Log</h4>
+        <hr />
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th scope="col" class="roll-log-key">@(isDice ? "Roll" : "Card")</th>
+                    <th scope="col">Result</th>
+                </tr>
+            </thead>
+            <tbody id="rollLog"></tbody>
+        </table>
+
+        <nav id="rollLogPager" class="d-flex align-items-center gap-2" hidden>
+            <button type="button" id="rollLogPrev" class="btn btn-sm btn-outline-secondary">Previous</button>
+            <span id="rollLogPageInfo" class="small text-muted"></span>
+            <button type="button" id="rollLogNext" class="btn btn-sm btn-outline-secondary">Next</button>
+        </nav>
+    </div>
+}
+
+<div>
+    <a asp-action="Details" asp-route-id="@Model.ID">Back to Details</a> |
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var rollForm = document.getElementById("rollForm");
+            if (!rollForm) return;
+
+            var reshuffleForm = document.getElementById("reshuffleForm");
+            var panel = document.getElementById("rollResult");
+            var valueEl = document.getElementById("rollValue");
+            var keyEl = document.getElementById("rollKey");
+            var textEl = document.getElementById("rollText");
+            var reshuffledEl = document.getElementById("rollReshuffled");
+            var errorEl = document.getElementById("rollError");
+            var remainingEl = document.getElementById("cardsRemaining");
+            var logWrap = document.getElementById("rollLogWrap");
+            var logHeading = document.getElementById("rollLogHeading");
+            var logEl = document.getElementById("rollLog");
+            var pager = document.getElementById("rollLogPager");
+            var pagerPrev = document.getElementById("rollLogPrev");
+            var pagerNext = document.getElementById("rollLogNext");
+            var pagerInfo = document.getElementById("rollLogPageInfo");
+
+            var LOG_LIMIT = 50;
+            var PAGE_SIZE = 5;
+            var NO_TEXT = "(no result text)";
+
+            var logData = [];
+            var logPage = 1;
+
+            function post(form) {
+                return fetch(form.action, {
+                    method: "POST",
+                    body: new FormData(form),
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+            }
+
+            function showError(message) {
+                panel.hidden = true;
+                errorEl.textContent = message;
+                errorEl.hidden = false;
+            }
+
+            function headline(data) {
+                return data.isDice ? String(data.value) : data.key;
+            }
+
+            function showOutcome(data) {
+                errorEl.hidden = true;
+                valueEl.textContent = headline(data);
+                keyEl.textContent = data.caption || "";
+                textEl.textContent = data.result || NO_TEXT;
+                textEl.classList.toggle("text-muted", !data.result);
+                reshuffledEl.hidden = !data.reshuffled;
+                panel.hidden = false;
+
+                if (remainingEl && typeof data.cardsRemaining === "number") {
+                    remainingEl.textContent = data.cardsRemaining;
+                }
+
+                addToLog(data);
+            }
+
+            function makeRow(data) {
+                var row = document.createElement("tr");
+
+                var keyCell = document.createElement("td");
+                var strong = document.createElement("strong");
+                strong.textContent = headline(data);
+                keyCell.appendChild(strong);
+
+                if (data.caption) {
+                    var caption = document.createElement("div");
+                    caption.className = "small text-muted";
+                    caption.textContent = data.caption;
+                    keyCell.appendChild(caption);
+                }
+
+                var resultCell = document.createElement("td");
+                resultCell.textContent = data.result || NO_TEXT;
+                if (!data.result) resultCell.className = "text-muted";
+
+                row.appendChild(keyCell);
+                row.appendChild(resultCell);
+                return row;
+            }
+
+            function renderLog() {
+                var totalPages = Math.max(1, Math.ceil(logData.length / PAGE_SIZE));
+                if (logPage > totalPages) logPage = totalPages;
+                if (logPage < 1) logPage = 1;
+
+                var start = (logPage - 1) * PAGE_SIZE;
+                var slice = logData.slice(start, start + PAGE_SIZE);
+
+                logEl.textContent = "";
+                for (var i = 0; i < slice.length; i++) {
+                    logEl.appendChild(makeRow(slice[i]));
+                }
+
+                logWrap.hidden = logData.length === 0;
+
+                var paged = logData.length > PAGE_SIZE;
+                logHeading.textContent = paged ? "Log (Page " + logPage + ")" : "Log";
+                pager.hidden = !paged;
+                if (paged) {
+                    pagerInfo.textContent = "Page " + logPage + " of " + totalPages;
+                    pagerPrev.disabled = logPage === 1;
+                    pagerNext.disabled = logPage === totalPages;
+                }
+            }
+
+            function addToLog(data) {
+                logData.unshift(data);
+                if (logData.length > LOG_LIMIT) logData.length = LOG_LIMIT;
+                logPage = 1;
+                renderLog();
+            }
+
+            function send(form, onData) {
+                var button = form.querySelector("button[type=submit]");
+                if (button.disabled) return;
+                button.disabled = true;
+
+                post(form)
+                    .then(function (response) {
+                        if (!response.ok) { form.submit(); return null; }
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        if (!data) return;
+                        if (data.error) { showError(data.error); return; }
+                        onData(data);
+                    })
+                    .catch(function () { form.submit(); })
+                    .finally(function () { button.disabled = false; });
+            }
+
+            rollForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                send(rollForm, showOutcome);
+            });
+
+            if (reshuffleForm) {
+                reshuffleForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    send(reshuffleForm, function (data) {
+                        if (remainingEl) remainingEl.textContent = data.cardsRemaining;
+                        panel.hidden = true;
+                        errorEl.hidden = true;
+                    });
+                });
+            }
+
+            pagerPrev.addEventListener("click", function () {
+                if (logPage > 1) { logPage--; renderLog(); }
+            });
+            pagerNext.addEventListener("click", function () {
+                logPage++;
+                renderLog();
+            });
+        })();
+    </script>
+}

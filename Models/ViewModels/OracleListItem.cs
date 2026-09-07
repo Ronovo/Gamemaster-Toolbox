@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Models.Enums;
+using GM_Toolbox.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models.ViewModels
@@ -14,6 +14,12 @@ namespace GM_Toolbox.Models.ViewModels
 
         [Display(Name = "Oracle Type")]
         public OracleSubtype OracleSubtype { get; set; }
+
+        public int? DiceCount { get; set; }
+        public int? DiceFaces { get; set; }
+
+        public string TypeLabel => DiceSpec.For(OracleSubtype, DiceCount, DiceFaces)?.Label
+            ?? OracleSubtype.DisplayName();
 
         [Display(Name = "Game System")]
         public string GameSystemName { get; set; } = string.Empty;
