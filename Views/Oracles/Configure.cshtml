@@ -55,7 +55,7 @@
                             <label for="outcomeCount">Number of outcomes</label>
                             <input type="text" inputmode="numeric" id="outcomeCount" name="outcomeCount"
                                    class="form-control"
-                                   value="@(outcomeCount > 0 ? outcomeCount.ToString() : spec.DefaultOutcomeCount.ToString())" />
+                                   value="@(outcomeCount > 0 ? outcomeCount.ToString() : spec.Span.ToString())" />
                         </div>
                     </div>
 

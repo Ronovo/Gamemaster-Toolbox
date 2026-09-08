@@ -144,7 +144,7 @@ public class OraclesController : Controller
             var spec = oracle.Dice();
             if (spec != null)
             {
-                _configurator.Reconcile(oracle, spec.DefaultOutcomeCount);
+                _configurator.Reconcile(oracle, spec.Span);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(EditEntries), new { id = oracle.ID });
             }
@@ -177,9 +177,9 @@ public class OraclesController : Controller
     }
 
     // Changing the subtype, or a custom oracle's dice, deletes every existing entry.
-    // Card oracles get a full deck with each card's name as the outcome. Standard dice
-    // start with six numbered rows (or four on a d4). Then Edit Entries so you can
-    // replace those names at your own pace.
+    // Card oracles get a full deck with each card's name as the outcome. Dice oracles
+    // start with one numbered row per total the dice can roll. Then Edit Entries so
+    // you can replace those names at your own pace.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
@@ -237,7 +237,7 @@ public class OraclesController : Controller
             {
                 existing = await LoadOracleWithEntries(existing.ID);
                 if (existing == null) return NotFound();
-                _configurator.Reconcile(existing, spec.DefaultOutcomeCount);
+                _configurator.Reconcile(existing, spec.Span);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(EditEntries), new { id = existing.ID });
             }
@@ -345,6 +345,8 @@ public class OraclesController : Controller
             OracleSubtype = oracle.OracleSubtype,
             MinRoll = spec?.Min ?? 0,
             MaxRoll = spec?.Max ?? 0,
+            DiceCount = spec?.Count ?? 0,
+            DiceFaces = spec?.Faces ?? 0,
             Rows = oracle.OracleEntries
            .OrderBy(e => e.SortOrder)
            .Select(e => ToEntryRow(e, spec))
@@ -394,6 +396,8 @@ public class OraclesController : Controller
             vm.OracleSubtype = oracle.OracleSubtype;
             vm.MinRoll = minRoll;
             vm.MaxRoll = maxRoll;
+            vm.DiceCount = spec?.Count ?? 0;
+            vm.DiceFaces = spec?.Faces ?? 0;
             for (int i = 0; i < vm.Rows.Count && i < entries.Count; i++)
                 ApplyEntryDisplay(vm.Rows[i], entries[i]);
             return View(vm);

@@ -11,6 +11,8 @@ namespace GM_Toolbox.Models.ViewModels
 
         public int MinRoll { get; set; }
         public int MaxRoll { get; set; }
+        public int DiceCount { get; set; }
+        public int DiceFaces { get; set; }
         public List<EntryRow> Rows { get; set; } = new List<EntryRow>();
     }
 

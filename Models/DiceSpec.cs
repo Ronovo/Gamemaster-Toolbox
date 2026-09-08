@@ -31,12 +31,6 @@ namespace GM_Toolbox.Models
 
         public int Span => Max - Min + 1;
 
-        /// <summary>
-        /// How many outcome rows a new table starts with: 6, or the full span when
-        /// the die has fewer faces than that (a d4 only has four).
-        /// </summary>
-        public int DefaultOutcomeCount => Math.Min(6, Span);
-
         public string Label => Count == 1 ? $"d{Faces}" : $"{Count}d{Faces}";
 
         public static DiceSpec? For(OracleSubtype subtype, int? diceCount, int? diceFaces)

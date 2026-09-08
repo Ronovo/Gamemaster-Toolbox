@@ -5,7 +5,9 @@
     ViewData["Title"] = "Edit Entries";
     var pageSize = Model.IsDice ? 10 : 15;
     var decades = new List<(int Start, int End)>();
-    if (Model.IsDice && Model.MaxRoll > 0)
+    var showDecades = Model.IsDice && Model.DiceCount == 1
+        && (Model.DiceFaces == 20 || Model.DiceFaces == 100);
+    if (showDecades)
     {
         for (int start = 1; start <= Model.MaxRoll; start += 10)
         {
