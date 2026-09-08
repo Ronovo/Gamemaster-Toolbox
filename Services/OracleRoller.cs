@@ -1,4 +1,4 @@
-using GM_Toolbox.Models;
+﻿using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
 using System.Text.Json;
@@ -62,6 +62,7 @@ namespace GM_Toolbox.Services
             outcome = new RollOutcome
             {
                 IsDice = true,
+                EntryID = entry.ID,
                 Value = value,
                 Key = entry.KeyLabel(),
                 Caption = $"{dice} · band {entry.KeyLabel()}",
@@ -103,6 +104,7 @@ namespace GM_Toolbox.Services
             outcome = new RollOutcome
             {
                 IsDice = false,
+                EntryID = entry.ID,
                 Key = entry.KeyLabel(),
                 Result = entry.Result,
                 CardsRemaining = deck.Count,

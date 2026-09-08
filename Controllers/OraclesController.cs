@@ -1,4 +1,4 @@
-using GM_Toolbox.Data;
+﻿using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
@@ -175,11 +175,6 @@ public class OraclesController : Controller
             return View(oracle);
 		}
 
-		// Load-then-assign, never _context.Update() on the bound object. Update() marks
-		// every scalar modified, so any property missing from the [Bind] list above is
-		// written back as its default. That list happens to be complete today; it silently
-		// stops being complete the first time someone adds a property and forgets to add
-		// it there. That is how DiceSize used to be nulled on every save.
 		var existing = await LoadOracleWithEntries(id);
 		if (existing == null)
 		{
@@ -227,6 +222,7 @@ public class OraclesController : Controller
             return NotFound();
         }
 
+        ViewData["UsedByFlows"] = await FlowsUsing(oracle.ID);
         return View(oracle);
     }
 
@@ -236,12 +232,24 @@ public class OraclesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int? id)
     {
-        var oracle = await _context.Oracles.FindAsync(id);
-        if (oracle != null)
+        var oracle = await _context.Oracles
+            .Include(o => o.GameSystem)
+            .FirstOrDefaultAsync(o => o.ID == id);
+        if (oracle == null)
         {
-            _context.Oracles.Remove(oracle);
+            return RedirectToAction(nameof(Index));
         }
 
+        var usedBy = await FlowsUsing(oracle.ID);
+        if (usedBy.Count > 0)
+        {
+            ViewData["UsedByFlows"] = usedBy;
+            ModelState.AddModelError("",
+                "This oracle is used by one or more flows and cannot be deleted until they let go of it.");
+            return View(oracle);
+        }
+
+        _context.Oracles.Remove(oracle);
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
@@ -378,50 +386,124 @@ public class OraclesController : Controller
     }
 
     // Asks what to export before exporting it. The download itself is the POST below.
-    public async Task<IActionResult> Export()
+    public async Task<IActionResult> Export(string? returnTo)
     {
-        return View(new ExportViewModel { Available = await OracleListItems() });
+        return View(await BuildExportViewModel(new ExportViewModel { ReturnTo = NormalizeReturnTo(returnTo) }));
     }
-
-    // Every chosen oracle and its entries as one portable JSON file.
     //
-    // A partial file is not a different format — formatVersion stays 1 and it imports into
-    // another instance exactly like a full export does. Only the set of oracles differs.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Export(ExportViewModel vm)
     {
-        var query = _context.Oracles
+        vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
+
+        var oracleQuery = _context.Oracles
             .Include(o => o.OracleEntries)
             .Include(o => o.GameSystem)
             .AsQueryable();
 
-        // SelectedIds is ignored under All, so a tick left behind by the toggle script — or
-        // by a browser with no JavaScript, where the list stays enabled — cannot quietly
-        // narrow a full export.
-        if (vm.Scope == ExportScope.Selected)
+        var flowQuery = _context.Flows
+            .Include(f => f.GameSystem)
+            .Include(f => f.Steps).ThenInclude(s => s.Branches)
+            .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.GameSystem)
+            .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.OracleEntries)
+            // The options and their oracles too: a dropdown question is nothing without them,
+            // and FlowExporter bundles those oracles into the file.
+            .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle)
+                .ThenInclude(o => o!.GameSystem)
+            .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle)
+                .ThenInclude(o => o!.OracleEntries)
+            // Split, for the same reason FlowsController.LoadFlow is: several collections down
+            // different branches multiply out into one very wide result set.
+            .AsSplitQuery()
+            .AsQueryable();
+
+        List<Oracle> oracles;
+        List<Flow> flows;
+
+        switch (vm.Scope)
         {
-            query = query.Where(o => vm.SelectedIds.Contains(o.ID));
+            case ExportScope.AllOracles:
+                oracles = await oracleQuery.OrderBy(o => o.Name).ToListAsync();
+                flows = new List<Flow>();
+                break;
+
+            case ExportScope.SelectedOracles:
+                oracles = await oracleQuery
+                    .Where(o => vm.SelectedIds.Contains(o.ID))
+                    .OrderBy(o => o.Name)
+                    .ToListAsync();
+                flows = new List<Flow>();
+                break;
+
+            case ExportScope.SelectedFlows:
+                oracles = new List<Oracle>();
+                flows = await flowQuery
+                    .Where(f => vm.SelectedFlowIds.Contains(f.ID))
+                    .OrderBy(f => f.Name)
+                    .ToListAsync();
+                break;
+
+            default:
+                oracles = await oracleQuery.OrderBy(o => o.Name).ToListAsync();
+                flows = await flowQuery.OrderBy(f => f.Name).ToListAsync();
+                break;
         }
 
-        var oracles = await query.OrderBy(o => o.Name).ToListAsync();
-
-        // Nothing ticked, or everything ticked was deleted in another tab: either way there
-        // is no file worth producing, and an empty download would look like a successful one.
-        if (vm.Scope == ExportScope.Selected && oracles.Count == 0)
+        if (vm.Scope == ExportScope.SelectedOracles && oracles.Count == 0)
         {
             ModelState.AddModelError("", "Pick at least one oracle to export.");
-            vm.Available = await OracleListItems();
-            return View(vm);
+            return View(await BuildExportViewModel(vm));
+        }
+
+        if (vm.Scope == ExportScope.SelectedFlows && flows.Count == 0)
+        {
+            ModelState.AddModelError("", "Pick at least one flow to export.");
+            return View(await BuildExportViewModel(vm));
+        }
+
+        // A flow that arrives without the oracles it rolls is a list of names pointing at
+        // nothing, so they come along whether or not they were ticked. 
+        var referencedIds = FlowExporter.ReferencedOracles(flows).Select(o => o.ID).ToList();
+        if (referencedIds.Count > 0)
+        {
+            var bundled = await oracleQuery
+                .Where(o => referencedIds.Contains(o.ID))
+                .ToListAsync();
+            oracles = oracles.Concat(bundled).ToList();
+        }
+
+        oracles = oracles
+            .DistinctBy(o => o.ID)
+            .OrderBy(o => o.Name)
+            .ToList();
+
+        var systems = vm.Scope == ExportScope.Everything
+            ? await _context.GameSystems.OrderBy(g => g.Name).ToListAsync()
+            : oracles.Select(o => o.GameSystem)
+                .Concat(flows.Select(f => f.GameSystem))
+                .Where(s => s != null)
+                .Select(s => s!)
+                .DistinctBy(s => s.ID)
+                .OrderBy(s => s.Name)
+                .ToList();
+
+        if (oracles.Count == 0 && flows.Count == 0 && systems.Count == 0)
+        {
+            ModelState.AddModelError("", "Nothing to export.");
+            return View(await BuildExportViewModel(vm));
         }
 
         var file = OracleExporter.Build(oracles);
+        file.Flows = FlowExporter.Build(flows);
+        file.GameSystems = OracleExporter.BuildSystems(systems);
+
         var json = JsonSerializer.Serialize(file, OracleJson.Options);
         var bytes = Encoding.UTF8.GetBytes(json);
         // fff = milliseconds, so two exports in the same second do not collide
-        var filename = $"gm-toolbox-oracles-{DateTime.Now:yyyy-MM-dd-HHmmssfff}.json";
+        var filename = $"gm-toolbox-{DateTime.Now:yyyy-MM-dd-HHmmssfff}.json";
 
-        await WriteExportArchive(bytes, filename, vm.Scope == ExportScope.Selected);
+        await WriteExportArchive(bytes, filename, vm.Scope != ExportScope.Everything);
 
         return File(bytes, "application/json", filename);
     }
@@ -432,7 +514,9 @@ public class OraclesController : Controller
         var vm = new ClearAllViewModel
         {
             OracleCount = await _context.Oracles.CountAsync(),
-            EntryCount = await _context.OracleEntries.CountAsync()
+            EntryCount = await _context.OracleEntries.CountAsync(),
+            FlowCount = await _context.Flows.CountAsync(),
+            FlowStepCount = await _context.FlowSteps.CountAsync()
         };
 
         return View(vm);
@@ -447,6 +531,11 @@ public class OraclesController : Controller
         // entirely — you cannot reseed a table that still holds other people's rows.
         using (var transaction = await _context.Database.BeginTransactionAsync())
         {
+            await _context.FlowBranches.ExecuteDeleteAsync();
+            await _context.FlowChoiceOptions.ExecuteDeleteAsync();
+            await _context.FlowSteps.ExecuteDeleteAsync();
+            await _context.Flows.ExecuteDeleteAsync();
+
             // Children first: OracleEntries has a required FK to Oracles.
             await _context.OracleEntries.ExecuteDeleteAsync();
             await _context.Oracles.ExecuteDeleteAsync();
@@ -454,31 +543,26 @@ public class OraclesController : Controller
             await transaction.CommitAsync();
         }
 
-        // Ensure the database is reseeded, after everything is destroyed.
-        //
-        // EF's SQLite provider declares int keys as INTEGER PRIMARY KEY AUTOINCREMENT,
-        // which parks a high-water mark in the sqlite_sequence table. That mark survives
-        // deleting every row, so without this a "cleared" database would hand the next
-        // oracle ID 84 instead of 1. Deleting the sqlite_sequence rows resets the counter.
-        //
-        // Deliberately outside the transaction above: this is not undone by a rollback,
-        // so running it inside would let a failure restore the rows and still leave the
-        // counter reset — the one combination that breaks the next insert.
         await _context.Database.ExecuteSqlRawAsync(
-            "DELETE FROM sqlite_sequence WHERE name IN ('Oracles', 'OracleEntries');");
+            "DELETE FROM sqlite_sequence WHERE name IN " +
+            "('Oracles', 'OracleEntries', 'Flows', 'FlowSteps', 'FlowBranches', 'FlowChoiceOptions');");
 
         return RedirectToAction(nameof(Index));
     }
 
-    public IActionResult Import()
+    public IActionResult Import(string? returnTo)
     {
+        ViewData["ReturnTo"] = NormalizeReturnTo(returnTo);
         return View();
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Import(IFormFile? file)
+    public async Task<IActionResult> Import(IFormFile? file, string? returnTo)
     {
+        returnTo = NormalizeReturnTo(returnTo);
+        ViewData["ReturnTo"] = returnTo;
+
         if (file == null || file.Length == 0)
         {
             ModelState.AddModelError("", "Choose a file to import.");
@@ -498,27 +582,55 @@ public class OraclesController : Controller
             return View();
         }
 
-        var existingSystems = await _context.GameSystems.ToListAsync();
-        var error = OracleImporter.TryBuild(parsed, existingSystems, out var oracles);
+        var systemsByName = OracleImporter.BuildSystemLookup(await _context.GameSystems.ToListAsync());
+
+        var error = OracleImporter.TryBuild(parsed, systemsByName, out var oracles);
         if (error != null)
         {
             ModelState.AddModelError("", error);
             return View();
         }
 
+        var existingOracles = await _context.Oracles.Include(o => o.GameSystem).ToListAsync();
+
+        error = FlowImporter.TryBuild(parsed!.Flows, systemsByName, oracles, existingOracles, out var flows);
+        if (error != null)
+        {
+            ModelState.AddModelError("", error);
+            return View();
+        }
+
+        var newSystems = systemsByName.Values.Where(s => s.ID == 0).ToList();
+
+        if (oracles.Count == 0 && flows.Count == 0 && newSystems.Count == 0)
+        {
+            ModelState.AddModelError("", "The file contains no game systems, oracles or flows to add.");
+            return View();
+        }
+
         // MULTI-USER: stamp each oracle with the current user's id before adding.
         //
         // AddRange takes the whole graph — EF inserts each Oracle, reads back its
-        // generated ID, and fills in OracleID on its entries automatically. One
-        // SaveChanges, so the whole file lands or none of it does.
+        // generated ID, and fills in OracleID on its entries automatically. 
+        foreach (var system in newSystems)
+        {
+            if (_context.Entry(system).State == EntityState.Detached)
+                _context.GameSystems.Add(system);
+        }
+
         _context.Oracles.AddRange(oracles);
+        _context.Flows.AddRange(flows);
         await _context.SaveChangesAsync();
 
-        TempData["ImportMessage"] = $"Imported {oracles.Count} oracle(s).";
+        TempData["ImportMessage"] = ImportMessage(oracles.Count, flows.Count, newSystems.Count);
+
+        if (returnTo == "Flows")
+            return RedirectToAction(nameof(FlowsController.Index), "Flows");
+        if (returnTo == "GameSystems")
+            return RedirectToAction(nameof(GameSystemsController.Index), "GameSystems");
+
         return RedirectToAction(nameof(Index));
     }
-
-    // ------------------------------------------------------------------------ helpers
 
     private bool IsAjaxRequest => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
@@ -541,10 +653,52 @@ public class OraclesController : Controller
         return RedirectToAction(nameof(Roll), new { id });
     }
 
-    // Projects rather than .Include()s on purpose. The list needs OracleListItem.NeedsSetup,
-    // which calls Category() — a C# switch EF cannot translate to SQL. So the two raw counts
-    // it depends on come back from the database and NeedsSetup is worked out in memory.
-    // Move NeedsSetup into this query and it fails at runtime, not compile time.
+    private async Task<List<string>> FlowsUsing(int oracleId)
+    {
+        var fromSteps = await _context.FlowSteps
+            .Where(s => s.OracleID == oracleId)
+            .Select(s => s.Flow!.Name)
+            .ToListAsync();
+
+        var fromOptions = await _context.FlowChoiceOptions
+            .Where(o => o.OracleID == oracleId)
+            .Select(o => o.FlowStep!.Flow!.Name)
+            .ToListAsync();
+
+        return fromSteps.Concat(fromOptions).Distinct().OrderBy(name => name).ToList();
+    }
+
+    private Task<List<FlowListItem>> FlowListItems()
+    {
+        return FlowListQuery.ToListItemsAsync(_context.Flows);
+    }
+
+    private static string? NormalizeReturnTo(string? returnTo)
+    {
+        if (string.Equals(returnTo, "Flows", StringComparison.OrdinalIgnoreCase))
+            return "Flows";
+        if (string.Equals(returnTo, "GameSystems", StringComparison.OrdinalIgnoreCase))
+            return "GameSystems";
+        return null;
+    }
+
+    private static string ImportMessage(int oracleCount, int flowCount, int newSystemCount)
+    {
+        var parts = new List<string>();
+        if (oracleCount > 0) parts.Add($"{oracleCount} oracle(s)");
+        if (flowCount > 0) parts.Add($"{flowCount} flow(s)");
+        if (newSystemCount > 0) parts.Add($"{newSystemCount} game system(s)");
+        return parts.Count == 0 ? "Imported nothing." : "Imported " + string.Join(" and ", parts) + ".";
+    }
+
+    private async Task<ExportViewModel> BuildExportViewModel(ExportViewModel vm)
+    {
+        vm.Available = await OracleListItems();
+        vm.AvailableFlows = await FlowListItems();
+        vm.GameSystemCount = await _context.GameSystems.CountAsync();
+        return vm;
+    }
+
     private Task<List<OracleListItem>> OracleListItems()
     {
         return _context.Oracles

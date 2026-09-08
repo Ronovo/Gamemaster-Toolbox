@@ -3,6 +3,11 @@
 @{
     ViewData["Title"] = "Delete Game System";
     var oracleCount = (int)(ViewData["OracleCount"] ?? 0);
+    var flowCount = (int)(ViewData["FlowCount"] ?? 0);
+
+    var uses = new List<string>();
+    if (oracleCount > 0) { uses.Add($"{oracleCount} oracle(s)"); }
+    if (flowCount > 0) { uses.Add($"{flowCount} flow(s)"); }
 }
 
 <h1>Delete Game System</h1>
@@ -18,14 +23,12 @@
         <dd class="col-sm-10">@Model.Name</dd>
         <dt class="col-sm-2">@Html.DisplayNameFor(model => model.Genre)</dt>
         <dd class="col-sm-10">@Model.Genre</dd>
-        <dt class="col-sm-2">@Html.DisplayNameFor(model => model.PrimaryOracleType)</dt>
-        <dd class="col-sm-10">@(Model.PrimaryOracleType?.ToString() ?? "—")</dd>
     </dl>
 
-    @if (oracleCount > 0)
+    @if (uses.Any())
     {
         <div class="alert alert-warning">
-            This system is used by @oracleCount oracle(s) and can't be deleted until those are changed or removed.
+            This system is used by @string.Join(" and ", uses) and can't be deleted until those are changed or removed.
         </div>
         <a asp-action="Index" class="btn btn-secondary">Back to List</a>
     }

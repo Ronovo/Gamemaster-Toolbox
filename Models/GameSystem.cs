@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using GM_Toolbox.Models.Enums;
 
 namespace GM_Toolbox.Models
 {
@@ -12,9 +11,5 @@ namespace GM_Toolbox.Models
 
         [Required, MaxLength(100)]
         public string Genre { get; set; } = string.Empty;
-
-        // Stored and editable, but nothing reads it yet. 
-        [Display(Name = "Primary Oracle Type")]
-        public OracleSubtype? PrimaryOracleType { get; set; }
     }
 }

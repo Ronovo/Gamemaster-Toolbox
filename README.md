@@ -7,25 +7,29 @@ There is no database server to install: your whole toolbox is one file at
 `App_Data/gmtoolbox.db`.
 
 ## Features
-- **Game Systems** - Add the name of any game and set a custom genre.
-- **Oracle Builder** — create an oracle, pick a game system and a type, and the app
-  generates the outcome rows for you.
-  - *Dice Oracles* — any die from a d2 to a d100, one or several at once (2d6, 3d10, …).
-    The type picker offers the common dice as one-click presets; "Custom" is there for a
-    d3, a d7, or a pool of several.
+
+- **Game Systems**
+- **Oracle Builder**
 - **Rolling and Drawing**
-- **Export / Import** — download every oracle as a single versioned JSON file, and read one
-  back in. The format carries no database IDs, so a file exported from one instance imports
-  cleanly into another. Exports are also archived server-side under `App_Data/Exports/`.
+- **Flows** — chain oracles together and run them a step at a time. Steps roll in order by
+default; any outcome can carry a *branch* that sends the run somewhere else instead, so a
+flow can fork, skip ahead, loop back, or stop early. A step can also **ask you something**
+rather than roll — a dropdown you author, a line of text, or a number — and a dropdown
+answer can decide which table the *next* step rolls on.
+- **Export / Import** — download every oracle and flow as a single versioned JSON file, and
+read one back in. The format carries no database IDs, so a file exported from one instance
+imports cleanly into another. Exports are also archived server-side under `App_Data/Exports/`.
 - **Accounts** — ASP.NET Core Identity is wired up for register and login. Nothing is
-  restricted to a signed-in user yet: oracles are global and an account is currently just a
-  name, so this is groundwork for per-owner oracles rather than a working permission system.
-  Email confirmation is off, because there is no mail sender configured to confirm with.
+restricted to a signed-in user yet: oracles are global and an account is currently just a
+name, so this is groundwork for per-owner oracles rather than a working permission system.
+Email confirmation is off, because there is no mail sender configured to confirm with.
+
+
 
 ## Getting started
 
 Two ways in. Pick whichever you already have installed — you get the same app on
-**http://localhost:9000** either way.
+**[http://localhost:9000](http://localhost:9000)** either way.
 
 ### With Docker (To Host Locally)
 
@@ -33,7 +37,7 @@ Two ways in. Pick whichever you already have installed — you get the same app 
 docker compose up -d
 ```
 
-Open **http://localhost:9000**.
+Open **[http://localhost:9000](http://localhost:9000)**.
 
 To stop it: `docker compose down`
 
@@ -45,7 +49,7 @@ Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 dotnet run
 ```
 
-Open **http://localhost:9000**.
+Open **[http://localhost:9000](http://localhost:9000)**.
 
 To stop it: `dotnet run`
 
@@ -70,7 +74,12 @@ for, and you would be on your own doing it.
 ## Sharing or moving your toolbox
 
 Currently Supported Import/Export Systems:
-- Oracles 
+
+- Game Systems
+- Oracles
+- Flows
+
+
 
 ### How an oracle is put together
 
@@ -78,10 +87,12 @@ An `Oracle` is a name, a `GameSystem`, and an `OracleSubtype`. The subtype is ju
 kind of oracle — `Dice`, `PlayingCards` or `TarotCards`. `Category()` folds that to dice
 or cards, and that in turn decides how its `OracleEntry` rows are shaped:
 
-| Category | Keyed by | Rows come from |
-| --- | --- | --- |
-| Dice | `RangeStart` / `RangeEnd` | The outcome count you ask for; you set each band's start, the end is derived |
-| Cards | `CardCode` / `CardLabel` | `DeckFactory`, which builds the whole deck |
+
+| Category | Keyed by                  | Rows come from                                                               |
+| -------- | ------------------------- | ---------------------------------------------------------------------------- |
+| Dice     | `RangeStart` / `RangeEnd` | The outcome count you ask for; you set each band's start, the end is derived |
+| Cards    | `CardCode` / `CardLabel`  | `DeckFactory`, which builds the whole deck                                   |
+
 
 Every dice oracle stores its die in two columns, `DiceCount` and `DiceFaces` — a plain d8
 is `1` and `8`, a 2d6 is `2` and `6`. They are the single source of truth for the die
@@ -92,12 +103,49 @@ totals, so eleven outcomes fit on it and the first band has to start at 2 rather
 A card draw deals off a shuffled list of that oracle's entries held in your browser session.
 Which cards are left is per-person and per-sitting, and is never exported, imported or saved to the database.
 
-#### JSON export format
+### How a flow is put together
+
+A `Flow` is a name, a `GameSystem`, and an ordered list of `FlowStep` rows. Every step carries a
+`Label` — what the flow calls that step, for when "d6 Encounter Table" reads better as
+"Encounter Type" in this particular chain — and a `Kind`, which decides what the step actually
+does and therefore which of its other fields apply:
+
+
+| Kind         | What it does                                                 |
+| ------------ | ------------------------------------------------------------ |
+| `Roll`       | Rolls the oracle it names.                                   |
+| `Choice`     | Asks a question and offers a dropdown of options you author. |
+| `Text`       | Asks a question and takes a typed answer.                    |
+| `Number`     | Asks a question and takes a number.                          |
+| `RollChosen` | Rolls whichever oracle an earlier `Choice` step landed on.   |
+
+
+Running a flow works through one step at a time. After a step rolls or is answered, the run moves
+to the step below it. That fall-through is the whole of the default behaviour: a flow with three
+`Roll` steps and nothing else set up is simply those three oracles, rolled in order.
+
+A step can also carry `FlowBranch` rows, one per outcome at most, which override the fall-through:
+
+
+| The branch says             | What the run does                                            |
+| --------------------------- | ------------------------------------------------------------ |
+| Go to step *n*              | Jumps there, whether that is forwards or backwards           |
+| End the flow                | Stops after this step                                        |
+| *no branch on that outcome* | Falls through to the next step, or ends if this was the last |
+
+
+So a `d6` "Encounter Type" whose 1–2 band branches to a monster table and whose 3–4 band branches
+to an NPC table rolls only the one it reached. Its 5–6 band can end the run outright.
+
+### JSON export format
 
 ```json
 {
-  "formatVersion": 2,
-  "exportedUtc": "2026-09-03T11:08:28Z",
+  "formatVersion": 5,
+  "exportedUtc": "2026-09-08T11:08:28Z",
+  "gameSystems": [
+    { "name": "Dungeons & Dragons", "genre": "Fantasy" }
+  ],
   "oracles": [
     {
       "name": "Wilderness Encounter",
@@ -110,39 +158,53 @@ Which cards are left is per-person and per-sitting, and is never exported, impor
         { "sortOrder": 2, "rangeStart": 11, "rangeEnd": 20, "result": "A patrol spots you." }
       ]
     }
+  ],
+  "flows": [
+    {
+      "name": "What you meet",
+      "gameSystem": "Dungeons & Dragons",
+      "description": "What is out there, and what it wants.",
+      "steps": [
+        {
+          "sortOrder": 1,
+          "kind": "Roll",
+          "label": "Encounter Type",
+          "oracle": { "name": "Wilderness Encounter", "gameSystem": "Dungeons & Dragons" },
+          "branches": [
+            { "whenOutcome": 1, "goToStep": null },
+            { "whenOutcome": 2, "goToStep": 2 }
+          ]
+        },
+        {
+          "sortOrder": 2,
+          "kind": "Choice",
+          "label": "Role",
+          "question": "Which role are you playing?",
+          "options": [
+            { "sortOrder": 1, "label": "Nomad", "oracle": { "name": "Hustle - Nomad", "gameSystem": "Cyberpunk Red" } },
+            { "sortOrder": 2, "label": "Solo",  "oracle": { "name": "Hustle - Solo",  "gameSystem": "Cyberpunk Red" } }
+          ]
+        },
+        { "sortOrder": 3, "kind": "RollChosen", "label": "Hustle", "pickedAtStep": 2 }
+      ]
+    }
   ]
 }
 ```
 
-Both `gameSystem` and `subtype` are written as strings rather than numbers, so a file stays
-readable and stays valid across versions — but they are not the same kind of string.
 
-`gameSystem` is the free-text name of a game system as you typed it into the **Game Systems**
-tab. On import it is matched against your existing systems by name, case-insensitively, and if
-nothing matches, that system is created for you with its genre set to "Unknown". So importing
-someone else's file never fails because you don't happen to run their game — you just get their
-system added, ready to rename or fill in.
-
-`subtype` is a fixed set — `Dice`, `PlayingCards`, `TarotCards`. An unrecognised value
-there is a real error, and import stops with a message naming the oracle rather than
-crashing on deserialisation. Allows for addition of oracles in the future.
-
-A `Dice` oracle also carries `diceCount` and `diceFaces` (both required, held to the same
-1–10 / 2–100 rules the form uses); the two card kinds write neither. Collapsing the old
-per-size subtypes (`D4`…`D100`, `Custom`) into `Dice` plus those two fields is the change
-that took the format to version 2; version 1 files no longer import.
-
-Entries carry either the dice fields or the card fields, never both.
 
 ## Configuration
 
 Nothing here needs changing to run the app. It is written down for people who want to move
 things around.
 
-| Setting | Default | What it does |
-| --- | --- | --- |
-| `ConnectionStrings:DefaultConnection` | `Data Source=App_Data/gmtoolbox.db` | Where the database file lives. A relative path is resolved against the app's content root, so it lands in `App_Data/` no matter which folder you launched from. An absolute path is respected as-is. |
-| `ForceHttps` | `false` | Off, because the default setup has no certificate to redirect to — the container serves plain HTTP, and bouncing to a port nothing is listening on would just break it. Turn it on only where the app itself holds a certificate. Leave it off behind a reverse proxy that terminates TLS, which has already done the redirect. |
+
+| Setting                               | Default                             | What it does                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ConnectionStrings:DefaultConnection` | `Data Source=App_Data/gmtoolbox.db` | Where the database file lives. A relative path is resolved against the app's content root, so it lands in `App_Data/` no matter which folder you launched from. An absolute path is respected as-is.                                                                                                                            |
+| `ForceHttps`                          | `false`                             | Off, because the default setup has no certificate to redirect to — the container serves plain HTTP, and bouncing to a port nothing is listening on would just break it. Turn it on only where the app itself holds a certificate. Leave it off behind a reverse proxy that terminates TLS, which has already done the redirect. |
+
 
 Change either by editing `appsettings.json`, or without touching the file, with an environment
 variable — `ForceHttps=true`, or `ConnectionStrings__DefaultConnection` (two underscores, which
@@ -152,16 +214,21 @@ when running with the SDK, not in the container.
 ## Project layout
 
 ```
-Controllers/     HomeController, OraclesController (all oracle CRUD, export, import)
-Models/          Oracle, OracleEntry, enums, view models, JSON transfer DTOs
+Controllers/     HomeController, OraclesController (all oracle CRUD, export, import),
+                 FlowsController (flow CRUD, the step builder, branches, running a flow)
+Models/          Oracle, OracleEntry, Flow, FlowStep, FlowBranch, FlowChoiceOption, enums,
+                 view models, JSON transfer DTOs
 Services/        OracleConfigurator (entry reconciliation), DeckFactory (deck generation),
-                 OracleExporter / OracleImporter / OracleJson (file round-trip)
+                 OracleExporter / OracleImporter / FlowExporter / FlowImporter / OracleJson
+                 (file round-trip), OracleRoller and FlowRunner (rolling and answering),
+                 FlowConfigurator (step order, options, and branch/source remapping)
 Data/            ApplicationDbContext and EF Core migrations
-Views/           Razor views for Home and Oracles
+Views/           Razor views for Home, Oracles and Flows, plus the shared _RollPanel partial
 Areas/Identity/  Scaffolded ASP.NET Core Identity UI
 App_Data/        gmtoolbox.db (the database) and Exports/ (server-side archive of JSON exports)
-wwwroot/         Static assets (Bootstrap, jQuery, site CSS/JS)
+wwwroot/        Static assets (Bootstrap, jQuery, site CSS/JS, roll-panel.js)
 ```
+
 
 
 ## Tech stack
@@ -169,3 +236,4 @@ wwwroot/         Static assets (Bootstrap, jQuery, site CSS/JS)
 - ASP.NET Core MVC on .NET 10
 - Entity Framework Core 10 (SQLite provider)
 - Bootstrap 5 + jQuery
+

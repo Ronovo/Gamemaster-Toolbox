@@ -1,0 +1,96 @@
+﻿@model GM_Toolbox.Models.ViewModels.FlowBranchesViewModel
+
+@{
+    ViewData["Title"] = "Branches";
+}
+
+<h1>Branches: @Model.StepLabel</h1>
+<p>
+    <a asp-action="Steps" asp-route-id="@Model.FlowID">Back to Steps</a>
+</p>
+
+@if (Model.CanBranch)
+{
+    <p class="text-muted">
+        Step @Model.StepSortOrder of <strong>@Model.FlowName</strong>, rolling
+        <strong>@Model.OracleName</strong>. Every outcome is listed; leave one alone and the flow
+        carries on to @Model.FallThroughLabel, which is what happens today.
+    </p>
+}
+
+<form asp-action="Branches" method="post">
+    <input type="hidden" asp-for="FlowID" />
+    <input type="hidden" asp-for="StepID" />
+
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    @if (!Model.CanBranch)
+    {
+        <div class="alert alert-info">
+            This is a <strong>@Model.KindName</strong> step, and there is nothing fixed to branch
+            on. A question has answers rather than outcomes, and a step that rolls whatever was
+            picked earlier rolls a different oracle each run. It carries on to
+            @Model.FallThroughLabel.
+        </div>
+    }
+    else if (!Model.Rows.Any())
+    {
+        <p class="text-muted">
+            This step's oracle has no outcomes yet, so there is nothing to branch on. Configure
+            the oracle first.
+        </p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="roll-log-key">@(Model.IsDice ? "Roll" : "Card")</th>
+                    <th>Result</th>
+                    <th>Then go to</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Rows.Count; i++)
+                {
+                    <tr>
+                        @* Inside a cell, not loose between rows: stray markup in a tbody gets
+                           hoisted out of the table by the parser, which is a confusing thing to
+                           debug when the indexed binding suddenly posts nothing. *@
+                        <td>
+                            <input type="hidden" asp-for="Rows[i].EntryID" />
+                            @Model.Rows[i].OutcomeKey
+                        </td>
+                        <td>
+                            @if (string.IsNullOrWhiteSpace(Model.Rows[i].Result))
+                            {
+                                <span class="text-muted">(no result text)</span>
+                            }
+                            else
+                            {
+                                @Model.Rows[i].Result
+                            }
+                        </td>
+                        <td>
+                            @* Three states, and they are not the same thing: no branch at all
+                               (carry on to the next step), a branch that stops the run, or a
+                               branch to a named step. *@
+                            <select asp-for="Rows[i].Target" class="form-control form-control-sm">
+                                <option value="">Carry on &mdash; @Model.FallThroughLabel</option>
+                                <option value="@GM_Toolbox.Models.ViewModels.BranchRow.EndTarget">End the flow here</option>
+                                @foreach (var target in Model.Targets)
+                                {
+                                    <option value="@target.SortOrder">@target.Label</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button type="submit" class="btn btn-primary">Save branches</button>
+    }
+
+    <a asp-action="Steps" asp-route-id="@Model.FlowID">Back to Steps</a>
+</form>

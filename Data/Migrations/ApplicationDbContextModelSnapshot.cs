@@ -17,6 +17,124 @@ namespace GM_Toolbox.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
 
+            modelBuilder.Entity("GM_Toolbox.Models.Flow", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameSystemID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("GameSystemID");
+
+                    b.ToTable("Flows");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowBranch", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlowStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("OracleEntryID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TargetStepSortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("OracleEntryID");
+
+                    b.HasIndex("FlowStepID", "OracleEntryID")
+                        .IsUnique();
+
+                    b.ToTable("FlowBranches");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowChoiceOption", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlowStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OracleID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("FlowStepID");
+
+                    b.HasIndex("OracleID");
+
+                    b.ToTable("FlowChoiceOptions");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlowID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OracleID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Question")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SourceStepSortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("FlowID");
+
+                    b.HasIndex("OracleID");
+
+                    b.ToTable("FlowSteps");
+                });
+
             modelBuilder.Entity("GM_Toolbox.Models.GameSystem", b =>
                 {
                     b.Property<int>("ID")
@@ -33,9 +151,6 @@ namespace GM_Toolbox.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
-
-                    b.Property<string>("PrimaryOracleType")
-                        .HasColumnType("TEXT");
 
                     b.HasKey("ID");
 
@@ -308,6 +423,72 @@ namespace GM_Toolbox.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("GM_Toolbox.Models.Flow", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
+                        .WithMany()
+                        .HasForeignKey("GameSystemID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GameSystem");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowBranch", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "FlowStep")
+                        .WithMany("Branches")
+                        .HasForeignKey("FlowStepID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.OracleEntry", "OracleEntry")
+                        .WithMany()
+                        .HasForeignKey("OracleEntryID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FlowStep");
+
+                    b.Navigation("OracleEntry");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowChoiceOption", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "FlowStep")
+                        .WithMany("Options")
+                        .HasForeignKey("FlowStepID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
+                        .WithMany()
+                        .HasForeignKey("OracleID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("FlowStep");
+
+                    b.Navigation("Oracle");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.Flow", "Flow")
+                        .WithMany("Steps")
+                        .HasForeignKey("FlowID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
+                        .WithMany()
+                        .HasForeignKey("OracleID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Flow");
+
+                    b.Navigation("Oracle");
+                });
+
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>
                 {
                     b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
@@ -377,6 +558,18 @@ namespace GM_Toolbox.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.Flow", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
+                {
+                    b.Navigation("Branches");
+
+                    b.Navigation("Options");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>

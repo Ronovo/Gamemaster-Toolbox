@@ -13,9 +13,6 @@ namespace GM_Toolbox.Models
         [Required, MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
-        // [Range] rather than [Required]: an int FK has no "unset" state. It defaults to 0,
-        // which is not a valid key, and [Required] is satisfied by 0. This is what keeps a
-        // blank dropdown out of the database.
         [Display(Name = "Game System")]
         [Range(1, int.MaxValue, ErrorMessage = "Pick a game system.")]
         public int GameSystemID { get; set; }

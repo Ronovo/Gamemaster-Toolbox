@@ -6,8 +6,15 @@
 
 <h1>Game Systems</h1>
 
+@if (TempData["ImportMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["ImportMessage"]</div>
+}
+
 <p>
     <a asp-action="Create">Add New</a>
+    <a asp-controller="Oracles" asp-action="Export" asp-route-returnTo="GameSystems">Export</a>
+    <a asp-controller="Oracles" asp-action="Import" asp-route-returnTo="GameSystems">Import</a>
 </p>
 
 @if (!Model.Any())
@@ -21,7 +28,6 @@ else
             <tr>
                 <th>@Html.DisplayNameFor(model => model.Name)</th>
                 <th>@Html.DisplayNameFor(model => model.Genre)</th>
-                <th>@Html.DisplayNameFor(model => model.PrimaryOracleType)</th>
                 <th></th>
             </tr>
         </thead>
@@ -31,7 +37,6 @@ else
                 <tr>
                     <td>@item.Name</td>
                     <td>@item.Genre</td>
-                    <td>@(item.PrimaryOracleType?.ToString() ?? "—")</td>
                     <td>
                         <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
                         <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>

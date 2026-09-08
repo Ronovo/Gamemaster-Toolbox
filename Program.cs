@@ -1,4 +1,4 @@
-using GM_Toolbox.Data;
+﻿using GM_Toolbox.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +22,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.Requ
     .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<OracleConfigurator>();
+builder.Services.AddScoped<FlowConfigurator>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

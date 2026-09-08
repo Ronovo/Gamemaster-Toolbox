@@ -1,0 +1,196 @@
+@model GM_Toolbox.Models.ViewModels.FlowOptionsViewModel
+
+@{
+    ViewData["Title"] = "Options";
+}
+
+<h1>Options: @Model.StepLabel</h1>
+<p>
+    <a asp-action="Steps" asp-route-id="@Model.FlowID">Back to Steps</a>
+</p>
+
+@if (TempData["FlowMessage"] != null)
+{
+    <div class="alert alert-info">@TempData["FlowMessage"]</div>
+}
+
+<div asp-validation-summary="All" class="text-danger"></div>
+
+<p class="text-muted">
+    Step @Model.StepSortOrder of <strong>@Model.FlowName</strong> asks
+    &ldquo;@Model.Question&rdquo; and offers these. An option that names an oracle is what a later
+    <em>roll the oracle picked earlier</em> step goes on to roll.
+</p>
+
+@if (!Model.HasRollChosenStep)
+{
+    <div class="alert alert-info">
+        Nothing in this flow rolls what this question picks yet. Add a
+        <strong>Roll the oracle picked earlier</strong> step on the Steps page and point it here.
+    </div>
+}
+
+@if (!Model.Rows.Any())
+{
+    <p class="text-muted">
+        No options yet. Tick some oracles below to take one option each, or add one by hand.
+    </p>
+}
+else
+{
+    <form asp-action="Options" method="post">
+        <input type="hidden" asp-for="FlowID" />
+        <input type="hidden" asp-for="StepID" />
+
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th class="roll-log-key">#</th>
+                    <th>Option</th>
+                    <th>Rolls on</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Rows.Count; i++)
+                {
+                    <tr>
+                        <td>
+                            <input type="hidden" asp-for="Rows[i].OptionID" />
+                            @Model.Rows[i].SortOrder
+                        </td>
+                        <td>
+                            <input asp-for="Rows[i].Label" class="form-control form-control-sm" />
+                        </td>
+                        <td>
+                            <select asp-for="Rows[i].OracleID" class="form-control form-control-sm"
+                                    asp-items="ViewBag.OracleID">
+                                <option value="">Nothing &mdash; just record the answer</option>
+                            </select>
+                        </td>
+                        <td class="text-nowrap">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                    formaction="@Url.Action("MoveOption", new { id = Model.StepID, optionId = Model.Rows[i].OptionID, delta = -1 })"
+                                    title="Move up" disabled="@(i == 0)">&uarr;</button>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                    formaction="@Url.Action("MoveOption", new { id = Model.StepID, optionId = Model.Rows[i].OptionID, delta = 1 })"
+                                    title="Move down" disabled="@(i == Model.Rows.Count - 1)">&darr;</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                    formaction="@Url.Action("RemoveOption", new { id = Model.StepID, optionId = Model.Rows[i].OptionID })">Remove</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button type="submit" class="btn btn-primary">Save options</button>
+    </form>
+}
+
+<h4 class="mt-4">Add options from oracles</h4>
+<hr />
+
+<p class="text-muted">
+    One option per ticked oracle, named after the oracle. This is the quick way to build a
+    dropdown out of a family of tables &mdash; ten hustle tables, one per role. Oracles already
+    on the list are skipped, so you can tick the lot again after adding an eleventh.
+</p>
+
+@if (!Model.Available.Any())
+{
+    <p class="text-muted">No oracles to choose from yet.</p>
+}
+else
+{
+    <form asp-action="AddOptionsFromOracles" asp-route-id="@Model.StepID" method="post">
+        <fieldset id="oraclePicker">
+            <p class="mb-2" id="pickerLinks">
+                <a href="#" id="selectAll">Select all</a> |
+                <a href="#" id="selectNone">Select none</a>
+            </p>
+
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Oracle Type</th>
+                        <th>Game System</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Available)
+                    {
+                        <tr>
+                            <td>
+                                <input class="form-check-input oracle-pick" type="checkbox"
+                                       name="AddOracleIds" value="@item.ID" id="pick-@item.ID" />
+                            </td>
+                            <td>
+                                <label class="form-check-label" for="pick-@item.ID">@item.Name</label>
+                                @if (item.NeedsSetup)
+                                {
+                                    <span class="badge bg-warning text-dark">Needs setup</span>
+                                }
+                            </td>
+                            <td>@item.TypeLabel</td>
+                            <td>@item.GameSystemName</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary">Add as options</button>
+    </form>
+}
+
+<h4 class="mt-4">Add one by hand</h4>
+<hr />
+
+<form asp-action="AddOption" asp-route-id="@Model.StepID" method="post">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label asp-for="AddLabel" class="control-label">Option</label>
+            <input asp-for="AddLabel" class="form-control" />
+        </div>
+        <div class="col-md-5">
+            <label asp-for="AddOracleID" class="control-label">Rolls on</label>
+            <select asp-for="AddOracleID" class="form-control" asp-items="ViewBag.OracleID">
+                <option value="">Nothing &mdash; just record the answer</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-outline-primary">Add option</button>
+        </div>
+    </div>
+</form>
+
+<div class="mt-4">
+    <a asp-action="Steps" asp-route-id="@Model.FlowID">Back to Steps</a>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var picker = document.getElementById('oraclePicker');
+            if (!picker) return;
+
+            function setAll(value) {
+                picker.querySelectorAll('.oracle-pick').forEach(function (box) {
+                    box.checked = value;
+                });
+            }
+
+            document.getElementById('selectAll').addEventListener('click', function (e) {
+                e.preventDefault();
+                setAll(true);
+            });
+
+            document.getElementById('selectNone').addEventListener('click', function (e) {
+                e.preventDefault();
+                setAll(false);
+            });
+        })();
+    </script>
+}

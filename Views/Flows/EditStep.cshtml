@@ -1,0 +1,76 @@
+@model GM_Toolbox.Models.ViewModels.EditStepViewModel
+
+@{
+    ViewData["Title"] = "Edit Step";
+}
+
+<h1>Step @Model.SortOrder: @Model.FlowName</h1>
+<p>
+    <a asp-action="Steps" asp-route-id="@Model.FlowID">Back to Steps</a>
+</p>
+
+<h4>@Model.KindName</h4>
+<hr />
+
+<div asp-validation-summary="All" class="text-danger"></div>
+
+<p class="text-muted">
+    A step's type is fixed once it exists &mdash; turning a dropdown question into a roll would
+    strand its options, and a roll into anything else would strand its branches. Remove the step
+    and add the one you meant instead.
+</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="EditStep" method="post">
+            <input type="hidden" asp-for="FlowID" />
+            <input type="hidden" asp-for="StepID" />
+
+            <div class="form-group">
+                <label asp-for="Label" class="control-label">Call it</label>
+                <input asp-for="Label" class="form-control" placeholder="Optional" />
+                <span class="small text-muted">
+                    What the run transcript calls this step. Left blank it uses
+                    @(Model.IsQuestion ? "the question" : "the oracle's name").
+                </span>
+            </div>
+
+            @if (Model.IsQuestion)
+            {
+                <div class="form-group mt-4">
+                    <label asp-for="Question" class="control-label">Question</label>
+                    <input asp-for="Question" class="form-control" />
+                </div>
+            }
+
+            @if (Model.IsRoll)
+            {
+                <div class="form-group mt-4">
+                    <label asp-for="OracleID" class="control-label">Oracle</label>
+                    <select asp-for="OracleID" class="form-control" asp-items="ViewBag.OracleID">
+                        <option value="">Pick an oracle…</option>
+                    </select>
+                    <span class="small text-warning-emphasis">
+                        Changing this clears any branches on this step &mdash; they are keyed to
+                        outcomes on the oracle being replaced.
+                    </span>
+                </div>
+            }
+
+            @if (Model.IsRollChosen)
+            {
+                <div class="form-group mt-4">
+                    <label asp-for="SourceStepSortOrder" class="control-label">Rolls what was picked at</label>
+                    <select asp-for="SourceStepSortOrder" class="form-control" asp-items="ViewBag.SourceStepSortOrder">
+                        <option value="">Pick a question…</option>
+                    </select>
+                </div>
+            }
+
+            <div class="form-group mt-4">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a asp-action="Steps" asp-route-id="@Model.FlowID" class="btn btn-link">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

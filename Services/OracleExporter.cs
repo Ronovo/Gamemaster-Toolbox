@@ -1,4 +1,4 @@
-using GM_Toolbox.Models;
+﻿using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
 
@@ -16,7 +16,7 @@ namespace GM_Toolbox.Services
         {
             var file = new OracleExportFile
             {
-                FormatVersion = 2,
+                FormatVersion = 5,
                 ExportedUtc = DateTime.UtcNow
             };
 
@@ -47,6 +47,19 @@ namespace GM_Toolbox.Services
                 file.Oracles.Add(dto);
             }
             return file;
+        }
+
+        public static List<GameSystemDto> BuildSystems(IEnumerable<GameSystem> systems)
+        {
+            return systems
+                .DistinctBy(s => s.ID)
+                .OrderBy(s => s.Name)
+                .Select(s => new GameSystemDto
+                {
+                    Name = s.Name,
+                    Genre = s.Genre
+                })
+                .ToList();
         }
     }
 }

@@ -1,0 +1,259 @@
+﻿@model GM_Toolbox.Models.Flow
+@using GM_Toolbox.Models.ViewModels
+@using GM_Toolbox.Models.Enums
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Run";
+
+    var state = ViewData["RunState"] as FlowRunState ?? new FlowRunState { FlowID = Model.ID };
+    var runError = ViewData["RunError"] as string;
+    var blockedReason = Model.RunBlockedReason();
+
+    var currentStep = Model.Steps.FirstOrDefault(s => s.ID == state.CurrentStepID);
+    var lastRolled = state.Transcript.LastOrDefault();
+
+    var controlLabel = currentStep?.ControlLabel() ?? "Roll";
+    var currentKind = currentStep?.Kind ?? FlowStepKind.Roll;
+
+    // Seeds the log component with the run so far, so a page that has JavaScript ends up with
+    // exactly the rows the server already rendered rather than wiping them on first render.
+    // The property names are lower-cased here to match what roll-panel.js reads off a response.
+    // JsonSerializer escapes < and > by default, so this is safe inside a script element.
+    var seed = JsonSerializer.Serialize(state.Transcript.Select(t => new
+    {
+        label = t.Label,
+        isDice = t.Outcome.IsDice,
+        value = t.Outcome.Value,
+        key = t.Outcome.Key,
+        caption = t.Outcome.Caption,
+        result = t.Outcome.Result
+    }));
+}
+
+<h1>Run: @Model.Name</h1>
+
+@if (blockedReason != null)
+{
+    <div class="alert alert-warning">@blockedReason</div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-start">
+                <div class="col-12 col-sm-auto d-grid gap-2" style="min-width: 16rem;">
+                    @* One form for every kind of step. What sits inside it changes: a button on
+                       its own for a roll, a dropdown or a field plus a button for a question.
+                       The server renders whichever the current step needs, so this works with
+                       scripting off; with scripting on the page script rewrites it in place. *@
+                    <form asp-action="Run" asp-route-id="@Model.ID" method="post" id="runForm"
+                          hidden="@state.Finished">
+
+                        <div id="runQuestion" hidden="@(!currentKind.IsQuestion())">
+                            <label class="form-label small" for="runAnswer" id="runQuestionText">
+                                @currentStep?.Question
+                            </label>
+
+                            @* Disabled as well as hidden: both controls are named "answer",
+                               and a hidden-but-enabled one still posts its value. *@
+                            <select name="answer" class="form-control mb-2" id="runAnswerSelect"
+                                    hidden="@(currentKind != FlowStepKind.Choice)"
+                                    disabled="@(currentKind != FlowStepKind.Choice)">
+                                @if (currentStep != null && currentKind == FlowStepKind.Choice)
+                                {
+                                    foreach (var option in currentStep.Options.OrderBy(o => o.SortOrder))
+                                    {
+                                        <option value="@option.ID">@option.Label</option>
+                                    }
+                                }
+                            </select>
+
+                            <input name="answer" class="form-control mb-2" id="runAnswerInput"
+                                   type="@(currentKind == FlowStepKind.Number ? "number" : "text")"
+                                   hidden="@(currentKind != FlowStepKind.Text && currentKind != FlowStepKind.Number)"
+                                   disabled="@(currentKind != FlowStepKind.Text && currentKind != FlowStepKind.Number)" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="runButton">@controlLabel</button>
+                    </form>
+
+                    <form asp-action="Restart" asp-route-id="@Model.ID" method="post" id="restartForm">
+                        <button type="submit" class="btn btn-outline-secondary w-100">Start over</button>
+                    </form>
+
+                    <span class="small text-muted text-center" id="runFinished" hidden="@(!state.Finished)">
+                        This run has finished.
+                    </span>
+                </div>
+
+                <div class="col">
+                    <partial name="_RollPanel" model="@(new RollPanelModel {
+                        Id = "runPanel",
+                        Outcome = lastRolled?.Outcome,
+                        Error = runError,
+                        Label = lastRolled?.Label })" />
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-3 mb-0" id="runStepLimit" hidden="@(!state.HitStepLimit)">
+                This run reached @GM_Toolbox.Services.FlowRunner.StepLimit steps and was stopped there.
+                A branch pointing back up the flow can keep it going forever.
+            </div>
+        </div>
+    </div>
+
+    <div id="runLog" hidden="@(!state.Transcript.Any())">
+        <h4 data-log="heading">Run so far</h4>
+        <hr />
+        <table class="table table-sm roll-log">
+            <thead>
+                <tr>
+                    <th scope="col" class="roll-log-step">Step</th>
+                    <th scope="col" class="roll-log-result">Result</th>
+                    <th scope="col" class="roll-log-notes">Notes</th>
+                </tr>
+            </thead>
+            <tbody data-log="body">
+                @foreach (var entry in state.Transcript)
+                {
+                    <tr>
+                        <td>@entry.Label</td>
+                        <td>
+                            <strong>@(entry.Outcome.IsDice ? entry.Outcome.Value?.ToString() : entry.Outcome.Key)</strong>
+                            @if (!string.IsNullOrEmpty(entry.Outcome.Caption))
+                            {
+                                <div class="small text-muted">@entry.Outcome.Caption</div>
+                            }
+                        </td>
+                        <td class="@(string.IsNullOrWhiteSpace(entry.Outcome.Result) ? "text-muted" : "")">
+                            @(string.IsNullOrWhiteSpace(entry.Outcome.Result) ? "(no result text)" : entry.Outcome.Result)
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <nav class="d-flex align-items-center gap-2" data-log="pager" hidden>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-log="prev">Previous</button>
+            <span class="small text-muted" data-log="info"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-log="next">Next</button>
+        </nav>
+    </div>
+
+    <script type="application/json" id="runSeed">@Html.Raw(seed)</script>
+}
+
+<div>
+    <a asp-action="Details" asp-route-id="@Model.ID">Back to Details</a> |
+    <a asp-action="Steps" asp-route-id="@Model.ID">Steps</a> |
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    <script src="~/js/roll-panel.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var runForm = document.getElementById("runForm");
+            if (!runForm) return;
+
+            var panel = GmRoll.panel(document.getElementById("runPanel"));
+            var log = GmRoll.log(document.getElementById("runLog"), {
+                heading: "Run so far",
+                pageSize: 10,
+                newestFirst: false,
+                showLabel: true,
+                limit: 100
+            });
+
+            var button = document.getElementById("runButton");
+            var finishedEl = document.getElementById("runFinished");
+            var stepLimitEl = document.getElementById("runStepLimit");
+            var restartForm = document.getElementById("restartForm");
+
+            var questionWrap = document.getElementById("runQuestion");
+            var questionText = document.getElementById("runQuestionText");
+            var answerSelect = document.getElementById("runAnswerSelect");
+            var answerInput = document.getElementById("runAnswerInput");
+
+            // Re-render the server's rows through the component so both paths agree, and so the
+            // pager works on a run that was resumed after a refresh.
+            var seedEl = document.getElementById("runSeed");
+            if (seedEl) {
+                try {
+                    JSON.parse(seedEl.textContent).forEach(log.add);
+                } catch (e) {
+                    // A malformed seed is not worth losing the page over: the server-rendered
+                    // rows are already on screen and the run itself lives in the session.
+                }
+            }
+
+            // Both answer controls are named "answer", so only the one this kind of step uses
+            // may be enabled -- a disabled control is not submitted, which is what keeps the
+            // dropdown from posting alongside the text box.
+            function setControl(next, finished) {
+                runForm.hidden = finished;
+                finishedEl.hidden = !finished;
+                if (finished || !next) return;
+
+                button.textContent = next.buttonLabel;
+                questionWrap.hidden = !next.isQuestion;
+                questionText.textContent = next.question || "";
+
+                var isChoice = next.kind === "Choice";
+                var isTyped = next.kind === "Text" || next.kind === "Number";
+
+                answerSelect.hidden = !isChoice;
+                answerSelect.disabled = !isChoice;
+                if (isChoice) {
+                    answerSelect.textContent = "";
+                    for (var i = 0; i < next.options.length; i++) {
+                        var opt = document.createElement("option");
+                        opt.value = next.options[i].id;
+                        opt.textContent = next.options[i].label;
+                        answerSelect.appendChild(opt);
+                    }
+                }
+
+                answerInput.hidden = !isTyped;
+                answerInput.disabled = !isTyped;
+                answerInput.value = "";
+                if (isTyped) {
+                    answerInput.type = next.kind === "Number" ? "number" : "text";
+                }
+            }
+
+            GmRoll.bind(runForm, {
+                onData: function (data) {
+                    panel.showOutcome(data.outcome, data.label);
+                    log.add({
+                        label: data.label,
+                        isDice: data.outcome.isDice,
+                        value: data.outcome.value,
+                        key: data.outcome.key,
+                        caption: data.outcome.caption,
+                        result: data.outcome.result
+                    });
+                    stepLimitEl.hidden = !data.hitStepLimit;
+                    setControl(data.next, data.finished);
+                },
+                onError: panel.showError
+            });
+
+            GmRoll.bind(restartForm, {
+                onData: function (data) {
+                    log.reset();
+                    panel.clear();
+                    stepLimitEl.hidden = true;
+                    setControl(data.next, data.finished);
+                },
+                onError: panel.showError
+            });
+
+            // The server rendered the first control already; make sure the disabled flags match
+            // it, since a hidden-but-enabled field would still post its empty value.
+            answerSelect.disabled = answerSelect.hidden;
+            answerInput.disabled = answerInput.hidden;
+        })();
+    </script>
+}

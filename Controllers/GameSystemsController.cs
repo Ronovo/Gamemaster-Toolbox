@@ -25,15 +25,10 @@ public class GameSystemsController : Controller
         return View();
     }
 
-    // The duplicate-name check here is half of a pair: the other half is the unique index
-    // on GameSystem.Name in ApplicationDbContext. Neither is redundant. This one turns a
-    // collision into a sentence the user can act on; the index is what is actually true
-    // under a race. Deleting either is a bug.
-    //
-    // The comparison is case-insensitive because the column is declared COLLATE NOCASE.
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,Genre,PrimaryOracleType")] GameSystem gameSystem)
+    public async Task<IActionResult> Create([Bind("Name,Genre")] GameSystem gameSystem)
     {
         if (await _context.GameSystems.AnyAsync(g => g.Name == gameSystem.Name))
         {
@@ -61,7 +56,7 @@ public class GameSystemsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Genre,PrimaryOracleType")] GameSystem gameSystem)
+    public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Genre")] GameSystem gameSystem)
     {
         if (id != gameSystem.ID) return NotFound();
 
@@ -83,7 +78,6 @@ public class GameSystemsController : Controller
 
         existing.Name = gameSystem.Name;
         existing.Genre = gameSystem.Genre;
-        existing.PrimaryOracleType = gameSystem.PrimaryOracleType;
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -97,6 +91,7 @@ public class GameSystemsController : Controller
         if (gameSystem == null) return NotFound();
 
         ViewData["OracleCount"] = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
+        ViewData["FlowCount"] = await _context.Flows.CountAsync(f => f.GameSystemID == id);
         return View(gameSystem);
     }
 
@@ -109,10 +104,18 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FindAsync(id);
         if (gameSystem == null) return RedirectToAction(nameof(Index));
 
-        if (await _context.Oracles.AnyAsync(o => o.GameSystemID == id))
+        var oracleCount = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
+        var flowCount = await _context.Flows.CountAsync(f => f.GameSystemID == id);
+
+        if (oracleCount > 0 || flowCount > 0)
         {
-            ViewData["OracleCount"] = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
-            ModelState.AddModelError("", "That game system is still used by one or more oracles and cannot be deleted.");
+            ViewData["OracleCount"] = oracleCount;
+            ViewData["FlowCount"] = flowCount;
+            ModelState.AddModelError("", oracleCount > 0 && flowCount > 0
+                ? "That game system is still used by one or more oracles and flows, and cannot be deleted."
+                : oracleCount > 0
+                    ? "That game system is still used by one or more oracles and cannot be deleted."
+                    : "That game system is still used by one or more flows and cannot be deleted.");
             return View(gameSystem);
         }
 

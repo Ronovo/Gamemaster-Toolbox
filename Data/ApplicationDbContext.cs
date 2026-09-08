@@ -20,10 +20,6 @@ namespace GM_Toolbox.Data
                 .HasForeignKey(o => o.GameSystemID)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Game system names are case-insensitive. SQLite compares TEXT binary, so without
-            // NOCASE "Cyberpunk Red" and "cyberpunk red" become two rows — past the unique
-            // index below and past GameSystemsController's duplicate check — while
-            // OracleImporter's OrdinalIgnoreCase lookup still treats them as one.
             builder.Entity<GameSystem>()
                 .Property(g => g.Name)
                 .UseCollation("NOCASE");
@@ -32,9 +28,55 @@ namespace GM_Toolbox.Data
                 .HasIndex(g => g.Name)
                 .IsUnique();
 
-            builder.Entity<GameSystem>()
-                .Property(g => g.PrimaryOracleType)
+            builder.Entity<Flow>()
+                .HasOne(f => f.GameSystem)
+                .WithMany()
+                .HasForeignKey(f => f.GameSystemID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FlowStep>()
+                .HasOne(s => s.Flow)
+                .WithMany(f => f.Steps)
+                .HasForeignKey(s => s.FlowID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FlowStep>()
+                .HasOne(s => s.Oracle)
+                .WithMany()
+                .HasForeignKey(s => s.OracleID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FlowStep>()
+                .Property(s => s.Kind)
                 .HasConversion<string>();
+
+            builder.Entity<FlowChoiceOption>()
+                .HasOne(o => o.FlowStep)
+                .WithMany(s => s.Options)
+                .HasForeignKey(o => o.FlowStepID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FlowChoiceOption>()
+                .HasOne(o => o.Oracle)
+                .WithMany()
+                .HasForeignKey(o => o.OracleID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FlowBranch>()
+                .HasOne(b => b.FlowStep)
+                .WithMany(s => s.Branches)
+                .HasForeignKey(b => b.FlowStepID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FlowBranch>()
+                .HasOne(b => b.OracleEntry)
+                .WithMany()
+                .HasForeignKey(b => b.OracleEntryID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FlowBranch>()
+                .HasIndex(b => new { b.FlowStepID, b.OracleEntryID })
+                .IsUnique();
 
             // No HasData seed. A fresh database starts with no game systems: this is a
             // distributed tool, and one instance's idea of which systems matter is not
@@ -44,5 +86,9 @@ namespace GM_Toolbox.Data
         public DbSet<Oracle> Oracles { get; set; }
         public DbSet<OracleEntry> OracleEntries { get; set; }
         public DbSet<GameSystem> GameSystems { get; set; }
+        public DbSet<Flow> Flows { get; set; }
+        public DbSet<FlowStep> FlowSteps { get; set; }
+        public DbSet<FlowBranch> FlowBranches { get; set; }
+        public DbSet<FlowChoiceOption> FlowChoiceOptions { get; set; }
     }
 }

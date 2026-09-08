@@ -1,0 +1,187 @@
+@model GM_Toolbox.Models.ViewModels.FlowStepsViewModel
+@using GM_Toolbox.Models.Enums
+
+@{
+    ViewData["Title"] = "Steps";
+}
+
+<h1>Steps: @Model.FlowName</h1>
+
+@if (TempData["FlowMessage"] != null)
+{
+    <div class="alert alert-info">@TempData["FlowMessage"]</div>
+}
+
+<div asp-validation-summary="All" class="text-danger"></div>
+
+<p class="text-muted">
+    Steps run top to bottom. A step either rolls an oracle or asks you something, and when it is
+    done the flow moves to the one below it &mdash; unless that outcome has a branch, which sends
+    it somewhere else instead.
+</p>
+
+@if (!Model.Rows.Any())
+{
+    <p class="text-muted">
+        No steps yet. Add the first thing this flow should roll or ask.
+    </p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th class="roll-log-key">#</th>
+                <th>Step</th>
+                <th>Then</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    <td>@row.SortOrder</td>
+                    <td>
+                        <strong>@row.Label</strong>
+                        <div class="small text-muted">
+                            @row.Kind.DisplayName()
+                            <text>&middot;</text> @row.Summary
+                            @if (!string.IsNullOrEmpty(row.OracleTypeLabel))
+                            {
+                                <text>&middot; @row.OracleTypeLabel</text>
+                            }
+                        </div>
+
+                        @foreach (var option in row.OptionSummaries)
+                        {
+                            <div class="small text-muted">&bull; @option</div>
+                        }
+
+                        @if (row.BlockedReason != null)
+                        {
+                            <div class="small text-danger">@row.BlockedReason</div>
+                        }
+                        @if (row.Warning != null)
+                        {
+                            <div class="small text-warning-emphasis">@row.Warning</div>
+                        }
+                    </td>
+                    <td>
+                        <div class="small">Otherwise &rarr; @row.FallThroughLabel</div>
+                        @foreach (var branch in row.BranchSummaries)
+                        {
+                            <div class="small text-muted">@branch</div>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        <form asp-action="MoveStep" asp-route-id="@Model.FlowID" method="post" class="d-inline">
+                            <input type="hidden" name="stepId" value="@row.StepID" />
+                            <input type="hidden" name="delta" value="-1" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                    title="Move up" disabled="@(row.SortOrder == 1)">&uarr;</button>
+                        </form>
+                        <form asp-action="MoveStep" asp-route-id="@Model.FlowID" method="post" class="d-inline">
+                            <input type="hidden" name="stepId" value="@row.StepID" />
+                            <input type="hidden" name="delta" value="1" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                    title="Move down" disabled="@(row.SortOrder == Model.Rows.Count)">&darr;</button>
+                        </form>
+                        <a asp-action="EditStep" asp-route-id="@row.StepID" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        @if (row.IsChoice)
+                        {
+                            <a asp-action="Options" asp-route-id="@row.StepID" class="btn btn-sm btn-outline-secondary">Options</a>
+                        }
+                        @if (row.CanBranch)
+                        {
+                            <a asp-action="Branches" asp-route-id="@row.StepID" class="btn btn-sm btn-outline-secondary">Branches</a>
+                        }
+                        <form asp-action="RemoveStep" asp-route-id="@Model.FlowID" method="post" class="d-inline">
+                            <input type="hidden" name="stepId" value="@row.StepID" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h4 class="mt-4">Add a step</h4>
+<hr />
+
+@* Every kind's fields are in the markup and the script hides the ones that do not apply. With
+   scripting off they all stay visible, and FlowConfigurator.AddStep reads only the ones that
+   belong to the kind that was picked. Same arrangement as the die presets on an oracle. *@
+<form asp-action="AddStep" asp-route-id="@Model.FlowID" method="post" id="addStepForm">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label asp-for="AddKind" class="control-label">Step type</label>
+            <select asp-for="AddKind" class="form-control" asp-items="ViewBag.AddKind" id="addKind"></select>
+        </div>
+
+        <div class="col-md-5" data-kind-field="Roll">
+            <label asp-for="AddOracleID" class="control-label">Oracle</label>
+            <select asp-for="AddOracleID" class="form-control" asp-items="ViewBag.AddOracleID">
+                <option value="">Pick an oracle…</option>
+            </select>
+        </div>
+
+        <div class="col-md-5" data-kind-field="Choice Text Number">
+            <label asp-for="AddQuestion" class="control-label">Question</label>
+            <input asp-for="AddQuestion" class="form-control" placeholder="Which role are you playing?" />
+        </div>
+
+        <div class="col-md-5" data-kind-field="RollChosen">
+            <label asp-for="AddSourceStepSortOrder" class="control-label">Rolls what was picked at</label>
+            @if (Model.ChoiceSteps.Any())
+            {
+                <select asp-for="AddSourceStepSortOrder" class="form-control" asp-items="ViewBag.AddSourceStepSortOrder">
+                    <option value="">Pick a question…</option>
+                </select>
+            }
+            else
+            {
+                <p class="form-control-plaintext text-muted mb-0">
+                    Add a dropdown question first &mdash; this kind of step rolls whatever one of those picks.
+                </p>
+            }
+        </div>
+
+        <div class="col-md-3">
+            <label asp-for="AddLabel" class="control-label">Call it</label>
+            <input asp-for="AddLabel" class="form-control" placeholder="Optional" />
+        </div>
+
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">Add step</button>
+        </div>
+    </div>
+</form>
+
+<div class="mt-4">
+    <a asp-action="Run" asp-route-id="@Model.FlowID">Run this flow</a> |
+    <a asp-action="Details" asp-route-id="@Model.FlowID">Details</a> |
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var kind = document.getElementById("addKind");
+            if (!kind) return;
+
+            var groups = document.querySelectorAll("[data-kind-field]");
+
+            function sync() {
+                for (var i = 0; i < groups.length; i++) {
+                    var kinds = groups[i].getAttribute("data-kind-field").split(" ");
+                    groups[i].hidden = kinds.indexOf(kind.value) === -1;
+                }
+            }
+
+            kind.addEventListener("change", sync);
+            sync();
+        })();
+    </script>
+}

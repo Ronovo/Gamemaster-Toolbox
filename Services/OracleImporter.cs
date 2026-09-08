@@ -1,4 +1,4 @@
-using GM_Toolbox.Models;
+﻿using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
 
@@ -16,16 +16,35 @@ namespace GM_Toolbox.Services
     /// </summary>
     public static class OracleImporter
     {
-        public const int SupportedFormatVersion = 2;
+        public const int SupportedFormatVersion = 5;
 
-        public static string? TryBuild(OracleExportFile? file, IEnumerable<GameSystem> existingSystems, out List<Oracle> oracles)
+        /// </summary>
+        public static Dictionary<string, GameSystem> BuildSystemLookup(IEnumerable<GameSystem> existingSystems)
+        {
+            return existingSystems.ToDictionary(g => g.Name, g => g, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static GameSystem EnsureSystem(Dictionary<string, GameSystem> systemsByName, string name, string? genre = null)
+        {
+            name = name.Trim();
+            if (systemsByName.TryGetValue(name, out var system))
+                return system;
+
+            system = new GameSystem
+            {
+                Name = name,
+                Genre = string.IsNullOrWhiteSpace(genre) ? "Unknown" : genre.Trim()
+            };
+            systemsByName[name] = system;
+            return system;
+        }
+
+        public static string? TryBuild(OracleExportFile? file, Dictionary<string, GameSystem> systemsByName, out List<Oracle> oracles)
         {
             // Two lists on purpose. Work accumulates in `imported`, and `oracles` is only
             // pointed at it once every oracle in the file has validated.
             oracles = new List<Oracle>();
             var imported = new List<Oracle>();
-            var systemsByName = existingSystems.ToDictionary(
-                g => g.Name, g => g, StringComparer.OrdinalIgnoreCase);
 
             if (file == null)
                 return "That file could not be read as an oracle export.";
@@ -33,8 +52,14 @@ namespace GM_Toolbox.Services
             if (file.FormatVersion > SupportedFormatVersion)
                 return $"This file is format version {file.FormatVersion}; this app understands version {SupportedFormatVersion}.";
 
-            if (file.Oracles == null || file.Oracles.Count == 0)
-                return "The file contains no oracles.";
+            var systemsError = ApplyGameSystems(file.GameSystems, systemsByName);
+            if (systemsError != null)
+                return systemsError;
+
+            // An empty oracles array is not an error here any more. Whether the file is worth
+            // importing depends on its flows too, and only the controller sees both.
+            if (file.Oracles == null)
+                return null;
 
             for (int i = 0; i < file.Oracles.Count; i++)
             {
@@ -53,11 +78,7 @@ namespace GM_Toolbox.Services
                 if (string.IsNullOrWhiteSpace(dto.GameSystem))
                     return $"{label} (\"{dto.Name}\"): game system is missing.";
 
-                if (!systemsByName.TryGetValue(dto.GameSystem, out var system))
-                {
-                    system = new GameSystem { Name = dto.GameSystem, Genre = "Unknown" };
-                    systemsByName[dto.GameSystem] = system;
-                }
+                var system = EnsureSystem(systemsByName, dto.GameSystem);
 
                 bool isDice = subtype.Category() == OracleCategory.Dice;
                 int? diceCount = isDice ? dto.DiceCount : null;
@@ -89,6 +110,36 @@ namespace GM_Toolbox.Services
                 imported.Add(oracle);
             }
             oracles = imported;
+            return null;
+        }
+
+        private static string? ApplyGameSystems(List<GameSystemDto>? dtos, Dictionary<string, GameSystem> systemsByName)
+        {
+            if (dtos == null)
+                return null;
+
+            for (int i = 0; i < dtos.Count; i++)
+            {
+                var dto = dtos[i];
+                var label = $"Game system {i + 1}";
+
+                if (string.IsNullOrWhiteSpace(dto.Name))
+                    return $"{label}: name is missing.";
+
+                var name = dto.Name.Trim();
+                if (name.Length > 100)
+                    return $"{label} (\"{name}\"): name is longer than 100 characters.";
+
+                var genre = string.IsNullOrWhiteSpace(dto.Genre) ? "Unknown" : dto.Genre.Trim();
+                if (genre.Length > 100)
+                    return $"{label} (\"{name}\"): genre is longer than 100 characters.";
+
+                if (systemsByName.ContainsKey(name))
+                    continue;
+
+                systemsByName[name] = new GameSystem { Name = name, Genre = genre };
+            }
+
             return null;
         }
 
