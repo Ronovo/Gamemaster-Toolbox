@@ -8,6 +8,13 @@ namespace GM_Toolbox.Services
         public string CardLabel { get; set; } = string.Empty;
     }
 
+    // Suit letter plus number / face / major, used by the Edit Entries jump links.
+    public class CardClassification
+    {
+        public string? Suit { get; init; }
+        public string RankKind { get; init; } = string.Empty;
+    }
+
     public static class DeckFactory
     {
         public static List<CardDefinition> Build(OracleSubtype subtype)
@@ -21,6 +28,34 @@ namespace GM_Toolbox.Services
                 default:
                     throw new InvalidOperationException($"{subtype} is not a card subtype.");
             }
+        }
+
+        // Playing: H-A, H-J. Tarot major: T-MAJ-00. Tarot minor: T-W-KG.
+        // Face is Ace/J/Q/K (playing) or Ace/Page/Knight/Queen/King (tarot).
+        public static CardClassification? Classify(string? cardCode)
+        {
+            if (string.IsNullOrEmpty(cardCode)) return null;
+
+            var parts = cardCode.Split('-');
+
+            if (parts.Length == 3 && parts[0] == "T" && parts[1] == "MAJ")
+                return new CardClassification { RankKind = "major" };
+
+            if (parts.Length == 3 && parts[0] == "T")
+                return new CardClassification { Suit = parts[1], RankKind = RankKindOf(parts[2], tarot: true) };
+
+            if (parts.Length == 2)
+                return new CardClassification { Suit = parts[0], RankKind = RankKindOf(parts[1], tarot: false) };
+
+            return null;
+        }
+
+        private static string RankKindOf(string rank, bool tarot)
+        {
+            if (tarot)
+                return rank is "A" or "PG" or "KN" or "QN" or "KG" ? "face" : "number";
+
+            return rank is "A" or "J" or "Q" or "K" ? "face" : "number";
         }
 
         private static List<CardDefinition> BuildPlayingCards()

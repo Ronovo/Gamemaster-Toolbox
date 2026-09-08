@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using GM_Toolbox.Models.Enums;
 
 namespace GM_Toolbox.Models
@@ -9,6 +10,12 @@ namespace GM_Toolbox.Models
     /// </summary>
     public class DiceSpec
     {
+        public static readonly int[] StandardFaces = { 4, 6, 8, 10, 12, 20, 100 };
+
+        private static readonly Regex LabelPattern = new(
+            @"^(?:(?<count>\d+)[dD]|[dD])(?<faces>\d+)$",
+            RegexOptions.Compiled);
+
         public int Count { get; }
         public int Faces { get; }
 
@@ -23,6 +30,12 @@ namespace GM_Toolbox.Models
         public int Max => Count * Faces;
 
         public int Span => Max - Min + 1;
+
+        /// <summary>
+        /// How many outcome rows a new table starts with: 6, or the full span when
+        /// the die has fewer faces than that (a d4 only has four).
+        /// </summary>
+        public int DefaultOutcomeCount => Math.Min(6, Span);
 
         public string Label => Count == 1 ? $"d{Faces}" : $"{Count}d{Faces}";
 
@@ -39,6 +52,31 @@ namespace GM_Toolbox.Models
             }
 
             return new DiceSpec(diceCount.Value, diceFaces.Value);
+        }
+
+        public static DiceSpec? Parse(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+
+            var match = LabelPattern.Match(text.Trim());
+            if (!match.Success)
+            {
+                return null;
+            }
+
+            var count = match.Groups["count"].Success
+                ? int.Parse(match.Groups["count"].Value)
+                : 1;
+            var faces = int.Parse(match.Groups["faces"].Value);
+            if (count < 1 || faces < 2)
+            {
+                return null;
+            }
+
+            return new DiceSpec(count, faces);
         }
     }
 }

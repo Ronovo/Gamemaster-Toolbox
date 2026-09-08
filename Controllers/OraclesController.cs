@@ -22,9 +22,15 @@ public class OraclesController : Controller
         _env = env;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? name, int? gameSystemId, string? oracleType, int page = 1)
     {
-        return View(await OracleListItems());
+        var vm = await BuildOracleIndex(name, gameSystemId, oracleType, page);
+        if (WantsPartial())
+        {
+            return PartialView("_OracleListResults", vm);
+        }
+
+        return View(vm);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -127,6 +133,22 @@ public class OraclesController : Controller
         {
             _context.Add(oracle);
             await _context.SaveChangesAsync();
+
+            if (oracle.OracleSubtype.Category() == OracleCategory.Cards)
+            {
+                _configurator.Reconcile(oracle, null);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(EditEntries), new { id = oracle.ID });
+            }
+
+            var spec = oracle.Dice();
+            if (spec != null)
+            {
+                _configurator.Reconcile(oracle, spec.DefaultOutcomeCount);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(EditEntries), new { id = oracle.ID });
+            }
+
             return RedirectToAction(nameof(Configure), new { id = oracle.ID });
         }
         ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
@@ -154,9 +176,10 @@ public class OraclesController : Controller
         return View(oracle);
     }
 
-    // Changing the subtype, or a custom oracle's dice, deletes every existing entry and
-    // sends the user to Configure: a d6's three bands mean nothing on a tarot deck, so there
-    // is nothing to carry over.
+    // Changing the subtype, or a custom oracle's dice, deletes every existing entry.
+    // Card oracles get a full deck with each card's name as the outcome. Standard dice
+    // start with six numbered rows (or four on a d4). Then Edit Entries so you can
+    // replace those names at your own pace.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
@@ -200,6 +223,25 @@ public class OraclesController : Controller
 
 		if (rollChanged)
 		{
+            if (existing.OracleSubtype.Category() == OracleCategory.Cards)
+            {
+                existing = await LoadOracleWithEntries(existing.ID);
+                if (existing == null) return NotFound();
+                _configurator.Reconcile(existing, null);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(EditEntries), new { id = existing.ID });
+            }
+
+            var spec = existing.Dice();
+            if (spec != null)
+            {
+                existing = await LoadOracleWithEntries(existing.ID);
+                if (existing == null) return NotFound();
+                _configurator.Reconcile(existing, spec.DefaultOutcomeCount);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(EditEntries), new { id = existing.ID });
+            }
+
 			return RedirectToAction(nameof(Configure), new { id = existing.ID });
 		}
 		
@@ -300,17 +342,12 @@ public class OraclesController : Controller
             OracleID = oracle.ID,
             Name = oracle.Name,
             IsDice = isDice,
+            OracleSubtype = oracle.OracleSubtype,
             MinRoll = spec?.Min ?? 0,
             MaxRoll = spec?.Max ?? 0,
             Rows = oracle.OracleEntries
            .OrderBy(e => e.SortOrder)
-           .Select(e => new EntryRow
-           {
-               EntryId = e.ID,
-               Label = e.CardLabel ?? $"Outcome {e.SortOrder}",
-               Result = e.Result,
-               StartsAt = e.RangeStart ?? (spec?.Min ?? 1) + e.SortOrder - 1
-           })
+           .Select(e => ToEntryRow(e, spec))
            .ToList()
         };
 
@@ -354,10 +391,11 @@ public class OraclesController : Controller
             // Rebuild the fields the form didn't post back, then re-show
             vm.Name = oracle.Name;
             vm.IsDice = isDice;
+            vm.OracleSubtype = oracle.OracleSubtype;
             vm.MinRoll = minRoll;
             vm.MaxRoll = maxRoll;
             for (int i = 0; i < vm.Rows.Count && i < entries.Count; i++)
-                vm.Rows[i].Label = entries[i].CardLabel ?? $"Outcome {entries[i].SortOrder}";
+                ApplyEntryDisplay(vm.Rows[i], entries[i]);
             return View(vm);
         } 
 
@@ -386,14 +424,43 @@ public class OraclesController : Controller
     }
 
     // Asks what to export before exporting it. The download itself is the POST below.
-    public async Task<IActionResult> Export(string? returnTo)
-    {
-        return View(await BuildExportViewModel(new ExportViewModel { ReturnTo = NormalizeReturnTo(returnTo) }));
-    }
-    //
-    [HttpPost]
-    [ValidateAntiForgeryToken]
+    [HttpGet]
     public async Task<IActionResult> Export(ExportViewModel vm)
+    {
+        vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
+        await BuildExportViewModel(vm);
+
+        var partial = Request.Query["partial"].ToString();
+        if (string.Equals(partial, "oracles", StringComparison.OrdinalIgnoreCase))
+        {
+            return PartialView("_ExportOraclePicker", vm);
+        }
+
+        if (string.Equals(partial, "flows", StringComparison.OrdinalIgnoreCase))
+        {
+            return PartialView("_ExportFlowPicker", vm);
+        }
+
+        return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportOracleIds(string? oracleName, int? oracleGameSystemId, string? oracleType)
+    {
+        var query = OracleListQuery.ApplyFilters(_context.Oracles, oracleName, oracleGameSystemId, oracleType);
+        return Json(await OracleListQuery.MatchingIdsAsync(query));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportFlowIds(string? flowName, int? flowGameSystemId)
+    {
+        var query = FlowListQuery.ApplyFilters(_context.Flows, flowName, flowGameSystemId);
+        return Json(await FlowListQuery.MatchingIdsAsync(query));
+    }
+
+    [HttpPost, ActionName("Export")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExportConfirmed(ExportViewModel vm)
     {
         vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
 
@@ -668,11 +735,6 @@ public class OraclesController : Controller
         return fromSteps.Concat(fromOptions).Distinct().OrderBy(name => name).ToList();
     }
 
-    private Task<List<FlowListItem>> FlowListItems()
-    {
-        return FlowListQuery.ToListItemsAsync(_context.Flows);
-    }
-
     private static string? NormalizeReturnTo(string? returnTo)
     {
         if (string.Equals(returnTo, "Flows", StringComparison.OrdinalIgnoreCase))
@@ -693,28 +755,58 @@ public class OraclesController : Controller
 
     private async Task<ExportViewModel> BuildExportViewModel(ExportViewModel vm)
     {
-        vm.Available = await OracleListItems();
-        vm.AvailableFlows = await FlowListItems();
+        if (vm.OracleGameSystemID is <= 0) vm.OracleGameSystemID = null;
+        if (vm.FlowGameSystemID is <= 0) vm.FlowGameSystemID = null;
+
+        var systems = await _context.GameSystems.OrderBy(g => g.Name).ToListAsync();
+        vm.GameSystems = FilterSelectLists.GameSystems(systems);
+        vm.Subtypes = FilterSelectLists.OracleTypes(await OracleListQuery.DiceGeometriesAsync(_context.Oracles));
+
+        var oracles = OracleListQuery.ApplyFilters(
+            _context.Oracles, vm.OracleName, vm.OracleGameSystemID, vm.OracleType);
+        vm.Available = await OracleListQuery.ToPagedListAsync(oracles, vm.OraclePage);
+        vm.OraclePage = vm.Available.Page;
+
+        var flows = FlowListQuery.ApplyFilters(_context.Flows, vm.FlowName, vm.FlowGameSystemID);
+        vm.AvailableFlows = await FlowListQuery.ToPagedListAsync(flows, vm.FlowPage);
+        vm.FlowPage = vm.AvailableFlows.Page;
+
         vm.GameSystemCount = await _context.GameSystems.CountAsync();
+        vm.OracleCount = await _context.Oracles.CountAsync();
+        vm.FlowCount = await _context.Flows.CountAsync();
         return vm;
+    }
+
+    private async Task<OracleIndexViewModel> BuildOracleIndex(
+        string? name, int? gameSystemId, string? oracleType, int page)
+    {
+        if (gameSystemId is <= 0) gameSystemId = null;
+        var term = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        var type = string.IsNullOrWhiteSpace(oracleType) ? null : oracleType.Trim();
+
+        var systems = await _context.GameSystems.OrderBy(g => g.Name).ToListAsync();
+        var filtered = OracleListQuery.ApplyFilters(_context.Oracles, term, gameSystemId, type);
+
+        return new OracleIndexViewModel
+        {
+            Name = term,
+            GameSystemID = gameSystemId,
+            OracleType = type,
+            CatalogEmpty = !await _context.Oracles.AnyAsync(),
+            Results = await OracleListQuery.ToPagedListAsync(filtered, page),
+            GameSystems = FilterSelectLists.GameSystems(systems),
+            Subtypes = FilterSelectLists.OracleTypes(await OracleListQuery.DiceGeometriesAsync(_context.Oracles))
+        };
     }
 
     private Task<List<OracleListItem>> OracleListItems()
     {
-        return _context.Oracles
-            .OrderBy(o => o.Name)
-            .Select(o => new OracleListItem
-            {
-                ID = o.ID,
-                Name = o.Name,
-                OracleSubtype = o.OracleSubtype,
-                DiceCount = o.DiceCount,
-                DiceFaces = o.DiceFaces,
-                GameSystemName = o.GameSystem!.Name,
-                EntryCount = o.OracleEntries.Count,
-                HasUnbandedEntries = o.OracleEntries.Any(e => e.RangeStart == null)
-            })
-            .ToListAsync();
+        return OracleListQuery.ToListItemsAsync(_context.Oracles);
+    }
+
+    private bool WantsPartial()
+    {
+        return string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase);
     }
 
     // Keeps a server-side copy alongside the download. Full and partial exports go to
@@ -735,6 +827,27 @@ public class OraclesController : Controller
             .Include(o => o.OracleEntries)
             .Include(o => o.GameSystem)
             .FirstOrDefaultAsync(o => o.ID == id);
+    }
+
+    private static EntryRow ToEntryRow(OracleEntry entry, DiceSpec? spec)
+    {
+        var row = new EntryRow
+        {
+            EntryId = entry.ID,
+            Result = entry.Result,
+            StartsAt = entry.RangeStart ?? (spec?.Min ?? 1) + entry.SortOrder - 1
+        };
+        ApplyEntryDisplay(row, entry);
+        return row;
+    }
+
+    private static void ApplyEntryDisplay(EntryRow row, OracleEntry entry)
+    {
+        row.Label = entry.CardLabel ?? $"Outcome {entry.SortOrder}";
+        row.CardCode = entry.CardCode;
+        var classified = DeckFactory.Classify(entry.CardCode);
+        row.Suit = classified?.Suit;
+        row.RankKind = classified?.RankKind;
     }
 
     // A card oracle has no dice geometry: null the columns whatever the form posted. A dice

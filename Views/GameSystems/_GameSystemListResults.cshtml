@@ -1,0 +1,38 @@
+@using GM_Toolbox.Models.ViewModels
+@model GameSystemIndexViewModel
+
+@if (Model.CatalogEmpty)
+{
+    <p class="text-muted">No game systems yet. Use <strong>Add New</strong> to create one.</p>
+}
+else if (Model.Results.TotalCount == 0)
+{
+    <p class="text-muted">No game systems match these filters.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Genre</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Results.Items)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Genre</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_Pager" model='PagerModel.Create(Model.Results, "Index", Model.FilterRoute, controller: "GameSystems")' />
+}

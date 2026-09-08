@@ -1,4 +1,5 @@
-@model IEnumerable<GM_Toolbox.Models.ViewModels.FlowListItem>
+@using GM_Toolbox.Models.ViewModels
+@model FlowIndexViewModel
 
 @{
     ViewData["Title"] = "Flows";
@@ -22,61 +23,27 @@
     <a asp-controller="Oracles" asp-action="Import" asp-route-returnTo="Flows">Import</a>
 </p>
 
-@if (!Model.Any())
-{
-    <p class="text-muted">
-        No flows yet. A flow chains oracles together &mdash; roll one, and its outcome decides
-        what you roll next. Use <strong>Create New</strong> to build your first one.
-    </p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Steps</th>
-                <th>Game System</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model)
-            {
-                <tr>
-                    <td>
-                        @item.Name
+<form method="get" asp-action="Index" class="mb-3" data-live-filter data-results="#list-results" data-partial="1">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label" asp-for="Name"></label>
+            <input asp-for="Name" class="form-control" autocomplete="off" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" asp-for="GameSystemID"></label>
+            <select asp-for="GameSystemID" class="form-select">
+                @foreach (var item in Model.GameSystems)
+                {
+                    <option value="@item.Value">@item.Text</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-secondary">Filter</button>
+        </div>
+    </div>
+</form>
 
-                        @if (item.NeedsSetup)
-                        {
-                            <span class="badge bg-warning text-dark">Needs setup</span>
-                        }
-
-                        @if (!string.IsNullOrWhiteSpace(item.Description))
-                        {
-                            <div class="small text-muted">@item.Description</div>
-                        }
-                    </td>
-                    <td>
-                        @item.StepCount
-                        @if (item.BranchCount > 0)
-                        {
-                            <span class="small text-muted">(@item.BranchCount branch@(item.BranchCount == 1 ? "" : "es"))</span>
-                        }
-                    </td>
-                    <td>@item.GameSystemName</td>
-                    <td>
-                        @if (!item.NeedsSetup)
-                        {
-                            <a asp-action="Run" asp-route-id="@item.ID"><strong>Run</strong></a><text> | </text>
-                        }
-                        <a asp-action="Steps" asp-route-id="@item.ID">Steps</a> |
-                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
-                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
-                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+<div id="list-results">
+    <partial name="_FlowListResults" model="Model" />
+</div>

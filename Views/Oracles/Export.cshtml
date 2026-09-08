@@ -11,7 +11,7 @@
 
 <h1>Export</h1>
 
-@if (Model.GameSystemCount == 0 && !Model.Available.Any() && !Model.AvailableFlows.Any())
+@if (Model.CatalogEmpty)
 {
     <p class="text-muted">
         Nothing to export yet. Add a game system, then build an oracle or a flow.
@@ -33,14 +33,27 @@ else
         <input type="hidden" asp-for="ReturnTo" />
         <div asp-validation-summary="All" class="text-danger"></div>
 
+        <div id="oracle-selected">
+            @foreach (var id in Model.SelectedIds)
+            {
+                <input type="hidden" name="SelectedIds" value="@id" />
+            }
+        </div>
+        <div id="flow-selected">
+            @foreach (var id in Model.SelectedFlowIds)
+            {
+                <input type="hidden" name="SelectedFlowIds" value="@id" />
+            }
+        </div>
+
         <div class="form-check">
             <input class="form-check-input" type="radio" name="Scope" id="scopeEverything"
                    value="@ExportScope.Everything" checked="@(Model.Scope == ExportScope.Everything)" />
             <label class="form-check-label" for="scopeEverything">
                 Export everything
                 <span class="text-muted">
-                    (@Model.GameSystemCount game system(s), @Model.Available.Count oracle(s),
-                    @Model.AvailableFlows.Count flow(s))
+                    (@Model.GameSystemCount game system(s), @Model.OracleCount oracle(s),
+                    @Model.FlowCount flow(s))
                 </span>
             </label>
         </div>
@@ -50,7 +63,7 @@ else
                    value="@ExportScope.AllOracles" checked="@(Model.Scope == ExportScope.AllOracles)" />
             <label class="form-check-label" for="scopeAllOracles">
                 All oracles
-                <span class="text-muted">(@Model.Available.Count oracle(s), no flows)</span>
+                <span class="text-muted">(@Model.OracleCount oracle(s), no flows)</span>
             </label>
         </div>
 
@@ -63,49 +76,57 @@ else
         </div>
 
         <fieldset id="oraclePicker" class="mt-3 ms-4">
-            @if (!Model.Available.Any())
+            @if (Model.OracleCount == 0)
             {
                 <p class="text-muted">No oracles yet.</p>
             }
             else
             {
                 <p class="mb-2" id="oraclePickerLinks">
-                    <a href="#" id="selectAllOracles">Select all</a> |
-                    <a href="#" id="selectNoneOracles">Select none</a>
+                    <a href="#" id="selectAllOracles"
+                       data-ids-url="@Url.Action("ExportOracleIds")"
+                       data-filter-root="#oracle-filters">Select all</a> |
+                    <a href="#" id="selectNoneOracles"
+                       data-ids-url="@Url.Action("ExportOracleIds")"
+                       data-filter-root="#oracle-filters">Select none</a>
                 </p>
 
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th>Name</th>
-                            <th>Oracle Type</th>
-                            <th>Game System</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Available)
-                        {
-                            <tr>
-                                <td>
-                                    <input class="form-check-input oracle-pick" type="checkbox"
-                                           name="SelectedIds" value="@item.ID"
-                                           id="oracle-@item.ID"
-                                           checked="@Model.SelectedIds.Contains(item.ID)" />
-                                </td>
-                                <td>
-                                    <label class="form-check-label" for="oracle-@item.ID">@item.Name</label>
-                                    @if (item.NeedsSetup)
-                                    {
-                                        <span class="badge bg-warning text-dark">Needs setup</span>
-                                    }
-                                </td>
-                                <td>@Html.DisplayFor(m => item.OracleSubtype)</td>
-                                <td>@item.GameSystemName</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <div id="oracle-filters" class="mb-3"
+                     data-live-filter
+                     data-action="@Url.Action("Export")"
+                     data-results="#oracle-picker-results"
+                     data-partial="oracles"
+                     data-page-param="OraclePage">
+                    <input type="hidden" name="returnTo" value="@Model.ReturnTo" />
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label" for="OracleName">Name</label>
+                            <input asp-for="OracleName" class="form-control" autocomplete="off" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" asp-for="OracleType"></label>
+                            <select asp-for="OracleType" class="form-select">
+                                @foreach (var item in Model.Subtypes)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" asp-for="OracleGameSystemID"></label>
+                            <select asp-for="OracleGameSystemID" class="form-select">
+                                @foreach (var item in Model.GameSystems)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="oracle-picker-results">
+                    <partial name="_ExportOraclePicker" model="Model" />
+                </div>
             }
         </fieldset>
 
@@ -118,7 +139,7 @@ else
         </div>
 
         <fieldset id="flowPicker" class="mt-3 ms-4">
-            @if (!Model.AvailableFlows.Any())
+            @if (Model.FlowCount == 0)
             {
                 <p class="text-muted">No flows yet.</p>
             }
@@ -128,102 +149,45 @@ else
                     A flow always travels with the oracles it rolls, and only those.
                 </p>
                 <p class="mb-2" id="flowPickerLinks">
-                    <a href="#" id="selectAllFlows">Select all</a> |
-                    <a href="#" id="selectNoneFlows">Select none</a>
+                    <a href="#" id="selectAllFlows"
+                       data-ids-url="@Url.Action("ExportFlowIds")"
+                       data-filter-root="#flow-filters">Select all</a> |
+                    <a href="#" id="selectNoneFlows"
+                       data-ids-url="@Url.Action("ExportFlowIds")"
+                       data-filter-root="#flow-filters">Select none</a>
                 </p>
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th>Name</th>
-                            <th>Steps</th>
-                            <th>Game System</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var flow in Model.AvailableFlows)
-                        {
-                            <tr>
-                                <td>
-                                    <input class="form-check-input flow-pick" type="checkbox"
-                                           name="SelectedFlowIds" value="@flow.ID"
-                                           id="flow-@flow.ID"
-                                           checked="@Model.SelectedFlowIds.Contains(flow.ID)" />
-                                </td>
-                                <td>
-                                    <label class="form-check-label" for="flow-@flow.ID">@flow.Name</label>
-                                    @if (flow.NeedsSetup)
-                                    {
-                                        <span class="badge bg-warning text-dark">Needs setup</span>
-                                    }
-                                </td>
-                                <td>@flow.StepCount</td>
-                                <td>@flow.GameSystemName</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+
+                <div id="flow-filters" class="mb-3"
+                     data-live-filter
+                     data-action="@Url.Action("Export")"
+                     data-results="#flow-picker-results"
+                     data-partial="flows"
+                     data-page-param="FlowPage">
+                    <input type="hidden" name="returnTo" value="@Model.ReturnTo" />
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label" for="FlowName">Name</label>
+                            <input asp-for="FlowName" class="form-control" autocomplete="off" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" asp-for="FlowGameSystemID"></label>
+                            <select asp-for="FlowGameSystemID" class="form-select">
+                                @foreach (var item in Model.GameSystems)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="flow-picker-results">
+                    <partial name="_ExportFlowPicker" model="Model" />
+                </div>
             }
         </fieldset>
 
         <button type="submit" class="btn btn-primary">Export</button>
         <a asp-controller="@backController" asp-action="Index" class="btn btn-link">Back to List</a>
     </form>
-}
-
-@section Scripts {
-    <script>
-        (function () {
-            var oraclePicker = document.getElementById('oraclePicker');
-            var flowPicker = document.getElementById('flowPicker');
-            if (!oraclePicker || !flowPicker) return;
-
-            var selectedOracles = document.getElementById('scopeSelectedOracles');
-            var selectedFlows = document.getElementById('scopeSelectedFlows');
-
-            function setEnabled(box, on) {
-                box.disabled = !on;
-                box.style.opacity = on ? '1' : '0.5';
-            }
-
-            function sync() {
-                setEnabled(oraclePicker, selectedOracles.checked);
-                setEnabled(flowPicker, selectedFlows.checked);
-            }
-
-            function setAll(selector, value) {
-                document.querySelectorAll(selector).forEach(function (box) {
-                    box.checked = value;
-                });
-            }
-
-            document.getElementsByName('Scope').forEach(function (radio) {
-                radio.addEventListener('change', sync);
-            });
-
-            var allOracles = document.getElementById('selectAllOracles');
-            var noneOracles = document.getElementById('selectNoneOracles');
-            var allFlows = document.getElementById('selectAllFlows');
-            var noneFlows = document.getElementById('selectNoneFlows');
-
-            if (allOracles) allOracles.addEventListener('click', function (e) {
-                e.preventDefault();
-                setAll('.oracle-pick', true);
-            });
-            if (noneOracles) noneOracles.addEventListener('click', function (e) {
-                e.preventDefault();
-                setAll('.oracle-pick', false);
-            });
-            if (allFlows) allFlows.addEventListener('click', function (e) {
-                e.preventDefault();
-                setAll('.flow-pick', true);
-            });
-            if (noneFlows) noneFlows.addEventListener('click', function (e) {
-                e.preventDefault();
-                setAll('.flow-pick', false);
-            });
-
-            sync();
-        })();
-    </script>
 }

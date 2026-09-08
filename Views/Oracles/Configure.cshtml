@@ -33,7 +33,10 @@
                 }
                 else
                 {
-                    <p>This is a @spec.Label oracle. How many outcomes do you want on the table?</p>
+                    <p>
+                        This is a @spec.Label oracle. How many outcomes do you want on the table?
+                        New rows start numbered 1, 2, 3&hellip; so a table of three is already filled in.
+                    </p>
                 }
 
                 if (outcomeCount > 0)
@@ -52,7 +55,7 @@
                             <label for="outcomeCount">Number of outcomes</label>
                             <input type="text" inputmode="numeric" id="outcomeCount" name="outcomeCount"
                                    class="form-control"
-                                   value="@(outcomeCount > 0 ? outcomeCount.ToString() : null)" />
+                                   value="@(outcomeCount > 0 ? outcomeCount.ToString() : spec.DefaultOutcomeCount.ToString())" />
                         </div>
                     </div>
 
@@ -63,7 +66,10 @@
     break;
  
     case OracleCategory.Cards:
-        <p>This will generate the full deck for you to fill in.</p>
+        <p>
+            This builds the full deck with each card's name already filled in as the outcome.
+            You can change those names later, a few at a time.
+        </p>
 
         <form asp-action="Configure" asp-route-id="@Model.ID" asp-route-returnTo="@returnTo" method="post">
             <button type="submit" class="btn btn-primary">Generate deck</button>

@@ -1,4 +1,5 @@
-﻿@model IEnumerable<GM_Toolbox.Models.GameSystem>
+﻿@using GM_Toolbox.Models.ViewModels
+@model GameSystemIndexViewModel
 
 @{
     ViewData["Title"] = "Game Systems";
@@ -17,32 +18,22 @@
     <a asp-controller="Oracles" asp-action="Import" asp-route-returnTo="GameSystems">Import</a>
 </p>
 
-@if (!Model.Any())
-{
-    <p class="text-muted">No game systems yet. Use <strong>Add New</strong> to create one.</p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>@Html.DisplayNameFor(model => model.Name)</th>
-                <th>@Html.DisplayNameFor(model => model.Genre)</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model)
-            {
-                <tr>
-                    <td>@item.Name</td>
-                    <td>@item.Genre</td>
-                    <td>
-                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
-                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+<form method="get" asp-action="Index" class="mb-3" data-live-filter data-results="#list-results" data-partial="1">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label" asp-for="Name"></label>
+            <input asp-for="Name" class="form-control" autocomplete="off" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" asp-for="Genre"></label>
+            <input asp-for="Genre" class="form-control" autocomplete="off" />
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-secondary">Filter</button>
+        </div>
+    </div>
+</form>
+
+<div id="list-results">
+    <partial name="_GameSystemListResults" model="Model" />
+</div>

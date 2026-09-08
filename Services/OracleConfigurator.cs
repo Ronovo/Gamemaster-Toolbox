@@ -1,6 +1,7 @@
 using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace GM_Toolbox.Services
 {
@@ -20,7 +21,10 @@ namespace GM_Toolbox.Services
         /// </summary>
         public string? Reconcile(Oracle oracle, int? outcomeCount)
         {
-            var existing = oracle.OracleEntries.OrderBy(e => e.SortOrder).ToList();
+            var existing = oracle.OracleEntries
+                .Where(e => _context.Entry(e).State != EntityState.Deleted)
+                .OrderBy(e => e.SortOrder)
+                .ToList();
 
             switch (oracle.OracleSubtype.Category())
             {
@@ -32,7 +36,7 @@ namespace GM_Toolbox.Services
                     if (outcomeCount == null || outcomeCount < 1 || outcomeCount > spec.Span)
                         return $"Enter a number between 1 and {spec.Span}.";
 
-                    ReconcileDice(oracle, existing, outcomeCount.Value);
+                    ReconcileDice(oracle, existing, spec, outcomeCount.Value);
                     break;
 
                 case OracleCategory.Cards:
@@ -43,20 +47,41 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        private void ReconcileDice(Oracle oracle, List<OracleEntry> existing, int desired)
+        private void ReconcileDice(Oracle oracle, List<OracleEntry> existing, DiceSpec spec, int desired)
         {
             // Trim extra rows off the end, keeping the survivors' text.
             for (int i = existing.Count - 1; i >= desired; i--)
                 _context.OracleEntries.Remove(existing[i]);
 
-            // Append new blank rows
+            // Append new rows numbered 1, 2, 3… so a table of three is already 1, 2, 3.
             for (int n = existing.Count + 1; n <= desired; n++)
-                _context.OracleEntries.Add(new OracleEntry
+            {
+                oracle.OracleEntries.Add(new OracleEntry
                 {
                     OracleID = oracle.ID,
                     SortOrder = n,
-                    Result = string.Empty
+                    Result = n.ToString()
                 });
+            }
+
+            ApplyDefaultBands(oracle, spec);
+        }
+        
+        private void ApplyDefaultBands(Oracle oracle, DiceSpec spec)
+        {
+            var entries = oracle.OracleEntries
+                .Where(e => _context.Entry(e).State != EntityState.Deleted)
+                .OrderBy(e => e.SortOrder)
+                .ToList();
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                entries[i].SortOrder = i + 1;
+                entries[i].RangeStart = spec.Min + i;
+                entries[i].RangeEnd = i < entries.Count - 1
+                    ? spec.Min + i
+                    : spec.Max;
+            }
         }
 
         private void ReconcileCards(Oracle oracle, List<OracleEntry> existing)
@@ -88,7 +113,7 @@ namespace GM_Toolbox.Services
                         SortOrder = n + 1,
                         CardCode = deck[n].CardCode,
                         CardLabel = deck[n].CardLabel,
-                        Result = string.Empty
+                        Result = deck[n].CardLabel
                     });
                 }
             }

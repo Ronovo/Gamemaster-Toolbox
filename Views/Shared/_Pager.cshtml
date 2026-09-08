@@ -1,0 +1,46 @@
+@model GM_Toolbox.Models.ViewModels.PagerModel
+
+@if (Model.TotalCount > 0)
+{
+    <div class="d-flex flex-wrap align-items-center gap-3 mt-2 mb-3">
+        <p class="small text-muted mb-0">Showing @Model.From&ndash;@Model.To of @Model.TotalCount</p>
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="Pages">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : null)">
+                        @if (Model.Page <= 1)
+                        {
+                            <span class="page-link">Previous</span>
+                        }
+                        else
+                        {
+                            <a class="page-link"
+                               asp-controller="@Model.Controller"
+                               asp-action="@Model.Action"
+                               asp-all-route-data="Model.RouteWithPage(Model.Page - 1)"
+                               data-page>Previous</a>
+                        }
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">@Model.Page / @Model.TotalPages</span>
+                    </li>
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : null)">
+                        @if (Model.Page >= Model.TotalPages)
+                        {
+                            <span class="page-link">Next</span>
+                        }
+                        else
+                        {
+                            <a class="page-link"
+                               asp-controller="@Model.Controller"
+                               asp-action="@Model.Action"
+                               asp-all-route-data="Model.RouteWithPage(Model.Page + 1)"
+                               data-page>Next</a>
+                        }
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}

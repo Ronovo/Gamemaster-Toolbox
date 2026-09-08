@@ -1,0 +1,44 @@
+@using GM_Toolbox.Models.ViewModels
+@model ExportViewModel
+
+@if (Model.Available.TotalCount == 0)
+{
+    <p class="text-muted mb-0">No oracles match these filters.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Oracle Type</th>
+                <th>Game System</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Available.Items)
+            {
+                <tr>
+                    <td>
+                        <input class="form-check-input oracle-pick" type="checkbox"
+                               name="SelectedIds" value="@item.ID"
+                               id="oracle-@item.ID"
+                               checked="@Model.SelectedIds.Contains(item.ID)" />
+                    </td>
+                    <td>
+                        <label class="form-check-label" for="oracle-@item.ID">@item.Name</label>
+                        @if (item.NeedsSetup)
+                        {
+                            <span class="badge bg-warning text-dark">Needs setup</span>
+                        }
+                    </td>
+                    <td>@item.TypeLabel</td>
+                    <td>@item.GameSystemName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_Pager" model='PagerModel.Create(Model.Available, "Export", Model.OracleFilterRoute, pageParam: "OraclePage", controller: "Oracles")' />
+}

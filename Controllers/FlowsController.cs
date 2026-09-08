@@ -18,9 +18,15 @@ public class FlowsController : Controller
         _configurator = configurator;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? name, int? gameSystemId, int page = 1)
     {
-        return View(await FlowListItems());
+        var vm = await BuildFlowIndex(name, gameSystemId, page);
+        if (string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase))
+        {
+            return PartialView("_FlowListResults", vm);
+        }
+
+        return View(vm);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -757,9 +763,22 @@ public class FlowsController : Controller
         };
     }
 
-    private Task<List<FlowListItem>> FlowListItems()
+    private async Task<FlowIndexViewModel> BuildFlowIndex(string? name, int? gameSystemId, int page)
     {
-        return FlowListQuery.ToListItemsAsync(_context.Flows);
+        if (gameSystemId is <= 0) gameSystemId = null;
+        var term = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+
+        var systems = await _context.GameSystems.OrderBy(g => g.Name).ToListAsync();
+        var filtered = FlowListQuery.ApplyFilters(_context.Flows, term, gameSystemId);
+
+        return new FlowIndexViewModel
+        {
+            Name = term,
+            GameSystemID = gameSystemId,
+            CatalogEmpty = !await _context.Flows.AnyAsync(),
+            Results = await FlowListQuery.ToPagedListAsync(filtered, page),
+            GameSystems = FilterSelectLists.GameSystems(systems)
+        };
     }
 
     private Task<Flow?> LoadFlow(int? id)
@@ -825,20 +844,7 @@ public class FlowsController : Controller
 
     private Task<List<OracleListItem>> OracleListItems()
     {
-        return _context.Oracles
-            .OrderBy(o => o.Name)
-            .Select(o => new OracleListItem
-            {
-                ID = o.ID,
-                Name = o.Name,
-                OracleSubtype = o.OracleSubtype,
-                DiceCount = o.DiceCount,
-                DiceFaces = o.DiceFaces,
-                GameSystemName = o.GameSystem!.Name,
-                EntryCount = o.OracleEntries.Count,
-                HasUnbandedEntries = o.OracleEntries.Any(e => e.RangeStart == null)
-            })
-            .ToListAsync();
+        return OracleListQuery.ToListItemsAsync(_context.Oracles);
     }
 
     private async Task<SelectList> GameSystemSelectList(int? selected = null)

@@ -1,0 +1,56 @@
+@model OracleIndexViewModel
+
+@if (Model.CatalogEmpty)
+{
+    <p class="text-muted">No oracles yet. Use <strong>Create New</strong> to build your first one.</p>
+}
+else if (Model.Results.TotalCount == 0)
+{
+    <p class="text-muted">No oracles match these filters.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Oracle Type</th>
+                <th>Game System</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Results.Items)
+            {
+                <tr>
+                    <td>
+                        @item.Name
+
+                        @if (item.NeedsSetup)
+                        {
+                            <span class="badge bg-warning text-dark">Needs setup</span>
+                        }
+                    </td>
+                    <td>
+                        @item.TypeLabel
+                    </td>
+                    <td>
+                        @item.GameSystemName
+                    </td>
+                    <td>
+                        @if (!item.NeedsSetup)
+                        {
+                            <a asp-action="Roll" asp-route-id="@item.ID"><strong>Roll</strong></a><text> | </text>
+                        }
+                        <a asp-action="Configure" asp-route-id="@item.ID" asp-route-returnTo="Index">Configure</a> |
+                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
+                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_Pager" model='PagerModel.Create(Model.Results, "Index", Model.FilterRoute, controller: "Oracles")' />
+}

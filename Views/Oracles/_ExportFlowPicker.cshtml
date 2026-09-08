@@ -1,0 +1,44 @@
+@using GM_Toolbox.Models.ViewModels
+@model ExportViewModel
+
+@if (Model.AvailableFlows.TotalCount == 0)
+{
+    <p class="text-muted mb-0">No flows match these filters.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Steps</th>
+                <th>Game System</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var flow in Model.AvailableFlows.Items)
+            {
+                <tr>
+                    <td>
+                        <input class="form-check-input flow-pick" type="checkbox"
+                               name="SelectedFlowIds" value="@flow.ID"
+                               id="flow-@flow.ID"
+                               checked="@Model.SelectedFlowIds.Contains(flow.ID)" />
+                    </td>
+                    <td>
+                        <label class="form-check-label" for="flow-@flow.ID">@flow.Name</label>
+                        @if (flow.NeedsSetup)
+                        {
+                            <span class="badge bg-warning text-dark">Needs setup</span>
+                        }
+                    </td>
+                    <td>@flow.StepCount</td>
+                    <td>@flow.GameSystemName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_Pager" model='PagerModel.Create(Model.AvailableFlows, "Export", Model.FlowFilterRoute, pageParam: "FlowPage", controller: "Oracles")' />
+}

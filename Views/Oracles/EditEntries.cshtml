@@ -1,21 +1,79 @@
 ﻿@model GM_Toolbox.Models.ViewModels.EditEntriesViewModel
+@using GM_Toolbox.Models.Enums
 
 @{
     ViewData["Title"] = "Edit Entries";
+    var pageSize = Model.IsDice ? 10 : 15;
+    var decades = new List<(int Start, int End)>();
+    if (Model.IsDice && Model.MaxRoll > 0)
+    {
+        for (int start = 1; start <= Model.MaxRoll; start += 10)
+        {
+            int end = Math.Min(start + 9, Model.MaxRoll);
+            if (end < Model.MinRoll) continue;
+            decades.Add((start, end));
+        }
+    }
 }
 
 <h1>Outcomes: @Model.Name</h1>
 
-<form asp-action="EditEntries" method="post">
+<form asp-action="EditEntries" method="post" id="editEntriesForm" data-page-size="@pageSize">
     <input type="hidden" asp-for="OracleID" />
 
     <div asp-validation-summary="All" class="text-danger"></div>
 
+    @if (Model.IsDice && decades.Count > 1)
+    {
+        <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Roll range">
+            <button type="button" class="btn btn-sm btn-primary" data-filter="decade" data-value="all" aria-pressed="true">All</button>
+            @foreach (var decade in decades)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="decade" data-value="@decade.Start-@decade.End" aria-pressed="false">@decade.Start-@decade.End</button>
+            }
+        </div>
+    }
+    else if (Model.OracleSubtype == OracleSubtype.PlayingCards)
+    {
+        <div class="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="Suit">
+            <button type="button" class="btn btn-sm btn-primary" data-filter="suit" data-value="all" aria-pressed="true">All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="H" aria-pressed="false">Hearts</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="D" aria-pressed="false">Diamonds</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="C" aria-pressed="false">Clubs</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="S" aria-pressed="false">Spades</button>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Rank">
+            <button type="button" class="btn btn-sm btn-primary" data-filter="rank" data-value="all" aria-pressed="true">All ranks</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="rank" data-value="face" aria-pressed="false">Face</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="rank" data-value="number" aria-pressed="false">Number</button>
+        </div>
+    }
+    else if (Model.OracleSubtype == OracleSubtype.TarotCards)
+    {
+        <div class="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="Suit">
+            <button type="button" class="btn btn-sm btn-primary" data-filter="suit" data-value="all" aria-pressed="true">All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="W" aria-pressed="false">Wands</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="C" aria-pressed="false">Cups</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="S" aria-pressed="false">Swords</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="suit" data-value="P" aria-pressed="false">Pentacles</button>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Arcana">
+            <button type="button" class="btn btn-sm btn-primary" data-filter="rank" data-value="all" aria-pressed="true">All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="rank" data-value="major" aria-pressed="false">Major Arcana</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="rank" data-value="number" aria-pressed="false">Minor numbers</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="rank" data-value="face" aria-pressed="false">Minor face</button>
+        </div>
+    }
+
     @for (int i = 0; i < Model.Rows.Count; i++)
     {
-        <input type="hidden" asp-for="Rows[i].EntryId" />
+        <div class="entry-row form-group mb-3"
+             data-entry-row
+             data-starts-at="@Model.Rows[i].StartsAt"
+             data-suit="@Model.Rows[i].Suit"
+             data-rank-kind="@Model.Rows[i].RankKind">
+            <input type="hidden" asp-for="Rows[i].EntryId" />
 
-        <div class="form-group mb-3">
             <label asp-for="Rows[i].Result">@Model.Rows[i].Label</label>
 
             @if (Model.IsDice)
@@ -32,6 +90,12 @@
             <input asp-for="Rows[i].Result" class="form-control" />
         </div>
     }
+
+    <nav id="entryPager" class="d-flex align-items-center gap-2 mb-3" hidden>
+        <button type="button" id="entryPrev" class="btn btn-sm btn-outline-secondary">Previous</button>
+        <span id="entryPageInfo" class="small text-muted"></span>
+        <button type="button" id="entryNext" class="btn btn-sm btn-outline-secondary">Next</button>
+    </nav>
 
     <button type="submit" class="btn btn-primary">Save</button>
     <a asp-action="Details" asp-route-id="@Model.OracleID" class="btn btn-link">Cancel</a>

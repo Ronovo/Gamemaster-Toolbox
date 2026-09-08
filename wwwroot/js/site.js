@@ -82,3 +82,319 @@
 
     syncKind();
 })();
+
+// List pages and Export pickers: filter as you type / on dropdown change, and page
+// without losing the name box. Server-side paging means the query has to go back
+// to the server; fetch replaces only the table so the filters stay put.
+(function () {
+    function readParams(root) {
+        var params = new URLSearchParams();
+        root.querySelectorAll("input, select, textarea").forEach(function (el) {
+            if (!el.name || el.disabled) return;
+            if (el.type === "file" || el.type === "submit") return;
+            if ((el.type === "checkbox" || el.type === "radio") && !el.checked) return;
+            params.set(el.name, el.value);
+        });
+        return params;
+    }
+
+    function actionUrl(root) {
+        if (root.tagName === "FORM" && root.getAttribute("action")) return root.action;
+        return root.getAttribute("data-action") || window.location.pathname;
+    }
+
+    document.querySelectorAll("[data-live-filter]").forEach(function (root) {
+        var results = document.querySelector(root.getAttribute("data-results") || "#list-results");
+        if (!results) return;
+
+        var timer = null;
+        var partial = root.getAttribute("data-partial") || "1";
+        var pageParam = root.getAttribute("data-page-param") || "page";
+
+        function bindPager() {
+            results.querySelectorAll("a[data-page]").forEach(function (a) {
+                a.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    load(a.href, false);
+                });
+            });
+        }
+
+        function load(url, resetPage) {
+            var target = new URL(url, window.location.origin);
+            if (resetPage) target.searchParams.delete(pageParam);
+            target.searchParams.set("partial", partial);
+
+            fetch(target.toString(), { headers: { "X-Requested-With": "fetch" } })
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                    results.innerHTML = html;
+                    bindPager();
+                    results.dispatchEvent(new CustomEvent("gm:list-updated", { bubbles: true }));
+
+                    var shown = new URL(window.location.href);
+                    target.searchParams.forEach(function (v, k) {
+                        if (k === "partial") return;
+                        if (v) shown.searchParams.set(k, v);
+                        else shown.searchParams.delete(k);
+                    });
+                    shown.searchParams.delete("partial");
+                    if (resetPage) shown.searchParams.delete(pageParam);
+                    history.replaceState(null, "", shown.pathname + shown.search);
+                });
+        }
+
+        function filterChanged() {
+            var url = new URL(actionUrl(root), window.location.origin);
+            readParams(root).forEach(function (v, k) {
+                if (v) url.searchParams.set(k, v);
+                else url.searchParams.delete(k);
+            });
+            load(url.toString(), true);
+        }
+
+        if (root.tagName === "FORM") {
+            root.addEventListener("submit", function (e) {
+                e.preventDefault();
+                filterChanged();
+            });
+        } else {
+            // Filters sit inside the Export POST form; Enter in a name box must not
+            // download a file.
+            root.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    filterChanged();
+                }
+            });
+        }
+
+        root.querySelectorAll("input[type=text], input[type=search]").forEach(function (input) {
+            input.addEventListener("input", function () {
+                clearTimeout(timer);
+                timer = setTimeout(filterChanged, 300);
+            });
+        });
+
+        root.querySelectorAll("select").forEach(function (select) {
+            select.addEventListener("change", filterChanged);
+        });
+
+        bindPager();
+    });
+})();
+
+// Export picker: hidden SelectedIds / SelectedFlowIds are the source of truth so a
+// tick survives paging and filter changes. Select all / none apply to the current
+// filter set, not just the visible page.
+(function () {
+    var oraclePicker = document.getElementById("oraclePicker");
+    var flowPicker = document.getElementById("flowPicker");
+    if (!oraclePicker || !flowPicker) return;
+
+    function selection(containerId, checkboxSelector, inputName) {
+        var box = document.getElementById(containerId);
+        if (!box) return null;
+
+        function has(id) {
+            return !!box.querySelector('input[name="' + inputName + '"][value="' + id + '"]');
+        }
+
+        function add(id) {
+            id = String(id);
+            if (has(id)) return;
+            var input = document.createElement("input");
+            input.type = "hidden";
+            input.name = inputName;
+            input.value = id;
+            box.appendChild(input);
+        }
+
+        function remove(id) {
+            var el = box.querySelector('input[name="' + inputName + '"][value="' + id + '"]');
+            if (el) el.remove();
+        }
+
+        function syncVisible() {
+            document.querySelectorAll(checkboxSelector).forEach(function (cb) {
+                if (cb.checked) add(cb.value);
+                cb.checked = has(cb.value);
+                cb.removeAttribute("name");
+            });
+        }
+
+        return {
+            add: add,
+            remove: remove,
+            addAll: function (ids) { ids.forEach(add); },
+            removeAll: function (ids) { ids.forEach(remove); },
+            syncVisible: syncVisible
+        };
+    }
+
+    var oracles = selection("oracle-selected", ".oracle-pick", "SelectedIds");
+    var flows = selection("flow-selected", ".flow-pick", "SelectedFlowIds");
+    if (!oracles || !flows) return;
+
+    function bindChecks(selector, set) {
+        document.querySelectorAll(selector).forEach(function (cb) {
+            if (cb.dataset.gmBound === "1") return;
+            cb.dataset.gmBound = "1";
+            cb.addEventListener("change", function () {
+                if (cb.checked) set.add(cb.value);
+                else set.remove(cb.value);
+            });
+        });
+        set.syncVisible();
+    }
+
+    function bindAll() {
+        bindChecks(".oracle-pick", oracles);
+        bindChecks(".flow-pick", flows);
+    }
+
+    bindAll();
+    document.addEventListener("gm:list-updated", bindAll);
+
+    var selectedOracles = document.getElementById("scopeSelectedOracles");
+    var selectedFlows = document.getElementById("scopeSelectedFlows");
+
+    function setEnabled(box, on) {
+        box.disabled = !on;
+        box.style.opacity = on ? "1" : "0.5";
+    }
+
+    function sync() {
+        setEnabled(oraclePicker, selectedOracles.checked);
+        setEnabled(flowPicker, selectedFlows.checked);
+    }
+
+    document.getElementsByName("Scope").forEach(function (radio) {
+        radio.addEventListener("change", sync);
+    });
+    sync();
+
+    function readFilterParams(root) {
+        var params = new URLSearchParams();
+        if (!root) return params;
+        root.querySelectorAll("input, select").forEach(function (el) {
+            if (!el.name || el.disabled) return;
+            if (el.type === "hidden" && el.name === "returnTo") return;
+            if (el.value) params.set(el.name, el.value);
+        });
+        return params;
+    }
+
+    function bindSelectLink(link, set, add) {
+        if (!link) return;
+        link.addEventListener("click", function (e) {
+            e.preventDefault();
+            var url = new URL(link.getAttribute("data-ids-url"), window.location.origin);
+            var params = readFilterParams(document.querySelector(link.getAttribute("data-filter-root")));
+            params.forEach(function (v, k) { url.searchParams.set(k, v); });
+            fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
+                .then(function (r) { return r.json(); })
+                .then(function (ids) {
+                    if (add) set.addAll(ids);
+                    else set.removeAll(ids);
+                    set.syncVisible();
+                });
+        });
+    }
+
+    bindSelectLink(document.getElementById("selectAllOracles"), oracles, true);
+    bindSelectLink(document.getElementById("selectNoneOracles"), oracles, false);
+    bindSelectLink(document.getElementById("selectAllFlows"), flows, true);
+    bindSelectLink(document.getElementById("selectNoneFlows"), flows, false);
+})();
+
+// Edit Entries: every outcome stays in the form (Save still posts the full list).
+// Jump links filter the visible set; the rest are hidden 10 (dice) or 15 (cards) at a time.
+(function () {
+    var form = document.getElementById("editEntriesForm");
+    if (!form) return;
+
+    var pageSize = parseInt(form.getAttribute("data-page-size"), 10) || 10;
+    var rows = Array.prototype.slice.call(form.querySelectorAll("[data-entry-row]"));
+    var pager = document.getElementById("entryPager");
+    var prev = document.getElementById("entryPrev");
+    var next = document.getElementById("entryNext");
+    var info = document.getElementById("entryPageInfo");
+
+    var filters = { decade: "all", suit: "all", rank: "all" };
+    var page = 1;
+
+    function matches(row) {
+        if (filters.decade !== "all") {
+            var starts = parseInt(row.getAttribute("data-starts-at"), 10);
+            var parts = filters.decade.split("-");
+            var from = parseInt(parts[0], 10);
+            var to = parseInt(parts[1], 10);
+            if (isNaN(starts) || starts < from || starts > to) return false;
+        }
+        if (filters.suit !== "all" && row.getAttribute("data-suit") !== filters.suit) return false;
+        if (filters.rank !== "all" && row.getAttribute("data-rank-kind") !== filters.rank) return false;
+        return true;
+    }
+
+    function render() {
+        var matched = rows.filter(matches);
+        var totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
+        if (page > totalPages) page = totalPages;
+
+        var start = (page - 1) * pageSize;
+        var visible = matched.slice(start, start + pageSize);
+
+        rows.forEach(function (row) {
+            row.classList.toggle("d-none", visible.indexOf(row) === -1);
+        });
+
+        if (!pager) return;
+        if (matched.length <= pageSize) {
+            pager.hidden = true;
+            return;
+        }
+
+        pager.hidden = false;
+        if (info) info.textContent = "Page " + page + " of " + totalPages;
+        if (prev) prev.disabled = page === 1;
+        if (next) next.disabled = page === totalPages;
+    }
+
+    function setFilter(kind, value) {
+        filters[kind] = value;
+        page = 1;
+        form.querySelectorAll('[data-filter="' + kind + '"]').forEach(function (btn) {
+            var on = btn.getAttribute("data-value") === value;
+            btn.classList.toggle("btn-primary", on);
+            btn.classList.toggle("btn-outline-secondary", !on);
+            btn.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        render();
+    }
+
+    form.querySelectorAll("[data-filter]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            setFilter(btn.getAttribute("data-filter"), btn.getAttribute("data-value"));
+        });
+    });
+
+    rows.forEach(function (row) {
+        var startInput = row.querySelector("input[name$='.StartsAt']");
+        if (!startInput) return;
+        startInput.addEventListener("input", function () {
+            row.setAttribute("data-starts-at", startInput.value);
+            render();
+        });
+    });
+
+    if (prev) prev.addEventListener("click", function () { if (page > 1) { page--; render(); } });
+    if (next) {
+        next.addEventListener("click", function () {
+            var totalPages = Math.max(1, Math.ceil(rows.filter(matches).length / pageSize));
+            if (page < totalPages) { page++; render(); }
+        });
+    }
+
+    render();
+})();

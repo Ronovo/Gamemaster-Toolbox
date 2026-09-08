@@ -1,5 +1,6 @@
 ﻿using GM_Toolbox.Data;
 using GM_Toolbox.Models;
+using GM_Toolbox.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +13,52 @@ public class GameSystemsController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? name, string? genre, int page = 1)
     {
-        var systems = await _context.GameSystems
+        var nameTerm = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        var genreTerm = string.IsNullOrWhiteSpace(genre) ? null : genre.Trim();
+
+        var query = _context.GameSystems.AsQueryable();
+        if (nameTerm != null)
+        {
+            var needle = nameTerm.ToLower();
+            query = query.Where(g => g.Name.ToLower().Contains(needle));
+        }
+
+        if (genreTerm != null)
+        {
+            var needle = genreTerm.ToLower();
+            query = query.Where(g => g.Genre.ToLower().Contains(needle));
+        }
+
+        var totalCount = await query.CountAsync();
+        page = PagedList<GameSystem>.ClampPage(page, totalCount);
+        var items = await query
             .OrderBy(g => g.Name)
+            .Skip((page - 1) * PagedList<GameSystem>.DefaultPageSize)
+            .Take(PagedList<GameSystem>.DefaultPageSize)
             .ToListAsync();
-        return View(systems);
+
+        var vm = new GameSystemIndexViewModel
+        {
+            Name = nameTerm,
+            Genre = genreTerm,
+            CatalogEmpty = !await _context.GameSystems.AnyAsync(),
+            Results = new PagedList<GameSystem>
+            {
+                Items = items,
+                Page = page,
+                PageSize = PagedList<GameSystem>.DefaultPageSize,
+                TotalCount = totalCount
+            }
+        };
+
+        if (string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase))
+        {
+            return PartialView("_GameSystemListResults", vm);
+        }
+
+        return View(vm);
     }
 
     public IActionResult Create()

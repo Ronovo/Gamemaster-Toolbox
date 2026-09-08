@@ -1,0 +1,67 @@
+@using GM_Toolbox.Models.ViewModels
+@model FlowIndexViewModel
+
+@if (Model.CatalogEmpty)
+{
+    <p class="text-muted">
+        No flows yet. A flow chains oracles together &mdash; roll one, and its outcome decides
+        what you roll next. Use <strong>Create New</strong> to build your first one.
+    </p>
+}
+else if (Model.Results.TotalCount == 0)
+{
+    <p class="text-muted">No flows match these filters.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Steps</th>
+                <th>Game System</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Results.Items)
+            {
+                <tr>
+                    <td>
+                        @item.Name
+
+                        @if (item.NeedsSetup)
+                        {
+                            <span class="badge bg-warning text-dark">Needs setup</span>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                        {
+                            <div class="small text-muted">@item.Description</div>
+                        }
+                    </td>
+                    <td>
+                        @item.StepCount
+                        @if (item.BranchCount > 0)
+                        {
+                            <span class="small text-muted">(@item.BranchCount branch@(item.BranchCount == 1 ? "" : "es"))</span>
+                        }
+                    </td>
+                    <td>@item.GameSystemName</td>
+                    <td>
+                        @if (!item.NeedsSetup)
+                        {
+                            <a asp-action="Run" asp-route-id="@item.ID"><strong>Run</strong></a><text> | </text>
+                        }
+                        <a asp-action="Steps" asp-route-id="@item.ID">Steps</a> |
+                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
+                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_Pager" model='PagerModel.Create(Model.Results, "Index", Model.FilterRoute, controller: "Flows")' />
+}

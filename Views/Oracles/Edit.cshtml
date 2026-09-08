@@ -25,7 +25,7 @@
                 <label asp-for="OracleSubtype" class="control-label"></label>
                 <select asp-for="OracleSubtype" class="form-control" asp-items="ViewBag.OracleSubtype"></select>
                 <span asp-validation-for="OracleSubtype" class="text-danger"></span>
-				<small class="text-muted">Changing the type &mdash; or the dice &mdash; clears this oracle's outcomes and sends you back to Configure.</small>
+				<small class="text-muted">Changing the type &mdash; or the dice &mdash; clears this oracle's outcomes. Card oracles get a fresh deck; dice oracles start with numbered rows (six, or four on a d4).</small>
             </div>
 
             <partial name="_CustomDiceFields" model="Model" />
