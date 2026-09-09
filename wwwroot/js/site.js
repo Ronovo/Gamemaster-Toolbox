@@ -308,18 +308,19 @@
     bindSelectLink(document.getElementById("selectNoneFlows"), flows, false);
 })();
 
-// Edit Entries: every outcome stays in the form (Save still posts the full list).
-// Jump links filter the visible set; the rest are hidden 10 (dice) or 15 (cards) at a time.
+// Edit Entries and Details: jump links filter the visible set; the rest are
+// hidden 10 (dice) or 15 (cards) at a time. Edit Entries keeps every row in the
+// form so Save still posts the full list.
 (function () {
-    var form = document.getElementById("editEntriesForm");
-    if (!form) return;
+    var root = document.querySelector("[data-outcome-pager]");
+    if (!root) return;
 
-    var pageSize = parseInt(form.getAttribute("data-page-size"), 10) || 10;
-    var rows = Array.prototype.slice.call(form.querySelectorAll("[data-entry-row]"));
-    var pager = document.getElementById("entryPager");
-    var prev = document.getElementById("entryPrev");
-    var next = document.getElementById("entryNext");
-    var info = document.getElementById("entryPageInfo");
+    var pageSize = parseInt(root.getAttribute("data-page-size"), 10) || 10;
+    var rows = Array.prototype.slice.call(root.querySelectorAll("[data-entry-row]"));
+    var pager = root.querySelector("[data-outcome-pager-nav]");
+    var prev = root.querySelector("[data-outcome-prev]");
+    var next = root.querySelector("[data-outcome-next]");
+    var info = root.querySelector("[data-outcome-page-info]");
 
     var filters = { decade: "all", suit: "all", rank: "all" };
     var page = 1;
@@ -364,7 +365,7 @@
     function setFilter(kind, value) {
         filters[kind] = value;
         page = 1;
-        form.querySelectorAll('[data-filter="' + kind + '"]').forEach(function (btn) {
+        root.querySelectorAll('[data-filter="' + kind + '"]').forEach(function (btn) {
             var on = btn.getAttribute("data-value") === value;
             btn.classList.toggle("btn-primary", on);
             btn.classList.toggle("btn-outline-secondary", !on);
@@ -373,7 +374,7 @@
         render();
     }
 
-    form.querySelectorAll("[data-filter]").forEach(function (btn) {
+    root.querySelectorAll("[data-filter]").forEach(function (btn) {
         btn.addEventListener("click", function () {
             setFilter(btn.getAttribute("data-filter"), btn.getAttribute("data-value"));
         });

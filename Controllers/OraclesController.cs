@@ -141,14 +141,6 @@ public class OraclesController : Controller
                 return RedirectToAction(nameof(EditEntries), new { id = oracle.ID });
             }
 
-            var spec = oracle.Dice();
-            if (spec != null)
-            {
-                _configurator.Reconcile(oracle, spec.Span);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(EditEntries), new { id = oracle.ID });
-            }
-
             return RedirectToAction(nameof(Configure), new { id = oracle.ID });
         }
         ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
@@ -178,8 +170,7 @@ public class OraclesController : Controller
 
     // Changing the subtype, or a custom oracle's dice, deletes every existing entry.
     // Card oracles get a full deck with each card's name as the outcome. Dice oracles
-    // start with one numbered row per total the dice can roll. Then Edit Entries so
-    // you can replace those names at your own pace.
+    // go to Configure so you can pick how many outcomes to generate.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
@@ -228,16 +219,6 @@ public class OraclesController : Controller
                 existing = await LoadOracleWithEntries(existing.ID);
                 if (existing == null) return NotFound();
                 _configurator.Reconcile(existing, null);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(EditEntries), new { id = existing.ID });
-            }
-
-            var spec = existing.Dice();
-            if (spec != null)
-            {
-                existing = await LoadOracleWithEntries(existing.ID);
-                if (existing == null) return NotFound();
-                _configurator.Reconcile(existing, spec.Span);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(EditEntries), new { id = existing.ID });
             }

@@ -74,13 +74,21 @@ namespace GM_Toolbox.Services
                 .OrderBy(e => e.SortOrder)
                 .ToList();
 
-            for (int i = 0; i < entries.Count; i++)
+            int count = entries.Count;
+            int span = spec.Span;
+            int baseWidth = count == 0 ? 0 : span / count;
+            int extra = count == 0 ? 0 : span % count;
+            int nextStart = spec.Min;
+
+            for (int i = 0; i < count; i++)
             {
+                // Later bands take the leftover pips so the last one always ends at Max.
+                int width = baseWidth + (i >= count - extra ? 1 : 0);
+                int end = nextStart + width - 1;
                 entries[i].SortOrder = i + 1;
-                entries[i].RangeStart = spec.Min + i;
-                entries[i].RangeEnd = i < entries.Count - 1
-                    ? spec.Min + i
-                    : spec.Max;
+                entries[i].RangeStart = nextStart;
+                entries[i].RangeEnd = end;
+                nextStart = end + 1;
             }
         }
 

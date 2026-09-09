@@ -14,6 +14,24 @@ namespace GM_Toolbox.Models.ViewModels
         public int DiceCount { get; set; }
         public int DiceFaces { get; set; }
         public List<EntryRow> Rows { get; set; } = new List<EntryRow>();
+
+        public OutcomeFilterModel Filter() => new()
+        {
+            OracleSubtype = OracleSubtype,
+            DiceCount = DiceCount,
+            DiceFaces = DiceFaces,
+            MinRoll = MinRoll,
+            MaxRoll = MaxRoll,
+        };
+    }
+
+    public class OutcomeFilterModel
+    {
+        public OracleSubtype OracleSubtype { get; set; }
+        public int DiceCount { get; set; }
+        public int DiceFaces { get; set; }
+        public int MinRoll { get; set; }
+        public int MaxRoll { get; set; }
     }
 
     public class EntryRow

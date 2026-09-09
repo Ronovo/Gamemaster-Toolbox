@@ -28,6 +28,8 @@ body {
   --gm-nav-bg: #fff;
   --gm-nav-border: #e5e5e5;
   --gm-nav-border-width: 1px;
+  --gm-nav-link: rgba(0, 0, 0, 0.7);
+  --gm-nav-link-hover: rgba(0, 0, 0, 0.9);
   --gm-brand: rgba(0, 0, 0, 0.9);
   --gm-brand-hover: rgba(0, 0, 0, 0.7);
   --gm-accent: #1b6ec2;
@@ -92,6 +94,8 @@ body {
   --gm-nav-bg: #0c0b09;
   --gm-nav-border: #c9a227;
   --gm-nav-border-width: 2px;
+  --gm-nav-link: #d4af37;
+  --gm-nav-link-hover: #f4d35e;
   --gm-brand: #f4d35e;
   --gm-brand-hover: #e8c547;
   --gm-accent: #c9a227;
@@ -156,6 +160,8 @@ body {
   --gm-nav-bg: #05050c;
   --gm-nav-border: #ff2bd6;
   --gm-nav-border-width: 2px;
+  --gm-nav-link: #00f0ff;
+  --gm-nav-link-hover: #ff2bd6;
   --gm-brand: #00f0ff;
   --gm-brand-hover: #ff2bd6;
   --gm-accent: #00f0ff;
@@ -220,6 +226,8 @@ body {
   --gm-nav-bg: #0a0e0c;
   --gm-nav-border: #a35ed4;
   --gm-nav-border-width: 2px;
+  --gm-nav-link: #9fd46a;
+  --gm-nav-link-hover: #ff9440;
   --gm-brand: #9fd46a;
   --gm-brand-hover: #ff9440;
   --gm-accent: #a35ed4;
@@ -284,6 +292,8 @@ body {
   --gm-nav-bg: #6b1d1d;
   --gm-nav-border: #c9a227;
   --gm-nav-border-width: 2px;
+  --gm-nav-link: #f4e4c1;
+  --gm-nav-link-hover: #f4d35e;
   --gm-brand: #f4d35e;
   --gm-brand-hover: #e8c547;
   --gm-accent: #8b1e1e;
@@ -353,13 +363,19 @@ body {
   color: var(--gm-brand-hover);
 }
 
-[data-gm-theme="light"] .gm-nav .nav-link {
-  color: rgba(0, 0, 0, 0.7);
+.gm-nav.navbar-dark .navbar-nav .nav-link,
+.gm-nav.navbar-light .navbar-nav .nav-link,
+.gm-nav .nav-link {
+  color: var(--gm-nav-link);
 }
 
-[data-gm-theme="light"] .gm-nav .nav-link:hover,
-[data-gm-theme="light"] .gm-nav .nav-link:focus {
-  color: rgba(0, 0, 0, 0.9);
+.gm-nav.navbar-dark .navbar-nav .nav-link:hover,
+.gm-nav.navbar-dark .navbar-nav .nav-link:focus,
+.gm-nav.navbar-light .navbar-nav .nav-link:hover,
+.gm-nav.navbar-light .navbar-nav .nav-link:focus,
+.gm-nav .nav-link:hover,
+.gm-nav .nav-link:focus {
+  color: var(--gm-nav-link-hover);
 }
 
 [data-gm-theme="light"] .gm-nav .navbar-toggler-icon {

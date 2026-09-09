@@ -23,26 +23,29 @@
     <a asp-controller="Oracles" asp-action="Import" asp-route-returnTo="Flows">Import</a>
 </p>
 
-<form method="get" asp-action="Index" class="mb-3" data-live-filter data-results="#list-results" data-partial="1">
-    <div class="row g-2 align-items-end">
-        <div class="col-md-4">
-            <label class="form-label" asp-for="Name"></label>
-            <input asp-for="Name" class="form-control" autocomplete="off" />
+@if (!Model.CatalogEmpty)
+{
+    <form method="get" asp-action="Index" class="mb-3" data-live-filter data-results="#list-results" data-partial="1">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" asp-for="Name"></label>
+                <input asp-for="Name" class="form-control" autocomplete="off" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="GameSystemID"></label>
+                <select asp-for="GameSystemID" class="form-select">
+                    @foreach (var item in Model.GameSystems)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary">Filter</button>
+            </div>
         </div>
-        <div class="col-md-4">
-            <label class="form-label" asp-for="GameSystemID"></label>
-            <select asp-for="GameSystemID" class="form-select">
-                @foreach (var item in Model.GameSystems)
-                {
-                    <option value="@item.Value">@item.Text</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-outline-secondary">Filter</button>
-        </div>
-    </div>
-</form>
+    </form>
+}
 
 <div id="list-results">
     <partial name="_FlowListResults" model="Model" />

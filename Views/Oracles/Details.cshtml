@@ -1,5 +1,7 @@
 @model GM_Toolbox.Models.Oracle
 @using GM_Toolbox.Models.Enums
+@using GM_Toolbox.Models.ViewModels
+@using GM_Toolbox.Services
 
 @{
     ViewData["Title"] = "Details";
@@ -9,9 +11,16 @@
 
     var blockedReason = Model.RollBlockedReason();
 
-    // Long outcome lists (a big die, or a whole card deck) get paged 10 at a time
     var spec = Model.Dice();
-    var pageOutcomes = !isDice || (spec != null && spec.Faces > 11);
+    var pageSize = isDice ? 10 : 15;
+    var filter = new OutcomeFilterModel
+    {
+        OracleSubtype = Model.OracleSubtype,
+        DiceCount = spec?.Count ?? 0,
+        DiceFaces = spec?.Faces ?? 0,
+        MinRoll = spec?.Min ?? 0,
+        MaxRoll = spec?.Max ?? 0,
+    };
 }
 
 <h1>@Model.Name</h1>
@@ -53,32 +62,36 @@
             <span class="summary-show">Show</span><span class="summary-hide">Hide</span>
             all @entries.Count @(isDice ? "outcomes" : "cards")
         </summary>
-        <table class="table" id="outcomeTable">
-            <thead>
-                <tr>
-                    <th>@(isDice ? "Roll" : "Card")</th>
-                    <th>Result</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var entry in entries)
-                {
+        <div data-outcome-pager data-page-size="@pageSize">
+            <partial name="_OutcomeFilters" model="filter" />
+            <table class="table" id="outcomeTable">
+                <thead>
                     <tr>
-                        <td>@entry.KeyLabel()</td>
-                        <td>@entry.Result</td>
+                        <th>@(isDice ? "Roll" : "Card")</th>
+                        <th>Result</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var entry in entries)
+                    {
+                        var classified = DeckFactory.Classify(entry.CardCode);
+                        <tr data-entry-row
+                            data-starts-at="@(entry.RangeStart ?? 0)"
+                            data-suit="@classified?.Suit"
+                            data-rank-kind="@classified?.RankKind">
+                            <td>@entry.KeyLabel()</td>
+                            <td>@entry.Result</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
 
-        @if (pageOutcomes)
-        {
-            <nav id="outcomePager" class="d-flex align-items-center gap-2" hidden>
-                <button type="button" id="outcomePrev" class="btn btn-sm btn-outline-secondary">Previous</button>
-                <span id="outcomePageInfo" class="small text-muted"></span>
-                <button type="button" id="outcomeNext" class="btn btn-sm btn-outline-secondary">Next</button>
+            <nav data-outcome-pager-nav class="d-flex align-items-center gap-2" hidden>
+                <button type="button" data-outcome-prev class="btn btn-sm btn-outline-secondary">Previous</button>
+                <span data-outcome-page-info class="small text-muted"></span>
+                <button type="button" data-outcome-next class="btn btn-sm btn-outline-secondary">Next</button>
             </nav>
-        }
+        </div>
     </details>
 }
 
@@ -95,39 +108,3 @@
     <a asp-action="Delete" asp-route-id="@Model?.ID">Delete</a> |
     <a asp-action="Index">Back to List</a>
 </div>
-
-@section Scripts {
-    <script>
-        (function () {
-            var pager = document.getElementById("outcomePager");
-            if (!pager) return;
-
-            var PAGE_SIZE = 10;
-            var rows = Array.prototype.slice.call(
-                document.querySelectorAll("#outcomeTable tbody tr"));
-            if (rows.length <= PAGE_SIZE) return;
-
-            var prev = document.getElementById("outcomePrev");
-            var next = document.getElementById("outcomeNext");
-            var info = document.getElementById("outcomePageInfo");
-            var totalPages = Math.ceil(rows.length / PAGE_SIZE);
-            var page = 1;
-
-            function render() {
-                var start = (page - 1) * PAGE_SIZE;
-                for (var i = 0; i < rows.length; i++) {
-                    rows[i].classList.toggle("d-none", i < start || i >= start + PAGE_SIZE);
-                }
-                info.textContent = "Page " + page + " of " + totalPages;
-                prev.disabled = page === 1;
-                next.disabled = page === totalPages;
-            }
-
-            prev.addEventListener("click", function () { if (page > 1) { page--; render(); } });
-            next.addEventListener("click", function () { if (page < totalPages) { page++; render(); } });
-
-            pager.hidden = false;
-            render();
-        })();
-    </script>
-}
