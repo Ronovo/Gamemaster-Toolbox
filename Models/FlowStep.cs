@@ -5,7 +5,7 @@ namespace GM_Toolbox.Models
 {
     /// <summary>
     /// One link in a flow. What it does when the run reaches it is decided by Kind: it rolls an
-    /// oracle, asks a question, or rolls whichever oracle an earlier question picked.
+    /// oracle, asks a question, or rolls whichever oracle an earlier step picked.
     /// </summary>
     public class FlowStep : IValidatableObject
     {
@@ -14,6 +14,7 @@ namespace GM_Toolbox.Models
         public int FlowID { get; set; }
         public Flow? Flow { get; set; }
 
+        /// <summary>Position in the flow, 1-based. The run works through steps in this order.</summary>
         public int SortOrder { get; set; }
 
         [Display(Name = "Step type")]
@@ -29,8 +30,13 @@ namespace GM_Toolbox.Models
         [MaxLength(200)]
         public string? Question { get; set; }
 
+        /// <summary>
+        /// The step whose picked oracle a RollChosen step rolls -- a Choice whose option
+        /// named one, or a Roll whose matched branch did.
+        /// </summary>
         [Display(Name = "Picked at step")]
-        public int? SourceStepSortOrder { get; set; }
+        public int? SourceStepID { get; set; }
+        public FlowStep? SourceStep { get; set; }
 
         public ICollection<FlowBranch> Branches { get; set; } = new List<FlowBranch>();
 
@@ -50,7 +56,6 @@ namespace GM_Toolbox.Models
 
                 case FlowStepKind.Choice:
                 case FlowStepKind.Text:
-                case FlowStepKind.Number:
                     if (string.IsNullOrWhiteSpace(Question))
                     {
                         yield return new ValidationResult(
@@ -59,11 +64,11 @@ namespace GM_Toolbox.Models
                     break;
 
                 case FlowStepKind.RollChosen:
-                    if (SourceStepSortOrder == null)
+                    if (SourceStepID == null)
                     {
                         yield return new ValidationResult(
-                            "Say which question step this one takes its oracle from.",
-                            new[] { nameof(SourceStepSortOrder) });
+                            "Say which step this one takes its oracle from.",
+                            new[] { nameof(SourceStepID) });
                     }
                     break;
             }

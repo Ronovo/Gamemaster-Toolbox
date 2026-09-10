@@ -4,20 +4,26 @@
 @{
     ViewData["Title"] = "Details";
 
-    var steps = Model.Steps.OrderBy(s => s.SortOrder).ToList();
-    var blockedReason = Model.RunBlockedReason();
+    var flow = Model;
+    var blockedReason = flow.RunBlockedReason();
 
-    // The same wording the Steps page uses, kept here rather than in a view model because this
-    // page is read-only and has nothing else to carry.
-    Func<int?, string> targetLabel = sortOrder =>
+    Func<int?, string> targetLabel = stepId =>
     {
-        if (sortOrder == null) return "ends the flow";
-        var step = steps.FirstOrDefault(s => s.SortOrder == sortOrder.Value);
-        return step == null ? "ends the flow" : $"step {step.SortOrder}: {step.DisplayLabel()}";
+        if (stepId == null) return "ends the flow";
+        var step = flow.Steps.FirstOrDefault(s => s.ID == stepId.Value);
+        return step == null ? "ends the flow" : $"{step.PositionPath()}: {step.DisplayLabel()}";
+    };
+
+    var ordered = flow.InRunOrder().ToList();
+
+    Func<GM_Toolbox.Models.FlowStep, int?> fallThrough = step =>
+    {
+        var idx = ordered.FindIndex(s => s.ID == step.ID);
+        return idx >= 0 && idx + 1 < ordered.Count ? ordered[idx + 1].ID : (int?)null;
     };
 }
 
-<h1>@Model.Name</h1>
+<h1>@flow.Name</h1>
 
 @if (blockedReason != null)
 {
@@ -29,25 +35,25 @@
     <hr />
     <dl class="row">
         <dt class="col-sm-2">Name</dt>
-        <dd class="col-sm-10">@Model.Name</dd>
+        <dd class="col-sm-10">@flow.Name</dd>
 
-        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        @if (!string.IsNullOrWhiteSpace(flow.Description))
         {
             <dt class="col-sm-2">Description</dt>
-            <dd class="col-sm-10">@Model.Description</dd>
+            <dd class="col-sm-10">@flow.Description</dd>
         }
 
         <dt class="col-sm-2">Game System</dt>
-        <dd class="col-sm-10">@Model.GameSystem?.Name</dd>
+        <dd class="col-sm-10">@flow.GameSystem?.Name</dd>
     </dl>
 </div>
 
-@if (steps.Any())
+@if (ordered.Any())
 {
     <h4>The chain</h4>
     <hr />
     <ol class="mb-3">
-        @foreach (var step in steps)
+        @foreach (var step in ordered)
         {
             var entries = (step.Oracle?.OracleEntries ?? new List<GM_Toolbox.Models.OracleEntry>())
                 .ToDictionary(e => e.ID);
@@ -78,35 +84,56 @@
                                 {
                                     <text>&rarr; @option.Oracle.Name</text>
                                 }
+                                @if (option.EndsFlow)
+                                {
+                                    <text>&rarr; ends the flow</text>
+                                }
+                                else if (option.TargetStepID != null)
+                                {
+                                    <text>&rarr; @targetLabel(option.TargetStepID)</text>
+                                }
                             </div>
                         }
                         break;
 
                     case FlowStepKind.Text:
-                    case FlowStepKind.Number:
                         <div class="small text-muted">@step.Question</div>
                         break;
 
                     case FlowStepKind.RollChosen:
-                        var source = step.SourceStep(Model);
+                        var source = step.SourceStep(flow);
                         <div class="small text-muted">
                             @(source == null
-                                ? "No question set"
-                                : $"Rolls what step {source.SortOrder} ({source.DisplayLabel()}) picks")
+                                ? "No source set"
+                                : $"Rolls what {source.PositionPath()} ({source.DisplayLabel()}) picks")
                         </div>
                         break;
                 }
 
-                <div class="small">Otherwise &rarr; @targetLabel(step.SortOrder + 1)</div>
+                <div class="small">Otherwise &rarr; @targetLabel(fallThrough(step))</div>
 
-                @foreach (var branch in step.Branches
-                    .OrderBy(b => entries.TryGetValue(b.OracleEntryID, out var e) ? e.SortOrder : int.MaxValue))
+                @if (step.AllowsBranches())
                 {
-                    var entry = entries.TryGetValue(branch.OracleEntryID, out var found) ? found : null;
-                    <div class="small text-muted">
-                        @(entry?.KeyLabel() ?? "?")@(string.IsNullOrWhiteSpace(entry?.Result) ? "" : $" — {entry!.Result}")
-                        &rarr; @targetLabel(branch.TargetStepSortOrder)
-                    </div>
+                    foreach (var branch in step.Branches
+                        .OrderBy(b => entries.TryGetValue(b.OracleEntryID, out var e) ? e.SortOrder : int.MaxValue))
+                    {
+                        var entry = entries.TryGetValue(branch.OracleEntryID, out var found) ? found : null;
+                        <div class="small text-muted">
+                            @(entry?.KeyLabel() ?? "?")@(string.IsNullOrWhiteSpace(entry?.Result) ? "" : $" — {entry!.Result}")
+                            @if (branch.Oracle != null)
+                            {
+                                <text>&rarr; picks @branch.Oracle.Name</text>
+                            }
+                            @if (branch.EndsFlow)
+                            {
+                                <text>&rarr; ends the flow</text>
+                            }
+                            else if (branch.TargetStepID != null)
+                            {
+                                <text>&rarr; @targetLabel(branch.TargetStepID)</text>
+                            }
+                        </div>
+                    }
                 }
             </li>
         }
@@ -117,16 +144,16 @@ else
     <p class="text-muted">No steps yet. Use <strong>Steps</strong> to build the chain.</p>
 }
 
-@if (blockedReason == null)
+@if (blockedReason == null && ordered.Any())
 {
     <p>
-        <a asp-action="Run" asp-route-id="@Model.ID" class="btn btn-primary">Run this flow</a>
+        <a asp-action="Run" asp-route-id="@flow.ID" class="btn btn-primary">Run this flow</a>
     </p>
 }
 
 <div>
-    <a asp-action="Steps" asp-route-id="@Model.ID">Steps</a> |
-    <a asp-action="Edit" asp-route-id="@Model.ID">Edit</a> |
-    <a asp-action="Delete" asp-route-id="@Model.ID">Delete</a> |
+    <a asp-action="Steps" asp-route-id="@flow.ID">Steps</a> |
+    <a asp-action="Edit" asp-route-id="@flow.ID">Edit</a> |
+    <a asp-action="Delete" asp-route-id="@flow.ID">Delete</a> |
     <a asp-action="Index">Back to List</a>
 </div>

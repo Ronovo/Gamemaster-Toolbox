@@ -10,7 +10,7 @@ namespace GM_Toolbox.Models.Transfer
     /// </summary>
     public class OracleExportFile
     {
-        public int FormatVersion { get; set; } = 5;
+        public int FormatVersion { get; set; } = 10;
         public DateTime ExportedUtc { get; set; }
 
         public List<GameSystemDto> GameSystems { get; set; } = new List<GameSystemDto>();
@@ -72,6 +72,14 @@ namespace GM_Toolbox.Models.Transfer
 
     public class FlowStepDto
     {
+        /// <summary>
+        /// A per-file id, its position in the flow, unique within the flow. PickedAtStep and
+        /// GoToStep reference it. Older files number steps by SortOrder instead, and the
+        /// importer maps those across.
+        /// </summary>
+        public int? Id { get; set; }
+
+        /// <summary>Position in the flow. Informational (order is document order).</summary>
         public int SortOrder { get; set; }
 
         public string? Kind { get; set; }
@@ -82,7 +90,14 @@ namespace GM_Toolbox.Models.Transfer
 
         public string? Question { get; set; }
 
+        /// <summary>The step a RollChosen step takes its oracle from: its Id, or SortOrder in older files.</summary>
         public int? PickedAtStep { get; set; }
+
+        /// <summary>Read only, from older files: the labels on a retired Fields step (now a Text question).</summary>
+        public List<string>? Fields { get; set; }
+
+        /// <summary>Read only, from older files: steps nested inside a retired Loop (now kept in sequence).</summary>
+        public List<FlowStepDto>? Steps { get; set; }
 
         public List<FlowChoiceOptionDto>? Options { get; set; }
 
@@ -95,6 +110,11 @@ namespace GM_Toolbox.Models.Transfer
     public class FlowChoiceOptionDto
     {
         public int SortOrder { get; set; }
+
+        /// <summary>The step this option routes to: its Id, or SortOrder in older files. Null carries on.</summary>
+        public int? GoToStep { get; set; }
+
+        public bool? EndsFlow { get; set; }
         public string Label { get; set; } = string.Empty;
         public OracleRefDto? Oracle { get; set; }
     }
@@ -113,10 +133,13 @@ namespace GM_Toolbox.Models.Transfer
         /// <summary>The SortOrder of the outcome that fires this branch, on the step's own oracle.</summary>
         public int WhenOutcome { get; set; }
 
-        /// <summary>
-        /// The SortOrder of the step to jump to, or null to end the run there.
-        /// </summary>
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        /// <summary>The table this outcome picks for a later RollChosen step.</summary>
+        public OracleRefDto? PicksOracle { get; set; }
+
+        /// <summary>Advanced: the step to jump to -- its Id, or SortOrder in older files. Null carries on.</summary>
         public int? GoToStep { get; set; }
+
+        /// <summary>Advanced: this outcome ends the run.</summary>
+        public bool? EndsFlow { get; set; }
     }
 }

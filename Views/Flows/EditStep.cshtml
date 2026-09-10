@@ -4,7 +4,7 @@
     ViewData["Title"] = "Edit Step";
 }
 
-<h1>Step @Model.SortOrder: @Model.FlowName</h1>
+<h1>@Model.PositionPath: @Model.FlowName</h1>
 <p>
     <a asp-action="Steps" asp-route-id="@Model.FlowID">Back to Steps</a>
 </p>
@@ -15,9 +15,7 @@
 <div asp-validation-summary="All" class="text-danger"></div>
 
 <p class="text-muted">
-    A step's type is fixed once it exists &mdash; turning a dropdown question into a roll would
-    strand its options, and a roll into anything else would strand its branches. Remove the step
-    and add the one you meant instead.
+    A step's type is fixed once it exists. Remove the step and add the one you meant instead.
 </p>
 
 <div class="row">
@@ -27,7 +25,7 @@
             <input type="hidden" asp-for="StepID" />
 
             <div class="form-group">
-                <label asp-for="Label" class="control-label">Call it</label>
+                <label asp-for="Label" class="control-label">Step name</label>
                 <input asp-for="Label" class="form-control" placeholder="Optional" />
                 <span class="small text-muted">
                     What the run transcript calls this step. Left blank it uses
@@ -60,10 +58,14 @@
             @if (Model.IsRollChosen)
             {
                 <div class="form-group mt-4">
-                    <label asp-for="SourceStepSortOrder" class="control-label">Rolls what was picked at</label>
-                    <select asp-for="SourceStepSortOrder" class="form-control" asp-items="ViewBag.SourceStepSortOrder">
-                        <option value="">Pick a question…</option>
+                    <label asp-for="SourceStepID" class="control-label">Rolls what was picked at</label>
+                    <select asp-for="SourceStepID" class="form-control" asp-items="ViewBag.SourceStepID">
+                        <option value="">Pick a step…</option>
                     </select>
+                    <span class="small text-muted">
+                        A dropdown question whose option names an oracle, or a roll whose outcome
+                        picks a table.
+                    </span>
                 </div>
             }
 

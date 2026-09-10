@@ -10,6 +10,8 @@ namespace GM_Toolbox.Models.ViewModels
 
         public RollOutcome? Outcome { get; set; }
 
+        public IReadOnlyList<RollOutcome>? Outcomes { get; set; }
+
         public string? Error { get; set; }
 
         public string? Label { get; set; }

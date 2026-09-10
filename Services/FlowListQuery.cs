@@ -75,10 +75,11 @@ namespace GM_Toolbox.Services
 
                 Steps = f.Steps.Select(s => new FlowListStepRow
                 {
+                    StepID = s.ID,
                     Kind = s.Kind,
                     HasQuestion = s.Question != null && s.Question != "",
                     OptionCount = s.Options.Count,
-                    SourceStepSortOrder = s.SourceStepSortOrder,
+                    SourceStepID = s.SourceStepID,
                     Subtype = (OracleSubtype?)s.Oracle!.OracleSubtype,
                     EntryCount = s.Oracle == null ? 0 : s.Oracle.OracleEntries.Count,
                     Unbanded = s.Oracle != null && s.Oracle.OracleEntries.Any(e => e.RangeStart == null)
@@ -102,8 +103,8 @@ namespace GM_Toolbox.Services
                         || s.EntryCount == 0
                         || (s.Subtype.Value.Category() == OracleCategory.Dice && s.Unbanded),
                     FlowStepKind.Choice => !s.HasQuestion || s.OptionCount == 0,
-                    FlowStepKind.Text or FlowStepKind.Number => !s.HasQuestion,
-                    FlowStepKind.RollChosen => s.SourceStepSortOrder == null,
+                    FlowStepKind.Text => !s.HasQuestion,
+                    FlowStepKind.RollChosen => s.SourceStepID == null,
                     _ => false
                 })
             }).ToList();
@@ -122,10 +123,11 @@ namespace GM_Toolbox.Services
 
         private sealed class FlowListStepRow
         {
+            public int StepID { get; set; }
             public FlowStepKind Kind { get; set; }
             public bool HasQuestion { get; set; }
             public int OptionCount { get; set; }
-            public int? SourceStepSortOrder { get; set; }
+            public int? SourceStepID { get; set; }
             public OracleSubtype? Subtype { get; set; }
             public int EntryCount { get; set; }
             public bool Unbanded { get; set; }

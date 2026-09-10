@@ -50,16 +50,17 @@
                 <form asp-action="Configure" asp-route-id="@Model.ID" asp-route-returnTo="@returnTo" method="post">
                     <div asp-validation-summary="All" class="text-danger"></div>
 
-                    <div class="row">
-                        <div class="col-md-2">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-sm-4 col-md-3">
                             <label for="outcomeCount">Number of outcomes</label>
                             <input type="text" inputmode="numeric" id="outcomeCount" name="outcomeCount"
                                    class="form-control"
                                    value="@(outcomeCount > 0 ? outcomeCount.ToString() : spec.Span.ToString())" />
                         </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">Create outcomes</button>
+                        </div>
                     </div>
-
-                    <button type="submit" class="btn btn-primary">Create outcomes</button>
                 </form>
             }
         }
@@ -77,7 +78,7 @@
     break;
 }
 
-<p>
+<p class="mt-3">
     @if (returnTo == "Index")
     {
         <a asp-action="Index">Cancel</a>

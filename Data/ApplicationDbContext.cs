@@ -46,6 +46,15 @@ namespace GM_Toolbox.Data
                 .HasForeignKey(s => s.OracleID)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // A RollChosen step names an earlier step. NoAction: FlowConfigurator.RemoveStep
+            // clears every reference to a step before it is deleted, so the FK is only here
+            // for referential integrity and to let the importer wire steps up by object.
+            builder.Entity<FlowStep>()
+                .HasOne(s => s.SourceStep)
+                .WithMany()
+                .HasForeignKey(s => s.SourceStepID)
+                .OnDelete(DeleteBehavior.NoAction);
+
             builder.Entity<FlowStep>()
                 .Property(s => s.Kind)
                 .HasConversion<string>();
@@ -62,6 +71,12 @@ namespace GM_Toolbox.Data
                 .HasForeignKey(o => o.OracleID)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<FlowChoiceOption>()
+                .HasOne(o => o.TargetStep)
+                .WithMany()
+                .HasForeignKey(o => o.TargetStepID)
+                .OnDelete(DeleteBehavior.NoAction);
+
             builder.Entity<FlowBranch>()
                 .HasOne(b => b.FlowStep)
                 .WithMany(s => s.Branches)
@@ -73,6 +88,18 @@ namespace GM_Toolbox.Data
                 .WithMany()
                 .HasForeignKey(b => b.OracleEntryID)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FlowBranch>()
+                .HasOne(b => b.Oracle)
+                .WithMany()
+                .HasForeignKey(b => b.OracleID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FlowBranch>()
+                .HasOne(b => b.TargetStep)
+                .WithMany()
+                .HasForeignKey(b => b.TargetStepID)
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<FlowBranch>()
                 .HasIndex(b => new { b.FlowStepID, b.OracleEntryID })

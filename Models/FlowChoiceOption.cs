@@ -21,5 +21,22 @@ namespace GM_Toolbox.Models
         [Display(Name = "Rolls on")]
         public int? OracleID { get; set; }
         public Oracle? Oracle { get; set; }
+
+        /// <summary>
+        /// "Picking this option sends the run to this step" (by ID). Null keeps the old
+        /// behaviour, where an option only names an oracle and the run carries on.
+        /// </summary>
+        [Display(Name = "Goes to step")]
+        public int? TargetStepID { get; set; }
+        public FlowStep? TargetStep { get; set; }
+
+        /// <summary>
+        /// "Picking this option stops the run." A branch says this with a row whose target is
+        /// null, but an option row always exists, so it needs saying outright.
+        /// </summary>
+        public bool EndsFlow { get; set; }
+
+        /// <summary>Whether picking this option sends the run somewhere other than straight on.</summary>
+        public bool Routes => TargetStepID != null || EndsFlow;
     }
 }

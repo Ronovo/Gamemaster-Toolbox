@@ -17,7 +17,7 @@
 <div asp-validation-summary="All" class="text-danger"></div>
 
 <p class="text-muted">
-    Step @Model.StepSortOrder of <strong>@Model.FlowName</strong> asks
+    @Model.PositionPath of <strong>@Model.FlowName</strong> asks
     &ldquo;@Model.Question&rdquo; and offers these. An option that names an oracle is what a later
     <em>roll the oracle picked earlier</em> step goes on to roll.
 </p>
@@ -48,6 +48,7 @@ else
                     <th class="roll-log-key">#</th>
                     <th>Option</th>
                     <th>Rolls on</th>
+                    <th>Goes to</th>
                     <th></th>
                 </tr>
             </thead>
@@ -68,6 +69,16 @@ else
                                 <option value="">Nothing &mdash; just record the answer</option>
                             </select>
                         </td>
+                        <td>
+                            <select asp-for="Rows[i].Target" class="form-control form-control-sm">
+                                <option value="">Carry on &mdash; @Model.FallThroughLabel</option>
+                                <option value="@GM_Toolbox.Models.ViewModels.BranchRow.EndTarget">End the flow here</option>
+                                @foreach (var target in Model.Targets)
+                                {
+                                    <option value="@target.StepID">@target.Label</option>
+                                }
+                            </select>
+                        </td>
                         <td class="text-nowrap">
                             <button type="submit" class="btn btn-sm btn-outline-secondary"
                                     formaction="@Url.Action("MoveOption", new { id = Model.StepID, optionId = Model.Rows[i].OptionID, delta = -1 })"
@@ -82,6 +93,11 @@ else
                 }
             </tbody>
         </table>
+
+        <p class="small text-muted">
+            An option that goes to a step sends the run there. When that step (and anything
+            nested under it) finishes, the run carries on from where it landed.
+        </p>
 
         <button type="submit" class="btn btn-primary">Save options</button>
     </form>

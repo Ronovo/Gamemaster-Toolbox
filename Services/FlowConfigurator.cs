@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Data;
+using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
@@ -6,7 +6,11 @@ using GM_Toolbox.Models.ViewModels;
 namespace GM_Toolbox.Services
 {
     /// <summary>
-    /// Everything that touches a flow's step order, in one place.
+    /// Everything that touches a flow's shape -- the order of steps and the options and
+    /// branches hanging off them -- in one place.
+    ///
+    /// A flow is a flat list. A step's SortOrder is its position in the flow; every reference
+    /// between steps is by database ID and survives a reorder untouched.
     /// </summary>
     public class FlowConfigurator
     {
@@ -18,7 +22,7 @@ namespace GM_Toolbox.Services
         }
 
         public string? AddStep(Flow flow, FlowStepKind kind, int oracleId, string? label,
-            string? question, int? sourceStepSortOrder)
+            string? question, int? sourceStepId)
         {
             if (!Enum.IsDefined(kind))
             {
@@ -45,39 +49,33 @@ namespace GM_Toolbox.Services
                     {
                         return "Pick an oracle to roll.";
                     }
-
                     if (!_context.Oracles.Any(o => o.ID == oracleId))
                     {
                         return "That oracle no longer exists.";
                     }
-
                     step.OracleID = oracleId;
                     break;
 
                 case FlowStepKind.Choice:
                 case FlowStepKind.Text:
-                case FlowStepKind.Number:
                     if (string.IsNullOrWhiteSpace(question))
                     {
                         return "Type the question this step asks.";
                     }
-
                     if (question.Length > 200)
                     {
                         return "A question cannot be longer than 200 characters.";
                     }
-
                     step.Question = question.Trim();
                     break;
 
                 case FlowStepKind.RollChosen:
-                    var error = ValidateSource(flow, sourceStepSortOrder);
-                    if (error != null)
+                    var sourceError = ValidateSource(flow, sourceStepId);
+                    if (sourceError != null)
                     {
-                        return error;
+                        return sourceError;
                     }
-
-                    step.SourceStepSortOrder = sourceStepSortOrder;
+                    step.SourceStepID = sourceStepId;
                     break;
             }
 
@@ -86,7 +84,7 @@ namespace GM_Toolbox.Services
         }
 
         public string? EditStep(Flow flow, FlowStep step, string? label, string? question,
-            int? oracleId, int? sourceStepSortOrder)
+            int? oracleId, int? sourceStepId)
         {
             if (label != null && label.Length > 100)
             {
@@ -102,45 +100,38 @@ namespace GM_Toolbox.Services
                     {
                         return "Pick an oracle to roll.";
                     }
-
                     if (!_context.Oracles.Any(o => o.ID == oracleId))
                     {
                         return "That oracle no longer exists.";
                     }
-
                     if (step.OracleID != oracleId && step.Branches.Count > 0)
                     {
                         _context.FlowBranches.RemoveRange(step.Branches.ToList());
                         step.Branches.Clear();
                     }
-
                     step.OracleID = oracleId;
                     break;
 
                 case FlowStepKind.Choice:
                 case FlowStepKind.Text:
-                case FlowStepKind.Number:
                     if (string.IsNullOrWhiteSpace(question))
                     {
                         return "Type the question this step asks.";
                     }
-
                     if (question.Length > 200)
                     {
                         return "A question cannot be longer than 200 characters.";
                     }
-
                     step.Question = question.Trim();
                     break;
 
                 case FlowStepKind.RollChosen:
-                    var error = ValidateSource(flow, sourceStepSortOrder);
-                    if (error != null)
+                    var sourceError = ValidateSource(flow, sourceStepId);
+                    if (sourceError != null)
                     {
-                        return error;
+                        return sourceError;
                     }
-
-                    step.SourceStepSortOrder = sourceStepSortOrder;
+                    step.SourceStepID = sourceStepId;
                     break;
             }
 
@@ -157,15 +148,33 @@ namespace GM_Toolbox.Services
                 return "That step is no longer part of this flow.";
             }
 
-            var survivors = flow.Steps
-                .Where(s => s.ID != stepId)
-                .OrderBy(s => s.SortOrder)
-                .ToList();
-
             _context.FlowSteps.Remove(step);
             flow.Steps.Remove(step);
 
-            Renumber(survivors, out orphaned);
+            // References are by ID, so they only break when the step they name is actually
+            // gone. Clear those and count them for the notice the caller shows.
+            foreach (var survivor in flow.Steps)
+            {
+                if (survivor.SourceStepID == stepId)
+                {
+                    survivor.SourceStepID = null;
+                    orphaned++;
+                }
+
+                foreach (var branch in survivor.Branches.Where(b => b.TargetStepID == stepId))
+                {
+                    branch.TargetStepID = null;
+                    orphaned++;
+                }
+
+                foreach (var option in survivor.Options.Where(o => o.TargetStepID == stepId))
+                {
+                    option.TargetStepID = null;
+                    orphaned++;
+                }
+            }
+
+            Renumber(flow);
             return null;
         }
 
@@ -178,7 +187,6 @@ namespace GM_Toolbox.Services
 
             var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
             var index = ordered.FindIndex(s => s.ID == stepId);
-
             if (index < 0)
             {
                 return "That step is no longer part of this flow.";
@@ -187,26 +195,29 @@ namespace GM_Toolbox.Services
             var target = index + delta;
             if (target < 0 || target >= ordered.Count)
             {
-                // Already at the end it was asked to move towards. Not an error worth a message.
                 return null;
             }
 
             (ordered[index], ordered[target]) = (ordered[target], ordered[index]);
 
-            Renumber(ordered, out _);
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                ordered[i].SortOrder = i + 1;
+            }
+
             return null;
         }
 
         public string? SetBranches(Flow flow, FlowStep step, List<BranchRow> rows)
         {
-            if (!step.Kind.CanBranch())
+            if (!step.AllowsBranches())
             {
                 return "This kind of step has no fixed outcomes to branch on.";
             }
 
             var entriesById = (step.Oracle?.OracleEntries ?? new List<OracleEntry>())
                 .ToDictionary(e => e.ID);
-            var validTargets = flow.Steps.Select(s => s.SortOrder).ToHashSet();
+            var validSteps = flow.Steps.Select(s => s.ID).ToHashSet();
             var existing = step.Branches.ToDictionary(b => b.OracleEntryID);
 
             foreach (var row in rows)
@@ -216,15 +227,23 @@ namespace GM_Toolbox.Services
                     return "One of these outcomes no longer exists. Reload the page and try again.";
                 }
 
-                var error = ParseTarget(row.Target, validTargets, out bool hasBranch, out int? sortOrder);
-                if (error != null)
+                var oracleError = ResolveOracle(row.OracleID, out var oracleId);
+                if (oracleError != null)
                 {
-                    return error;
+                    return oracleError;
                 }
 
+                var targetError = ParseTarget(row.Target, validSteps, out bool routes,
+                    out int? targetStepId, out bool endsFlow);
+                if (targetError != null)
+                {
+                    return targetError;
+                }
+
+                var wanted = oracleId != null || routes;
                 existing.TryGetValue(row.EntryID, out var branch);
 
-                if (!hasBranch)
+                if (!wanted)
                 {
                     if (branch != null)
                     {
@@ -241,13 +260,15 @@ namespace GM_Toolbox.Services
                     step.Branches.Add(branch);
                 }
 
-                branch.TargetStepSortOrder = sortOrder;
+                branch.OracleID = oracleId;
+                branch.TargetStepID = targetStepId;
+                branch.EndsFlow = endsFlow;
             }
 
             return null;
         }
 
-        public string? SetOptions(FlowStep step, List<OptionRow> rows)
+        public string? SetOptions(Flow flow, FlowStep step, List<OptionRow> rows)
         {
             if (step.Kind != FlowStepKind.Choice)
             {
@@ -255,6 +276,7 @@ namespace GM_Toolbox.Services
             }
 
             var existing = step.Options.ToDictionary(o => o.ID);
+            var validSteps = flow.Steps.Select(s => s.ID).ToHashSet();
 
             foreach (var row in rows)
             {
@@ -267,20 +289,28 @@ namespace GM_Toolbox.Services
                 {
                     return "Every option needs something to call it.";
                 }
-
                 if (row.Label.Length > 100)
                 {
                     return "An option label cannot be longer than 100 characters.";
                 }
 
-                var error = ResolveOracle(row.OracleID, out var oracleId);
-                if (error != null)
+                var oracleError = ResolveOracle(row.OracleID, out var oracleId);
+                if (oracleError != null)
                 {
-                    return error;
+                    return oracleError;
+                }
+
+                var targetError = ParseTarget(row.Target, validSteps, out bool routes,
+                    out int? targetStepId, out bool endsFlow);
+                if (targetError != null)
+                {
+                    return targetError;
                 }
 
                 option.Label = row.Label.Trim();
                 option.OracleID = oracleId;
+                option.TargetStepID = routes && !endsFlow ? targetStepId : null;
+                option.EndsFlow = routes && endsFlow;
             }
 
             return null;
@@ -292,12 +322,10 @@ namespace GM_Toolbox.Services
             {
                 return "Only a dropdown question has options.";
             }
-
             if (string.IsNullOrWhiteSpace(label))
             {
                 return "Give the option something to call it.";
             }
-
             if (label.Length > 100)
             {
                 return "An option label cannot be longer than 100 characters.";
@@ -321,7 +349,6 @@ namespace GM_Toolbox.Services
             {
                 return "Only a dropdown question has options.";
             }
-
             if (oracleIds == null || oracleIds.Count == 0)
             {
                 return "Tick at least one oracle to add.";
@@ -406,6 +433,15 @@ namespace GM_Toolbox.Services
 
         // ------------------------------------------------------------------ helpers
 
+        private static void Renumber(Flow flow)
+        {
+            var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                ordered[i].SortOrder = i + 1;
+            }
+        }
+
         private static void Append(FlowStep step, string label, int? oracleId)
         {
             var option = new FlowChoiceOption
@@ -445,105 +481,57 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        private static string? ValidateSource(Flow flow, int? sourceStepSortOrder)
+        private static string? ValidateSource(Flow flow, int? sourceStepId)
         {
-            if (sourceStepSortOrder == null)
+            if (sourceStepId == null)
             {
-                return "Say which dropdown question this step takes its oracle from.";
+                return "Say which step this one takes its oracle from.";
             }
 
-            var source = flow.Steps.FirstOrDefault(s => s.SortOrder == sourceStepSortOrder.Value);
-
+            var source = flow.Steps.FirstOrDefault(s => s.ID == sourceStepId.Value);
             if (source == null)
             {
                 return "That step is not in this flow.";
             }
-
-            if (source.Kind != FlowStepKind.Choice)
+            if (source.Kind != FlowStepKind.Choice && source.Kind != FlowStepKind.Roll)
             {
-                return "Only a dropdown question picks an oracle, so only one of those can be the source.";
+                return "This step takes its oracle from a dropdown question or a roll.";
             }
 
             return null;
         }
 
-        private static string? ParseTarget(string? target, HashSet<int> validTargets,
-            out bool hasBranch, out int? sortOrder)
+        /// <summary>
+        /// Reads a routing picker: blank means no route, "end" ends the run, a number is the
+        /// target step's ID.
+        /// </summary>
+        private static string? ParseTarget(string? target, HashSet<int> validSteps, out bool routes,
+            out int? stepId, out bool endsFlow)
         {
-            hasBranch = false;
-            sortOrder = null;
+            routes = false;
+            stepId = null;
+            endsFlow = false;
 
             if (string.IsNullOrWhiteSpace(target))
             {
                 return null;
             }
 
-            hasBranch = true;
+            routes = true;
 
             if (target == BranchRow.EndTarget)
             {
+                endsFlow = true;
                 return null;
             }
 
-            if (!int.TryParse(target, out var parsed) || !validTargets.Contains(parsed))
+            if (!int.TryParse(target, out var parsed) || !validSteps.Contains(parsed))
             {
-                return "One of these branches points at a step that is not in this flow.";
+                return "One of these routes points at a step that is not in this flow.";
             }
 
-            sortOrder = parsed;
+            stepId = parsed;
             return null;
-        }
-
-        private static void Renumber(List<FlowStep> ordered, out int orphaned)
-        {
-            orphaned = 0;
-
-            var map = new Dictionary<int, int>();
-            for (int i = 0; i < ordered.Count; i++)
-            {
-                map[ordered[i].SortOrder] = i + 1;
-            }
-
-            for (int i = 0; i < ordered.Count; i++)
-            {
-                ordered[i].SortOrder = i + 1;
-            }
-
-            foreach (var branch in ordered.SelectMany(s => s.Branches))
-            {
-                if (branch.TargetStepSortOrder == null)
-                {
-                    continue;
-                }
-
-                if (map.TryGetValue(branch.TargetStepSortOrder.Value, out var moved))
-                {
-                    branch.TargetStepSortOrder = moved;
-                }
-                else
-                {
-                    branch.TargetStepSortOrder = null;
-                    orphaned++;
-                }
-            }
-
-            foreach (var step in ordered)
-            {
-                if (step.SourceStepSortOrder == null)
-                {
-                    continue;
-                }
-
-                if (map.TryGetValue(step.SourceStepSortOrder.Value, out var moved))
-                {
-                    step.SourceStepSortOrder = moved;
-                }
-                else
-                {
-                    step.SourceStepSortOrder = null;
-                    orphaned++;
-                }
-            }
         }
     }
 }

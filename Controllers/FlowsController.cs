@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Data;
+using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
@@ -41,8 +41,6 @@ public class FlowsController : Controller
 
     public async Task<IActionResult> Create()
     {
-        // A flow is made of oracles, so there is nothing to build until at least one exists.
-        // The view says so rather than offering an empty picker.
         ViewData["OracleCount"] = await _context.Oracles.CountAsync();
         ViewData["GameSystemID"] = await GameSystemSelectList();
         return View(new Flow());
@@ -87,9 +85,6 @@ public class FlowsController : Controller
             return View(flow);
         }
 
-        // Load-then-assign, never _context.Update() on the bound object. See the comment on
-        // OraclesController.Edit: Update() marks every scalar modified, so a property missing
-        // from the [Bind] list above would be written back as its default.
         var existing = await _context.Flows.FirstOrDefaultAsync(f => f.ID == id);
         if (existing == null) return NotFound();
 
@@ -114,8 +109,6 @@ public class FlowsController : Controller
         return View(flow);
     }
 
-    // Renamed because the POST would otherwise share a signature with the GET;
-    // [ActionName] keeps the route as Delete.
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int? id)
@@ -129,6 +122,8 @@ public class FlowsController : Controller
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
+
+    // ------------------------------------------------------------------ steps
 
     public async Task<IActionResult> Steps(int? id)
     {
@@ -149,7 +144,7 @@ public class FlowsController : Controller
         if (flow == null) return NotFound();
 
         var error = _configurator.AddStep(flow, vm.AddKind, vm.AddOracleID, vm.AddLabel,
-            vm.AddQuestion, vm.AddSourceStepSortOrder);
+            vm.AddQuestion, vm.AddSourceStepID);
         if (error != null)
         {
             return await StepsWithError(flow, error, vm);
@@ -157,7 +152,7 @@ public class FlowsController : Controller
 
         await _context.SaveChangesAsync();
 
-        var added = flow.Steps.OrderBy(s => s.SortOrder).Last();
+        var added = flow.Steps.OrderByDescending(s => s.ID).First();
         if (added.Kind == FlowStepKind.Choice)
         {
             return RedirectToAction(nameof(Options), new { id = added.ID });
@@ -184,7 +179,7 @@ public class FlowsController : Controller
         if (orphaned > 0)
         {
             TempData["FlowMessage"] =
-                $"Step removed. {orphaned} branch(es) or later step(s) pointed at it and have been cleared.";
+                $"Step removed. {orphaned} reference(s) to it have been cleared.";
         }
 
         return RedirectToAction(nameof(Steps), new { id });
@@ -207,6 +202,8 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Steps), new { id });
     }
 
+    // ------------------------------------------------------------------ edit step
+
     public async Task<IActionResult> EditStep(int? id)
     {
         if (id == null) return NotFound();
@@ -215,7 +212,7 @@ public class FlowsController : Controller
         if (located == null) return NotFound();
 
         var (flow, step) = located.Value;
-        await PopulateStepPickers(flow, step.SourceStepSortOrder);
+        await PopulateStepPickers(flow, step.SourceStepID);
         return View(BuildEditStepViewModel(flow, step));
     }
 
@@ -229,23 +226,25 @@ public class FlowsController : Controller
         var (flow, step) = located.Value;
 
         var error = _configurator.EditStep(flow, step, vm.Label, vm.Question, vm.OracleID,
-            vm.SourceStepSortOrder);
+            vm.SourceStepID);
         if (error != null)
         {
             ModelState.AddModelError("", error);
-            await PopulateStepPickers(flow, vm.SourceStepSortOrder);
+            await PopulateStepPickers(flow, vm.SourceStepID);
 
             var rebuilt = BuildEditStepViewModel(flow, step);
             rebuilt.Label = vm.Label;
             rebuilt.Question = vm.Question;
             rebuilt.OracleID = vm.OracleID;
-            rebuilt.SourceStepSortOrder = vm.SourceStepSortOrder;
+            rebuilt.SourceStepID = vm.SourceStepID;
             return View(rebuilt);
         }
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Steps), new { id = flow.ID });
     }
+
+    // ------------------------------------------------------------------ branches
 
     public async Task<IActionResult> Branches(int? id)
     {
@@ -255,7 +254,7 @@ public class FlowsController : Controller
         if (located == null) return NotFound();
 
         var (flow, step) = located.Value;
-        return View(BuildBranchesViewModel(flow, step));
+        return View(await BuildBranchesViewModel(flow, step));
     }
 
     [HttpPost]
@@ -271,10 +270,10 @@ public class FlowsController : Controller
         if (error != null)
         {
             ModelState.AddModelError("", error);
-            // Rebuild everything the form did not post back, keeping the choices just made.
-            var rebuilt = BuildBranchesViewModel(flow, step);
+            var rebuilt = await BuildBranchesViewModel(flow, step);
             for (int i = 0; i < rebuilt.Rows.Count && i < vm.Rows.Count; i++)
             {
+                rebuilt.Rows[i].OracleID = vm.Rows[i].OracleID;
                 rebuilt.Rows[i].Target = vm.Rows[i].Target;
             }
             return View(rebuilt);
@@ -283,6 +282,8 @@ public class FlowsController : Controller
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Steps), new { id = flow.ID });
     }
+
+    // ------------------------------------------------------------------ options
 
     public async Task<IActionResult> Options(int? id)
     {
@@ -306,7 +307,7 @@ public class FlowsController : Controller
 
         var (flow, step) = located.Value;
 
-        var error = _configurator.SetOptions(step, vm.Rows);
+        var error = _configurator.SetOptions(flow, step, vm.Rows);
         if (error != null)
         {
             return await OptionsWithError(flow, step, error, vm);
@@ -393,6 +394,8 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Options), new { id });
     }
 
+    // ------------------------------------------------------------------ running
+
     public async Task<IActionResult> Run(int? id)
     {
         if (id == null) return NotFound();
@@ -430,7 +433,6 @@ public class FlowsController : Controller
 
         if (error != null || rolled == null)
         {
-            // TryAdvance may have reset a run that no longer matches the flow, so save either way.
             FlowRunner.Save(state, HttpContext.Session);
             return RunResponse(id, null, null, null, error ?? "That step produced no outcome.");
         }
@@ -463,7 +465,6 @@ public class FlowsController : Controller
 
     private bool IsAjaxRequest => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
-
     private IActionResult RunResponse(int id, FlowRunStep? rolled, FlowStep? next,
         FlowRunState? state, string? error)
     {
@@ -479,6 +480,7 @@ public class FlowsController : Controller
                 label = rolled!.Label,
                 oracleName = rolled.OracleName,
                 outcome = rolled.Outcome,
+                outcomes = rolled.Outcomes,
                 isQuestion = rolled.IsQuestion,
                 next = NextDescriptor(next),
                 finished = state!.Finished,
@@ -516,6 +518,8 @@ public class FlowsController : Controller
         };
     }
 
+    // ------------------------------------------------------------------ error re-render
+
     private async Task<IActionResult> StepsWithError(Flow flow, string error, FlowStepsViewModel? posted)
     {
         ModelState.AddModelError("", error);
@@ -528,7 +532,7 @@ public class FlowsController : Controller
             vm.AddOracleID = posted.AddOracleID;
             vm.AddLabel = posted.AddLabel;
             vm.AddQuestion = posted.AddQuestion;
-            vm.AddSourceStepSortOrder = posted.AddSourceStepSortOrder;
+            vm.AddSourceStepID = posted.AddSourceStepID;
         }
         return View(nameof(Steps), vm);
     }
@@ -547,36 +551,43 @@ public class FlowsController : Controller
             {
                 vm.Rows[i].Label = posted.Rows[i].Label;
                 vm.Rows[i].OracleID = posted.Rows[i].OracleID;
+                vm.Rows[i].Target = posted.Rows[i].Target;
             }
         }
         return View(nameof(Options), vm);
     }
 
+    // ------------------------------------------------------------------ view models
+
     private FlowStepsViewModel BuildStepsViewModel(Flow flow)
     {
-        var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
+        var ordered = flow.InRunOrder().ToList();
+
+        var rows = ordered.Select((step, i) => new FlowStepRow
+        {
+            StepID = step.ID,
+            PositionPath = step.PositionPath(),
+            Kind = step.Kind,
+            Label = step.DisplayLabel(),
+            Summary = StepSummary(step, flow),
+            OracleTypeLabel = step.Oracle?.TypeLabel() ?? string.Empty,
+            BlockedReason = step.BlockedReason(flow),
+            Warning = StepWarning(step, flow),
+            FallThroughLabel = FallThroughLabel(flow, step),
+            BranchSummaries = step.AllowsBranches()
+                ? BranchSummaries(flow, step)
+                : new List<string>(),
+            OptionSummaries = OptionSummaries(flow, step),
+            IsFirst = i == 0,
+            IsLast = i == ordered.Count - 1
+        }).ToList();
 
         return new FlowStepsViewModel
         {
             FlowID = flow.ID,
             FlowName = flow.Name,
-            ChoiceSteps = ChoiceTargets(flow),
-            Rows = ordered.Select(step => new FlowStepRow
-            {
-                StepID = step.ID,
-                SortOrder = step.SortOrder,
-                Kind = step.Kind,
-                Label = step.DisplayLabel(),
-                Summary = StepSummary(step, flow),
-                OracleTypeLabel = step.Oracle?.TypeLabel() ?? string.Empty,
-                BlockedReason = step.BlockedReason(flow),
-                Warning = StepWarning(step, flow),
-                FallThroughLabel = TargetLabel(ordered, step.SortOrder + 1),
-                BranchSummaries = step.Kind.CanBranch()
-                    ? BranchSummaries(ordered, step)
-                    : new List<string>(),
-                OptionSummaries = OptionSummaries(step)
-            }).ToList()
+            SourceSteps = SourceTargets(flow),
+            Rows = rows
         };
     }
 
@@ -589,14 +600,13 @@ public class FlowsController : Controller
 
             case FlowStepKind.Choice:
             case FlowStepKind.Text:
-            case FlowStepKind.Number:
                 return step.Question ?? "(no question)";
 
             case FlowStepKind.RollChosen:
                 var source = step.SourceStep(flow);
                 return source == null
-                    ? "No question set"
-                    : $"Rolls what step {source.SortOrder} ({source.DisplayLabel()}) picks";
+                    ? "No source set"
+                    : $"Rolls what {source.PositionPath()} ({source.DisplayLabel()}) picks";
         }
 
         return string.Empty;
@@ -607,9 +617,9 @@ public class FlowsController : Controller
         if (step.Kind == FlowStepKind.RollChosen)
         {
             var source = step.SourceStep(flow);
-            if (source != null && source.SortOrder > step.SortOrder)
+            if (source != null && !StepRunsBefore(flow, source, step))
             {
-                return $"Step {source.SortOrder} comes after this one, so nothing will have been picked by the time this runs.";
+                return $"{source.PositionPath()} does not run before this step, so nothing will have been picked by the time this runs.";
             }
         }
 
@@ -618,22 +628,41 @@ public class FlowsController : Controller
             var without = step.Options.Count(o => o.OracleID == null);
             if (without > 0 && without < step.Options.Count)
             {
-                return $"{without} option(s) name no oracle, so picking one leaves a later \"roll what was picked\" step with nothing to roll.";
+                return $"{without} option(s) name no oracle, so picking one leaves a later \"roll on another oracle\" step with nothing to roll.";
             }
         }
 
         return null;
     }
 
-    private static List<string> OptionSummaries(FlowStep step)
+    /// <summary>Whether <paramref name="a"/> is reached before <paramref name="b"/> in run order.</summary>
+    private static bool StepRunsBefore(Flow flow, FlowStep a, FlowStep b)
+    {
+        foreach (var step in flow.InRunOrder())
+        {
+            if (step.ID == a.ID) return true;
+            if (step.ID == b.ID) return false;
+        }
+        return false;
+    }
+
+    private static List<string> OptionSummaries(Flow flow, FlowStep step)
     {
         return step.Options
             .OrderBy(o => o.SortOrder)
-            .Select(o => o.Oracle == null ? o.Label : $"{o.Label} → {o.Oracle.Name}")
+            .Select(o =>
+            {
+                var text = o.Oracle == null ? o.Label : $"{o.Label} → {o.Oracle.Name}";
+                if (!o.Routes)
+                {
+                    return text;
+                }
+                return $"{text} → {(o.EndsFlow ? "ends the flow" : TargetLabel(flow, o.TargetStepID))}";
+            })
             .ToList();
     }
 
-    private static List<string> BranchSummaries(List<FlowStep> ordered, FlowStep step)
+    private static List<string> BranchSummaries(Flow flow, FlowStep step)
     {
         var entries = (step.Oracle?.OracleEntries ?? new List<OracleEntry>())
             .ToDictionary(e => e.ID);
@@ -644,35 +673,74 @@ public class FlowsController : Controller
                 Branch = b,
                 Entry = entries.TryGetValue(b.OracleEntryID, out var e) ? e : null
             })
-            // Ordered by the outcome they fire on, so the list reads down the oracle.
             .OrderBy(x => x.Entry?.SortOrder ?? int.MaxValue)
             .Select(x =>
             {
                 var key = x.Entry?.KeyLabel() ?? "?";
                 var result = x.Entry?.Result;
                 var outcome = string.IsNullOrWhiteSpace(result) ? key : $"{key} — {result}";
-                return $"{outcome} → {TargetLabel(ordered, x.Branch.TargetStepSortOrder)}";
+
+                var parts = new List<string>();
+                if (x.Branch.Oracle != null)
+                {
+                    parts.Add($"picks {x.Branch.Oracle.Name}");
+                }
+                if (x.Branch.EndsFlow)
+                {
+                    parts.Add("ends the flow");
+                }
+                else if (x.Branch.TargetStepID != null)
+                {
+                    parts.Add($"goes to {TargetLabel(flow, x.Branch.TargetStepID)}");
+                }
+
+                return parts.Count == 0 ? outcome : $"{outcome} → {string.Join(", ", parts)}";
             })
             .ToList();
     }
 
-    private static string TargetLabel(List<FlowStep> ordered, int? sortOrder)
+    private static string TargetLabel(Flow flow, int? stepId)
     {
-        if (sortOrder == null) return "ends the flow";
+        if (stepId == null) return "ends the flow";
 
-        var step = ordered.FirstOrDefault(s => s.SortOrder == sortOrder.Value);
-        return step == null ? "ends the flow" : $"step {step.SortOrder}: {step.DisplayLabel()}";
+        var step = flow.Steps.FirstOrDefault(s => s.ID == stepId.Value);
+        return step == null ? "ends the flow" : $"{step.PositionPath()}: {step.DisplayLabel()}";
     }
 
-    private static List<BranchTarget> ChoiceTargets(Flow flow)
+    private static string FallThroughLabel(Flow flow, FlowStep step)
     {
-        return flow.Steps
-            .Where(s => s.Kind == FlowStepKind.Choice)
-            .OrderBy(s => s.SortOrder)
+        var next = NextStepInOrder(flow, step);
+        return next != null
+            ? $"{next.PositionPath()}: {next.DisplayLabel()}"
+            : "ends the flow";
+    }
+
+    private static FlowStep? NextStepInOrder(Flow flow, FlowStep step)
+    {
+        var ordered = flow.InRunOrder().ToList();
+        var index = ordered.FindIndex(s => s.ID == step.ID);
+        return index >= 0 && index + 1 < ordered.Count ? ordered[index + 1] : null;
+    }
+
+    private static List<BranchTarget> SourceTargets(Flow flow)
+    {
+        return flow.InRunOrder()
+            .Where(s => s.Kind == FlowStepKind.Choice || s.Kind == FlowStepKind.Roll)
             .Select(s => new BranchTarget
             {
-                SortOrder = s.SortOrder,
-                Label = $"Step {s.SortOrder}: {s.DisplayLabel()}"
+                StepID = s.ID,
+                Label = $"{s.PositionPath()}: {s.DisplayLabel()}"
+            })
+            .ToList();
+    }
+
+    private static List<BranchTarget> AllTargets(Flow flow)
+    {
+        return flow.InRunOrder()
+            .Select(s => new BranchTarget
+            {
+                StepID = s.ID,
+                Label = $"{s.PositionPath()}: {s.DisplayLabel()}"
             })
             .ToList();
     }
@@ -684,18 +752,17 @@ public class FlowsController : Controller
             FlowID = flow.ID,
             StepID = step.ID,
             FlowName = flow.Name,
-            SortOrder = step.SortOrder,
+            PositionPath = step.PositionPath(),
             Kind = step.Kind,
             Label = step.Label,
             Question = step.Question,
             OracleID = step.OracleID,
-            SourceStepSortOrder = step.SourceStepSortOrder
+            SourceStepID = step.SourceStepID
         };
     }
 
-    private static FlowBranchesViewModel BuildBranchesViewModel(Flow flow, FlowStep step)
+    private async Task<FlowBranchesViewModel> BuildBranchesViewModel(Flow flow, FlowStep step)
     {
-        var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
         var branches = step.Branches.ToDictionary(b => b.OracleEntryID);
 
         return new FlowBranchesViewModel
@@ -704,19 +771,14 @@ public class FlowsController : Controller
             StepID = step.ID,
             FlowName = flow.Name,
             StepLabel = step.DisplayLabel(),
-            StepSortOrder = step.SortOrder,
-            CanBranch = step.Kind.CanBranch(),
+            PositionPath = step.PositionPath(),
+            CanBranch = step.AllowsBranches(),
             KindName = step.Kind.DisplayName(),
             OracleName = step.Oracle?.Name ?? "(missing oracle)",
             IsDice = step.Oracle?.OracleSubtype.Category() == OracleCategory.Dice,
-            FallThroughLabel = TargetLabel(ordered, step.SortOrder + 1),
-            Targets = ordered
-                .Select(s => new BranchTarget
-                {
-                    SortOrder = s.SortOrder,
-                    Label = $"Step {s.SortOrder}: {s.DisplayLabel()}"
-                })
-                .ToList(),
+            FallThroughLabel = FallThroughLabel(flow, step),
+            Targets = AllTargets(flow),
+            Oracles = await OracleListItems(),
             Rows = !step.Kind.CanBranch()
                 ? new List<BranchRow>()
                 : (step.Oracle?.OracleEntries ?? new List<OracleEntry>())
@@ -726,8 +788,9 @@ public class FlowsController : Controller
                         EntryID = e.ID,
                         OutcomeKey = e.KeyLabel(),
                         Result = e.Result,
-                        Target = branches.TryGetValue(e.ID, out var b)
-                            ? (b.TargetStepSortOrder?.ToString() ?? BranchRow.EndTarget)
+                        OracleID = branches.TryGetValue(e.ID, out var b) ? b.OracleID : null,
+                        Target = branches.TryGetValue(e.ID, out var wb)
+                            ? (wb.EndsFlow ? BranchRow.EndTarget : wb.TargetStepID?.ToString() ?? string.Empty)
                             : string.Empty
                     })
                     .ToList()
@@ -736,7 +799,6 @@ public class FlowsController : Controller
 
     private async Task<FlowOptionsViewModel> BuildOptionsViewModel(Flow flow, FlowStep step)
     {
-        // Both the per-row picker and the add-one-by-hand form read this.
         ViewData["OracleID"] = await OracleSelectList();
 
         return new FlowOptionsViewModel
@@ -745,10 +807,10 @@ public class FlowsController : Controller
             StepID = step.ID,
             FlowName = flow.Name,
             StepLabel = step.DisplayLabel(),
-            StepSortOrder = step.SortOrder,
+            PositionPath = step.PositionPath(),
             Question = step.Question ?? string.Empty,
             HasRollChosenStep = flow.Steps.Any(s =>
-                s.Kind == FlowStepKind.RollChosen && s.SourceStepSortOrder == step.SortOrder),
+                s.Kind == FlowStepKind.RollChosen && s.SourceStepID == step.ID),
             Rows = step.Options
                 .OrderBy(o => o.SortOrder)
                 .Select(o => new OptionRow
@@ -756,10 +818,15 @@ public class FlowsController : Controller
                     OptionID = o.ID,
                     SortOrder = o.SortOrder,
                     Label = o.Label,
-                    OracleID = o.OracleID
+                    OracleID = o.OracleID,
+                    Target = o.EndsFlow
+                        ? BranchRow.EndTarget
+                        : o.TargetStepID?.ToString() ?? string.Empty
                 })
                 .ToList(),
-            Available = await OracleListItems()
+            Available = await OracleListItems(),
+            Targets = AllTargets(flow),
+            FallThroughLabel = FallThroughLabel(flow, step)
         };
     }
 
@@ -785,7 +852,8 @@ public class FlowsController : Controller
     {
         return _context.Flows
             .Include(f => f.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Branches)
+            .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle)
+                .ThenInclude(o => o!.OracleEntries)
             .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.OracleEntries)
             .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle)
                 .ThenInclude(o => o!.OracleEntries)
@@ -809,8 +877,8 @@ public class FlowsController : Controller
         ViewData["OracleID"] = await OracleSelectList();
         ViewData["AddOracleID"] = await OracleSelectList();
         ViewData["AddKind"] = KindSelectList();
-        ViewData["SourceStepSortOrder"] = ChoiceStepSelectList(flow, selectedSource);
-        ViewData["AddSourceStepSortOrder"] = ChoiceStepSelectList(flow, selectedSource);
+        ViewData["SourceStepID"] = SourceStepSelectList(flow, selectedSource);
+        ViewData["AddSourceStepID"] = SourceStepSelectList(flow, selectedSource);
     }
 
     private static SelectList KindSelectList(FlowStepKind? selected = null)
@@ -822,9 +890,9 @@ public class FlowsController : Controller
         return new SelectList(items, "Value", "Text", (selected ?? FlowStepKind.Roll).ToString());
     }
 
-    private static SelectList ChoiceStepSelectList(Flow flow, int? selected)
+    private static SelectList SourceStepSelectList(Flow flow, int? selected)
     {
-        return new SelectList(ChoiceTargets(flow), "SortOrder", "Label", selected);
+        return new SelectList(SourceTargets(flow), "StepID", "Label", selected);
     }
 
     private async Task<SelectList> OracleSelectList()

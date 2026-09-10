@@ -501,6 +501,13 @@ main > h1 {
   margin-top: 1.5rem;
 }
 
-main ul li + li {
+/* Breathing room between the items of a written list.
+   Scoped deliberately. Bootstrap builds its own components out of ul/li too -- the pager,
+   navs, dropdowns, list groups -- and those space themselves; a stray top margin there
+   pushes every item after the first a few pixels down, out of line with its neighbours.
+   Those all carry a class, so :not([class]) leaves them alone, and "> li" keeps the rule
+   from reaching a component nested inside a written list. */
+main ul:not([class]) > li + li,
+main ul.list-unstyled > li + li {
   margin-top: 0.35rem;
 }

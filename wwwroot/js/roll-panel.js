@@ -21,10 +21,18 @@ window.GmRoll = (function () {
 
     // POSTs a form the way the server's IsAjaxRequest check expects. FormData carries the
     // antiforgery token along with everything else, so nothing has to be threaded in by hand.
-    function postForm(form) {
+    function postForm(form, submitter) {
+        var body = new FormData(form);
+
+        // A submit button's own name and value are part of a submission only when that button
+        // is the one pressed, and FormData built from the form alone cannot know which was.
+        if (submitter && submitter.name) {
+            body.append(submitter.name, submitter.value);
+        }
+
         return fetch(form.action, {
             method: "POST",
-            body: new FormData(form),
+            body: body,
             headers: { "X-Requested-With": "XMLHttpRequest" }
         });
     }
@@ -41,11 +49,42 @@ window.GmRoll = (function () {
         var valueEl = part("value");
         var captionEl = part("caption");
         var textEl = part("text");
+        var singleEl = part("single");
+        var listEl = part("list");
         var reshuffledEl = part("reshuffled");
         var errorEl = part("error");
 
+        function fillItem(item) {
+            valueEl.textContent = headline(item);
+            captionEl.textContent = item.caption || "";
+            textEl.textContent = item.result || NO_TEXT;
+            textEl.classList.toggle("text-muted", !item.result);
+        }
+
+        function fillList(items) {
+            listEl.textContent = "";
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                var li = document.createElement("li");
+                var strong = document.createElement("strong");
+                strong.textContent = headline(item);
+                li.appendChild(strong);
+                if (item.caption) {
+                    var cap = document.createElement("span");
+                    cap.className = "small text-muted ms-1";
+                    cap.textContent = item.caption;
+                    li.appendChild(cap);
+                }
+                var text = document.createElement("div");
+                text.textContent = item.result || NO_TEXT;
+                if (!item.result) text.className = "text-muted";
+                li.appendChild(text);
+                listEl.appendChild(li);
+            }
+        }
+
         return {
-            showOutcome: function (data, label) {
+            showOutcome: function (data, label, outcomes) {
                 errorEl.hidden = true;
 
                 if (labelEl) {
@@ -53,11 +92,25 @@ window.GmRoll = (function () {
                     labelEl.hidden = !label;
                 }
 
-                valueEl.textContent = headline(data);
-                captionEl.textContent = data.caption || "";
-                textEl.textContent = data.result || NO_TEXT;
-                textEl.classList.toggle("text-muted", !data.result);
-                reshuffledEl.hidden = !data.reshuffled;
+                var items = outcomes && outcomes.length
+                    ? outcomes
+                    : (data && data.outcomes && data.outcomes.length ? data.outcomes : [data]);
+                var many = items.length > 1;
+
+                if (singleEl) singleEl.hidden = many;
+                if (listEl) listEl.hidden = !many;
+
+                if (many) {
+                    fillList(items);
+                } else {
+                    fillItem(items[0] || data);
+                }
+
+                var reshuffled = false;
+                for (var r = 0; r < items.length; r++) {
+                    if (items[r] && items[r].reshuffled) { reshuffled = true; break; }
+                }
+                reshuffledEl.hidden = !reshuffled;
                 resultEl.hidden = false;
             },
 
@@ -115,9 +168,38 @@ window.GmRoll = (function () {
 
         function makeRow(data) {
             var tr = document.createElement("tr");
+            var items = data.outcomes && data.outcomes.length > 1 ? data.outcomes : null;
 
             if (showLabel) {
                 tr.appendChild(cell(data.label || ""));
+            }
+
+            if (items) {
+                var listCell = document.createElement("td");
+                listCell.colSpan = 2;
+                var ol = document.createElement("ol");
+                ol.className = "mb-0 ps-3";
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    var li = document.createElement("li");
+                    var strong = document.createElement("strong");
+                    strong.textContent = headline(item);
+                    li.appendChild(strong);
+                    if (item.caption) {
+                        var cap = document.createElement("span");
+                        cap.className = "small text-muted ms-1";
+                        cap.textContent = item.caption;
+                        li.appendChild(cap);
+                    }
+                    var text = document.createElement("span");
+                    text.className = item.result ? "ms-1" : "ms-1 text-muted";
+                    text.textContent = item.result || NO_TEXT;
+                    li.appendChild(text);
+                    ol.appendChild(li);
+                }
+                listCell.appendChild(ol);
+                tr.appendChild(listCell);
+                return tr;
             }
 
             var keyCell = document.createElement("td");
@@ -212,11 +294,14 @@ window.GmRoll = (function () {
         form.addEventListener("submit", function (event) {
             event.preventDefault();
 
-            var button = form.querySelector("button[type=submit]");
+            // The button actually pressed, so the right one goes disabled while the request
+            // is out and its value reaches the server. A form with two submit buttons would
+            // otherwise always report the first.
+            var button = event.submitter || form.querySelector("button[type=submit]");
             if (button && button.disabled) return;
             if (button) button.disabled = true;
 
-            postForm(form)
+            postForm(form, button)
                 .then(function (response) {
                     if (!response.ok) { form.submit(); return null; }
                     return response.json();

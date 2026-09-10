@@ -16,7 +16,7 @@ namespace GM_Toolbox.Services
         {
             var file = new OracleExportFile
             {
-                FormatVersion = 5,
+                FormatVersion = 10,
                 ExportedUtc = DateTime.UtcNow
             };
 

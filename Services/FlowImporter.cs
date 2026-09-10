@@ -10,11 +10,18 @@ namespace GM_Toolbox.Services
     /// Pure -- no DbContext, like OracleImporter, and all-or-nothing for the same reason: one
     /// bad flow means nothing at all is imported, which is what keeps export, Clear All,
     /// re-import a safe round trip.
+    ///
+    /// A flow is now a flat list of steps. Older files still import:
+    /// - a <c>Loop</c> step is dropped and its body steps kept in place;
+    /// - a <c>Fields</c> step becomes a <c>Text</c> question whose text is its labels;
+    /// - <c>Number</c> is <c>Text</c>; <c>times</c> / <c>countMode</c> / <c>countDice</c> are ignored;
+    /// - version 6/7 files (flat, <c>blockEnd</c> spans) import with the spans discarded.
     /// </summary>
     public static class FlowImporter
     {
         public static string? TryBuild(
             List<FlowDto>? dtos,
+            int formatVersion,
             Dictionary<string, GameSystem> systemsByName,
             List<Oracle> importedOracles,
             IEnumerable<Oracle> existingOracles,
@@ -37,19 +44,14 @@ namespace GM_Toolbox.Services
 
                 if (string.IsNullOrWhiteSpace(dto.Name))
                     return $"{label}: name is missing.";
-
                 if (dto.Name.Length > 100)
                     return $"{label} (\"{dto.Name}\"): name is longer than 100 characters.";
-
                 if (dto.Description != null && dto.Description.Length > 500)
                     return $"{label} (\"{dto.Name}\"): description is longer than 500 characters.";
-
                 if (string.IsNullOrWhiteSpace(dto.GameSystem))
                     return $"{label} (\"{dto.Name}\"): game system is missing.";
 
                 var system = OracleImporter.EnsureSystem(systemsByName, dto.GameSystem);
-
-                var steps = dto.Steps ?? new List<FlowStepDto>();
 
                 var flow = new Flow
                 {
@@ -58,7 +60,12 @@ namespace GM_Toolbox.Services
                     GameSystem = system
                 };
 
-                var error = BuildSteps(label, dto.Name, steps, lookup, flow);
+                var builder = new FlowBuilder($"{label} (\"{dto.Name}\")", lookup, flow);
+                var error = builder.Build(dto.Steps ?? new List<FlowStepDto>());
+                if (error != null)
+                    return error;
+
+                error = builder.ResolveReferences();
                 if (error != null)
                     return error;
 
@@ -69,172 +76,258 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        private static string? BuildSteps(string label, string name, List<FlowStepDto> steps,
-            OracleResolver lookup, Flow flow)
+        /// <summary>
+        /// Turns one flow's step DTOs into a flat, wired-up list of FlowStep entities. Nested
+        /// <c>Steps</c> (v8+) and flat <c>blockEnd</c> spans (v6/7) both funnel through here;
+        /// either way, loops disappear and their bodies stay.
+        /// </summary>
+        private sealed class FlowBuilder
         {
-            for (int n = 0; n < steps.Count; n++)
+            private readonly string _where;
+            private readonly OracleResolver _lookup;
+            private readonly Flow _flow;
+
+            // file key (Id in v8, SortOrder in v6/7) -> the step it maps to, or null when the
+            // step it named was dropped (an empty loop) so a reference to it just carries on
+            private readonly Dictionary<int, FlowStep?> _byKey = new();
+
+            // deferred step-to-step references, resolved once every step exists
+            private readonly List<(string what, int key, Action<FlowStep?> apply)> _refs = new();
+
+            private int _order = 0;
+
+            public FlowBuilder(string where, OracleResolver lookup, Flow flow)
             {
-                var stepDto = steps[n];
-                var where = $"{label} (\"{name}\"): step {n + 1}";
+                _where = where;
+                _lookup = lookup;
+                _flow = flow;
+            }
 
-                if (stepDto.SortOrder != n + 1)
-                    return $"{label} (\"{name}\"): steps must be numbered 1 to {steps.Count} in order; step {n + 1} says {stepDto.SortOrder}.";
+            public string? Build(List<FlowStepDto> steps)
+            {
+                return Walk(steps);
+            }
 
-                if (stepDto.Label != null && stepDto.Label.Length > 100)
-                    return $"{where} has a label longer than 100 characters.";
-
-                // Absent in a version 3 file, where every step rolled a fixed oracle.
-                var kindName = string.IsNullOrWhiteSpace(stepDto.Kind)
-                    ? nameof(FlowStepKind.Roll)
-                    : stepDto.Kind;
-
-                if (!Enum.TryParse<FlowStepKind>(kindName, out var kind) || !Enum.IsDefined(kind))
-                    return $"{where}: \"{stepDto.Kind}\" is not a known kind of step.";
-
-                var step = new FlowStep
+            private string? Walk(List<FlowStepDto> siblings)
+            {
+                for (int i = 0; i < siblings.Count; i++)
                 {
-                    SortOrder = stepDto.SortOrder,
-                    Kind = kind,
-                    Label = string.IsNullOrWhiteSpace(stepDto.Label) ? null : stepDto.Label
-                };
+                    var dto = siblings[i];
+                    var where = $"{_where}: step {(dto.Id?.ToString() ?? "#" + (i + 1))}";
+                    var key = dto.Id ?? dto.SortOrder;
+                    if (key <= 0) key = _byKey.Count + 1;
 
-                var error = FillStep(where, kind, stepDto, steps.Count, lookup, step);
-                if (error != null)
-                    return error;
+                    // A loop is gone: keep its body steps in place, and point any reference to
+                    // the loop at its first surviving step (filled once children are walked).
+                    if (string.Equals(dto.Kind, "Loop", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var before = _flow.Steps.Count;
+                        if (dto.Steps is { Count: > 0 })
+                        {
+                            var childError = Walk(dto.Steps);
+                            if (childError != null) return childError;
+                        }
+                        _byKey[key] = _flow.Steps.Skip(before).FirstOrDefault();
+                        continue;
+                    }
 
-                flow.Steps.Add(step);
-            }
+                    var kindError = ResolveKind(dto.Kind, where, out var kind);
+                    if (kindError != null) return kindError;
 
-            foreach (var step in flow.Steps.Where(s => s.Kind == FlowStepKind.RollChosen))
-            {
-                var source = flow.Steps.FirstOrDefault(s => s.SortOrder == step.SourceStepSortOrder);
+                    var step = new FlowStep
+                    {
+                        Kind = kind,
+                        Label = string.IsNullOrWhiteSpace(dto.Label) ? null : dto.Label.Trim(),
+                        SortOrder = ++_order
+                    };
 
-                if (source == null)
-                    return $"{label} (\"{name}\"): step {step.SortOrder} is picked at step {step.SourceStepSortOrder}, which is not in this flow.";
+                    if (!_byKey.TryAdd(key, step))
+                        return $"{where}: two steps share the id {key}.";
 
-                if (source.Kind != FlowStepKind.Choice)
-                    return $"{label} (\"{name}\"): step {step.SortOrder} is picked at step {source.SortOrder}, which is not a dropdown question.";
-            }
+                    var fillError = Fill(where, kind, dto, step);
+                    if (fillError != null) return fillError;
 
-            return null;
-        }
+                    _flow.Steps.Add(step);
 
-        private static string? FillStep(string where, FlowStepKind kind, FlowStepDto dto,
-            int stepCount, OracleResolver lookup, FlowStep step)
-        {
-            switch (kind)
-            {
-                case FlowStepKind.Roll:
-                    var oracleError = lookup.Resolve(where, dto.Oracle, required: true, out var oracle);
-                    if (oracleError != null)
-                        return oracleError;
+                    // Nesting on a non-loop step was never valid; keep any stray children in
+                    // sequence rather than reject the file.
+                    if (dto.Steps is { Count: > 0 })
+                    {
+                        var childError = Walk(dto.Steps);
+                        if (childError != null) return childError;
+                    }
+                }
 
-                    step.Oracle = oracle;
-                    return BuildBranches(where, dto.Branches, oracle!, stepCount, step);
-
-                case FlowStepKind.Choice:
-                    var questionError = Question(where, dto.Question, step);
-                    if (questionError != null)
-                        return questionError;
-
-                    return BuildOptions(where, dto.Options, lookup, step);
-
-                case FlowStepKind.Text:
-                case FlowStepKind.Number:
-                    return Question(where, dto.Question, step);
-
-                case FlowStepKind.RollChosen:
-                    if (dto.PickedAtStep == null)
-                        return $"{where} rolls what a question picks, but does not say which one.";
-
-                    if (dto.PickedAtStep < 1 || dto.PickedAtStep > stepCount)
-                        return $"{where} is picked at step {dto.PickedAtStep}, which is not in this flow.";
-
-                    step.SourceStepSortOrder = dto.PickedAtStep;
-                    return null;
-            }
-
-            return null;
-        }
-
-        private static string? Question(string where, string? question, FlowStep step)
-        {
-            if (string.IsNullOrWhiteSpace(question))
-                return $"{where} is a question step but has no question.";
-
-            if (question.Length > 200)
-                return $"{where} has a question longer than 200 characters.";
-
-            step.Question = question;
-            return null;
-        }
-
-        private static string? BuildOptions(string where, List<FlowChoiceOptionDto>? options,
-            OracleResolver lookup, FlowStep step)
-        {
-            if (options == null || options.Count == 0)
-                return $"{where} is a dropdown question with no options.";
-
-            for (int i = 0; i < options.Count; i++)
-            {
-                var option = options[i];
-
-                if (string.IsNullOrWhiteSpace(option.Label))
-                    return $"{where} has an option with no label.";
-
-                if (option.Label.Length > 100)
-                    return $"{where} has an option label longer than 100 characters.";
-
-                // An option may name no oracle at all -- it can exist only to be recorded.
-                var error = lookup.Resolve($"{where}, option \"{option.Label}\",",
-                    option.Oracle, required: false, out var oracle);
-                if (error != null)
-                    return error;
-
-                step.Options.Add(new FlowChoiceOption
-                {
-                    SortOrder = i + 1,
-                    Label = option.Label,
-                    Oracle = oracle
-                });
-            }
-
-            return null;
-        }
-
-        private static string? BuildBranches(string where, List<FlowBranchDto>? branches,
-            Oracle oracle, int stepCount, FlowStep step)
-        {
-            if (branches == null)
-            {
                 return null;
             }
 
-            var entriesBySortOrder = oracle.OracleEntries.ToDictionary(e => e.SortOrder);
-            var seen = new HashSet<int>();
-
-            foreach (var branchDto in branches)
+            public string? ResolveReferences()
             {
-                if (!entriesBySortOrder.TryGetValue(branchDto.WhenOutcome, out var entry))
-                    return $"{where} branches on outcome {branchDto.WhenOutcome}, which \"{oracle.Name}\" does not have.";
-
-                if (!seen.Add(branchDto.WhenOutcome))
-                    return $"{where} has more than one branch on outcome {branchDto.WhenOutcome}.";
-
-                if (branchDto.GoToStep != null
-                    && (branchDto.GoToStep < 1 || branchDto.GoToStep > stepCount))
+                foreach (var (what, key, apply) in _refs)
                 {
-                    return $"{where} branches to step {branchDto.GoToStep}, which is not in this flow.";
+                    if (!_byKey.TryGetValue(key, out var target))
+                        return $"{what} points at step {key}, which is not in this flow.";
+                    apply(target);
                 }
 
-                step.Branches.Add(new FlowBranch
+                foreach (var step in _flow.Steps.Where(s => s.Kind == FlowStepKind.RollChosen))
                 {
-                    OracleEntry = entry,
-                    TargetStepSortOrder = branchDto.GoToStep
-                });
+                    if (step.SourceStep == null)
+                        return $"{_where}: a \"roll on another oracle\" step has no source.";
+                    if (step.SourceStep.Kind != FlowStepKind.Choice && step.SourceStep.Kind != FlowStepKind.Roll)
+                        return $"{_where}: a \"roll on another oracle\" step takes its oracle from a step that is neither a dropdown question nor a roll.";
+                }
+
+                // SortOrder was assigned in emission order; make sure it is a clean 1..N.
+                var ordered = _flow.Steps.OrderBy(s => s.SortOrder).ToList();
+                for (int i = 0; i < ordered.Count; i++)
+                    ordered[i].SortOrder = i + 1;
+
+                return null;
             }
 
-            return null;
+            private string? Fill(string where, FlowStepKind kind, FlowStepDto dto, FlowStep step)
+            {
+                switch (kind)
+                {
+                    case FlowStepKind.Roll:
+                        var oracleError = _lookup.Resolve(where, dto.Oracle, required: true, out var oracle);
+                        if (oracleError != null) return oracleError;
+                        step.Oracle = oracle;
+                        return BuildBranches(where, dto.Branches, oracle!, step);
+
+                    case FlowStepKind.Choice:
+                        var qError = Question(where, dto.Question, step);
+                        if (qError != null) return qError;
+                        return BuildOptions(where, dto.Options, step);
+
+                    case FlowStepKind.Text:
+                        // A former Fields step arrives as Text with its labels for a question.
+                        if ((dto.Fields is { Count: > 0 }) && string.IsNullOrWhiteSpace(dto.Question))
+                        {
+                            var joined = string.Join(", ", dto.Fields.Where(f => !string.IsNullOrWhiteSpace(f)));
+                            step.Question = joined.Length > 200 ? joined.Substring(0, 200) : joined;
+                            return string.IsNullOrWhiteSpace(step.Question)
+                                ? $"{where} is a question step but has no question."
+                                : null;
+                        }
+                        return Question(where, dto.Question, step);
+
+                    case FlowStepKind.RollChosen:
+                        if (dto.PickedAtStep == null)
+                            return $"{where} rolls what an earlier step picks, but does not say which one.";
+                        Defer($"{where} (picked at)", dto.PickedAtStep.Value, s => step.SourceStep = s);
+                        return null;
+                }
+
+                return null;
+            }
+
+            private string? BuildOptions(string where, List<FlowChoiceOptionDto>? options, FlowStep step)
+            {
+                if (options == null || options.Count == 0)
+                    return $"{where} is a dropdown question with no options.";
+
+                for (int i = 0; i < options.Count; i++)
+                {
+                    var option = options[i];
+
+                    if (string.IsNullOrWhiteSpace(option.Label))
+                        return $"{where} has an option with no label.";
+                    if (option.Label.Length > 100)
+                        return $"{where} has an option label longer than 100 characters.";
+
+                    var error = _lookup.Resolve($"{where}, option \"{option.Label}\",",
+                        option.Oracle, required: false, out var oracle);
+                    if (error != null) return error;
+
+                    var built = new FlowChoiceOption
+                    {
+                        SortOrder = i + 1,
+                        Label = option.Label.Trim(),
+                        Oracle = oracle,
+                        EndsFlow = option.EndsFlow ?? false
+                    };
+                    step.Options.Add(built);
+
+                    if (option.GoToStep != null)
+                    {
+                        Defer($"{where}, option \"{option.Label}\"", option.GoToStep.Value,
+                            s => built.TargetStep = s);
+                    }
+                }
+
+                return null;
+            }
+
+            private string? BuildBranches(string where, List<FlowBranchDto>? branches, Oracle oracle,
+                FlowStep step)
+            {
+                if (branches == null) return null;
+
+                var entriesBySortOrder = oracle.OracleEntries.ToDictionary(e => e.SortOrder);
+                var seen = new HashSet<int>();
+
+                foreach (var branchDto in branches)
+                {
+                    if (!entriesBySortOrder.TryGetValue(branchDto.WhenOutcome, out var entry))
+                        return $"{where} branches on outcome {branchDto.WhenOutcome}, which \"{oracle.Name}\" does not have.";
+                    if (!seen.Add(branchDto.WhenOutcome))
+                        return $"{where} has more than one branch on outcome {branchDto.WhenOutcome}.";
+
+                    var picksError = _lookup.Resolve($"{where}, outcome {branchDto.WhenOutcome},",
+                        branchDto.PicksOracle, required: false, out var picks);
+                    if (picksError != null) return picksError;
+
+                    var built = new FlowBranch
+                    {
+                        OracleEntry = entry,
+                        Oracle = picks,
+                        EndsFlow = branchDto.EndsFlow ?? false
+                    };
+                    step.Branches.Add(built);
+
+                    if (branchDto.GoToStep != null)
+                    {
+                        Defer($"{where}, outcome {branchDto.WhenOutcome}", branchDto.GoToStep.Value,
+                            s => built.TargetStep = s);
+                    }
+                }
+
+                return null;
+            }
+
+            private void Defer(string what, int key, Action<FlowStep?> apply)
+            {
+                _refs.Add((what, key, apply));
+            }
+
+            private static string? ResolveKind(string? kindName, string where, out FlowStepKind kind)
+            {
+                kind = FlowStepKind.Roll;
+
+                var name = string.IsNullOrWhiteSpace(kindName) ? nameof(FlowStepKind.Roll) : kindName;
+
+                // Retired kinds fold into Text: "Number" always did, "Fields" now does too.
+                if (string.Equals(name, "Number", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, "Fields", StringComparison.OrdinalIgnoreCase))
+                    name = nameof(FlowStepKind.Text);
+
+                if (!Enum.TryParse(name, out kind) || !Enum.IsDefined(kind))
+                    return $"{where}: \"{kindName}\" is not a known kind of step.";
+
+                return null;
+            }
+
+            private static string? Question(string where, string? question, FlowStep step)
+            {
+                if (string.IsNullOrWhiteSpace(question))
+                    return $"{where} is a question step but has no question.";
+                if (question.Length > 200)
+                    return $"{where} has a question longer than 200 characters.";
+                step.Question = question.Trim();
+                return null;
+            }
         }
 
         private sealed class OracleResolver
@@ -268,13 +361,10 @@ namespace GM_Toolbox.Services
 
                 if (_ambiguousInFile.Contains(key))
                     return $"{where} names {described}, and this file carries more than one oracle by that name.";
-
                 if (_fromFile.TryGetValue(key, out oracle))
                     return null;
-
                 if (_ambiguousInDatabase.Contains(key))
                     return $"{where} names {described}, and you already have more than one oracle by that name. Rename one, or import a file that carries its own copy.";
-
                 if (_fromDatabase.TryGetValue(key, out oracle))
                     return null;
 
@@ -289,16 +379,11 @@ namespace GM_Toolbox.Services
                 foreach (var oracle in oracles)
                 {
                     var systemName = oracle.GameSystem?.Name;
-                    if (systemName == null)
-                    {
-                        continue;
-                    }
+                    if (systemName == null) continue;
 
                     var key = Key(oracle.Name, systemName);
                     if (!lookup.TryAdd(key, oracle))
-                    {
                         ambiguous.Add(key);
-                    }
                 }
 
                 return lookup;
@@ -306,7 +391,7 @@ namespace GM_Toolbox.Services
 
             private static string Key(string name, string gameSystem)
             {
-                return $"{name.Trim().ToLowerInvariant()}\u001f{gameSystem.Trim().ToLowerInvariant()}";
+                return $"{name.Trim().ToLowerInvariant()}{gameSystem.Trim().ToLowerInvariant()}";
             }
         }
     }

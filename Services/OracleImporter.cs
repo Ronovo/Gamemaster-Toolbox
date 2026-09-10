@@ -16,7 +16,7 @@ namespace GM_Toolbox.Services
     /// </summary>
     public static class OracleImporter
     {
-        public const int SupportedFormatVersion = 5;
+        public const int SupportedFormatVersion = 10;
 
         /// </summary>
         public static Dictionary<string, GameSystem> BuildSystemLookup(IEnumerable<GameSystem> existingSystems)

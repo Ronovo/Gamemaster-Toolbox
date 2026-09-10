@@ -13,10 +13,7 @@ namespace GM_Toolbox.Models.Enums
         [Display(Name = "Ask a question (text)")]
         Text = 2,
 
-        [Display(Name = "Ask a question (number)")]
-        Number = 3,
-
-        [Display(Name = "Roll the oracle picked earlier")]
+        [Display(Name = "Roll on another oracle")]
         RollChosen = 4
     }
 }

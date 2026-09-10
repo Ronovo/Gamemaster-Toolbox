@@ -33,19 +33,43 @@ namespace GM_Toolbox.Services
             session.Remove(DeckKey(oracle.ID));
         }
 
+        /// <summary>
+        /// Rolls a bare spec and returns the total, with the individual dice in `rolled`.
+        ///
+        /// Split out of TryRollDice so anything needing a number rather than an oracle
+        /// outcome -- a loop asking how many times to run -- goes through the same RNG.
+        /// </summary>
+        public static int RollDice(DiceSpec spec, out int[] rolled)
+        {
+            rolled = new int[spec.Count];
+            int value = 0;
+
+            for (int i = 0; i < spec.Count; i++)
+            {
+                rolled[i] = Random.Shared.Next(1, spec.Faces + 1);
+                value += rolled[i];
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// How a roll reads in a caption: "2d6 (3+4)" for several dice, just "d20" for one.
+        /// </summary>
+        public static string DiceLabel(DiceSpec spec, int[] rolled)
+        {
+            return spec.Count > 1
+                ? $"{spec.Label} ({string.Join("+", rolled)})"
+                : spec.Label;
+        }
+
         private static string? TryRollDice(Oracle oracle, out RollOutcome? outcome)
         {
             outcome = null;
 
             var spec = oracle.Dice()!;
 
-            var rolled = new int[spec.Count];
-            int value = 0;
-            for (int i = 0; i < spec.Count; i++)
-            {
-                rolled[i] = Random.Shared.Next(1, spec.Faces + 1);
-                value += rolled[i];
-            }
+            var value = RollDice(spec, out var rolled);
 
             var entry = oracle.OracleEntries.FirstOrDefault(
                 e => e.RangeStart <= value && value <= e.RangeEnd);
@@ -55,9 +79,7 @@ namespace GM_Toolbox.Services
                 return $"Rolled {value}, but no outcome covers it. Use Configure to check this oracle's ranges.";
             }
 
-            var dice = spec.Count > 1
-                ? $"{spec.Label} ({string.Join("+", rolled)})"
-                : spec.Label;
+            var dice = DiceLabel(spec, rolled);
 
             outcome = new RollOutcome
             {

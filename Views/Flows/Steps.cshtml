@@ -15,16 +15,13 @@
 <div asp-validation-summary="All" class="text-danger"></div>
 
 <p class="text-muted">
-    Steps run top to bottom. A step either rolls an oracle or asks you something, and when it is
-    done the flow moves to the one below it &mdash; unless that outcome has a branch, which sends
-    it somewhere else instead.
+    Steps run top to bottom, each once. A step rolls an oracle or asks you something, and when
+    it is done the flow moves to the next one &mdash; unless that outcome routes it elsewhere.
 </p>
 
 @if (!Model.Rows.Any())
 {
-    <p class="text-muted">
-        No steps yet. Add the first thing this flow should roll or ask.
-    </p>
+    <p class="text-muted">No steps yet. Add the first thing this flow should roll or ask.</p>
 }
 else
 {
@@ -41,7 +38,7 @@ else
             @foreach (var row in Model.Rows)
             {
                 <tr>
-                    <td>@row.SortOrder</td>
+                    <td class="text-nowrap">@row.PositionPath</td>
                     <td>
                         <strong>@row.Label</strong>
                         <div class="small text-muted">
@@ -79,13 +76,13 @@ else
                             <input type="hidden" name="stepId" value="@row.StepID" />
                             <input type="hidden" name="delta" value="-1" />
                             <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                    title="Move up" disabled="@(row.SortOrder == 1)">&uarr;</button>
+                                    title="Move up" disabled="@row.IsFirst">&uarr;</button>
                         </form>
                         <form asp-action="MoveStep" asp-route-id="@Model.FlowID" method="post" class="d-inline">
                             <input type="hidden" name="stepId" value="@row.StepID" />
                             <input type="hidden" name="delta" value="1" />
                             <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                    title="Move down" disabled="@(row.SortOrder == Model.Rows.Count)">&darr;</button>
+                                    title="Move down" disabled="@row.IsLast">&darr;</button>
                         </form>
                         <a asp-action="EditStep" asp-route-id="@row.StepID" class="btn btn-sm btn-outline-secondary">Edit</a>
                         @if (row.IsChoice)
@@ -112,48 +109,48 @@ else
 
 @* Every kind's fields are in the markup and the script hides the ones that do not apply. With
    scripting off they all stay visible, and FlowConfigurator.AddStep reads only the ones that
-   belong to the kind that was picked. Same arrangement as the die presets on an oracle. *@
+   belong to the kind that was picked. *@
 <form asp-action="AddStep" asp-route-id="@Model.FlowID" method="post" id="addStepForm">
     <div class="row g-3 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <label asp-for="AddLabel" class="control-label">Step name</label>
+            <input asp-for="AddLabel" class="form-control" placeholder="Optional" />
+        </div>
+
+        <div class="col-md-3">
             <label asp-for="AddKind" class="control-label">Step type</label>
             <select asp-for="AddKind" class="form-control" asp-items="ViewBag.AddKind" id="addKind"></select>
         </div>
 
-        <div class="col-md-5" data-kind-field="Roll">
+        <div class="col" data-kind-field="Roll">
             <label asp-for="AddOracleID" class="control-label">Oracle</label>
             <select asp-for="AddOracleID" class="form-control" asp-items="ViewBag.AddOracleID">
                 <option value="">Pick an oracle…</option>
             </select>
         </div>
 
-        <div class="col-md-5" data-kind-field="Choice Text Number">
+        <div class="col" data-kind-field="Choice Text">
             <label asp-for="AddQuestion" class="control-label">Question</label>
             <input asp-for="AddQuestion" class="form-control" placeholder="Which role are you playing?" />
         </div>
 
-        <div class="col-md-5" data-kind-field="RollChosen">
-            <label asp-for="AddSourceStepSortOrder" class="control-label">Rolls what was picked at</label>
-            @if (Model.ChoiceSteps.Any())
+        <div class="col" data-kind-field="RollChosen">
+            <label asp-for="AddSourceStepID" class="control-label">Rolls what was picked at</label>
+            @if (Model.SourceSteps.Any())
             {
-                <select asp-for="AddSourceStepSortOrder" class="form-control" asp-items="ViewBag.AddSourceStepSortOrder">
-                    <option value="">Pick a question…</option>
+                <select asp-for="AddSourceStepID" class="form-control" asp-items="ViewBag.AddSourceStepID">
+                    <option value="">Pick a step…</option>
                 </select>
             }
             else
             {
                 <p class="form-control-plaintext text-muted mb-0">
-                    Add a dropdown question first &mdash; this kind of step rolls whatever one of those picks.
+                    Add a dropdown question or a roll first &mdash; this step rolls whatever one of those picks.
                 </p>
             }
         </div>
 
-        <div class="col-md-3">
-            <label asp-for="AddLabel" class="control-label">Call it</label>
-            <input asp-for="AddLabel" class="form-control" placeholder="Optional" />
-        </div>
-
-        <div class="col-md-2">
+        <div class="col-auto">
             <button type="submit" class="btn btn-primary">Add step</button>
         </div>
     </div>

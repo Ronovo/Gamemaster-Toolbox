@@ -1,4 +1,4 @@
-﻿using GM_Toolbox.Models;
+using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
 using System.Text.Json;
@@ -9,29 +9,28 @@ namespace GM_Toolbox.Services
     /// Runs a flow one step at a time.
     ///
     /// Pure with respect to the database: the caller loads the flow with its steps, their
-    /// oracles and options, and those oracles' entries, and hands it over. The actual rolling is
-    /// OracleRoller's job -- this only decides which step is next and keeps the transcript.
+    /// oracles and options, and those oracles' entries, and hands it over. The actual rolling
+    /// is OracleRoller's job -- this only decides which step is next and keeps the transcript.
+    ///
+    /// A flow is a flat list. Steps run in order by default; an outcome can carry a branch that
+    /// sends the run to another step or ends it early.
     ///
     /// Returns an error message or null, the same contract as OracleRoller.TryRoll.
     /// </summary>
     public static class FlowRunner
     {
         /// <summary>
-        /// How many steps one run may roll before it is stopped.
-        ///
-        /// A branch may point backwards, which is a legitimate "roll that again" loop and not
-        /// something to forbid. The user clicks for every step, so a loop cannot hang anything;
-        /// this is here to stop an afternoon of clicking growing an unbounded transcript in the
-        /// session store.
+        /// How many steps one run may roll before it is stopped. A branch may point backwards,
+        /// which is a legitimate "roll that again" loop; this only stops an afternoon of
+        /// clicking growing an unbounded transcript in the session store.
         /// </summary>
-        public const int StepLimit = 50;
+        public const int StepLimit = 200;
 
         /// <summary>
         /// Rolls or answers whichever step the run is sitting on, and moves it along.
         ///
         /// `answer` is what the person sent with the step: the ID of a FlowChoiceOption on a
-        /// dropdown question, the typed value on a text or number one, and nothing at all on a
-        /// step that rolls.
+        /// dropdown question, the typed value on a text question, and nothing on a roll.
         /// </summary>
         public static string? TryAdvance(Flow flow, FlowRunState state, ISession session,
             string? answer, out FlowRunStep? rolled)
@@ -51,9 +50,17 @@ namespace GM_Toolbox.Services
                 return "This flow changed while the run was open, so the run has been reset. Start it again.";
             }
 
-            var error = step.Kind.IsQuestion()
-                ? TryAnswer(step, state, answer, out rolled)
-                : TryRoll(flow, step, state, session, out rolled);
+            var jump = Jump.None;
+
+            string? error;
+            if (step.Kind.IsQuestion())
+            {
+                error = TryAnswer(step, state, answer, out rolled, out jump);
+            }
+            else
+            {
+                error = TryRoll(flow, step, state, session, out rolled);
+            }
 
             if (error != null || rolled == null)
             {
@@ -63,7 +70,7 @@ namespace GM_Toolbox.Services
             state.Transcript.Add(rolled);
             state.StepsRolled++;
 
-            var next = NextStep(flow, step, rolled.Outcome.EntryID);
+            var next = NextStep(flow, step, rolled.Outcome.EntryID, jump);
 
             if (next != null && state.StepsRolled >= StepLimit)
             {
@@ -88,14 +95,12 @@ namespace GM_Toolbox.Services
                 return error ?? "That step has no oracle to roll.";
             }
 
-            // Assigned once the null has been ruled out, so the compiler can see it too rather
-            // than being told to look away with a !.
             var oracle = resolved;
 
             var blocked = oracle.RollBlockedReason();
             if (blocked != null)
             {
-                return $"Step {step.SortOrder} ({step.DisplayLabel()}): {blocked}";
+                return $"{step.PositionPath()} ({step.DisplayLabel()}): {blocked}";
             }
 
             var rollError = OracleRoller.TryRoll(oracle, session, out var outcome);
@@ -104,12 +109,24 @@ namespace GM_Toolbox.Services
                 return rollError ?? "That roll produced no outcome.";
             }
 
+            // If the matched outcome names a table, remember it so a later RollChosen step
+            // pointed at this one can roll it -- exactly as TryAnswer does for a picked option.
+            if (outcome.EntryID != null)
+            {
+                var branch = step.Branches.FirstOrDefault(b => b.OracleEntryID == outcome.EntryID.Value);
+                if (branch?.OracleID != null)
+                {
+                    state.ChosenOracles[step.ID] = branch.OracleID.Value;
+                }
+            }
+
             rolled = new FlowRunStep
             {
                 StepID = step.ID,
                 Label = step.DisplayLabel(),
                 OracleName = oracle.Name,
-                Outcome = outcome
+                Outcome = outcome,
+                Outcomes = new List<RollOutcome> { outcome }
             };
 
             return null;
@@ -117,7 +134,7 @@ namespace GM_Toolbox.Services
 
         /// <summary>
         /// Which oracle this step rolls: its own on a Roll step, and on a RollChosen step
-        /// whichever one the question it names landed on.
+        /// whichever one the step it names landed on -- a Choice option or a Roll outcome.
         /// </summary>
         private static string? ResolveOracle(Flow flow, FlowStep step, FlowRunState state, out Oracle? oracle)
         {
@@ -127,39 +144,39 @@ namespace GM_Toolbox.Services
             {
                 oracle = step.Oracle;
                 return oracle == null
-                    ? $"Step {step.SortOrder} points at an oracle that no longer exists."
+                    ? $"{step.PositionPath()} points at an oracle that no longer exists."
                     : null;
             }
 
-            var source = flow.Steps.FirstOrDefault(s => s.SortOrder == step.SourceStepSortOrder);
+            var source = step.SourceStep(flow);
             if (source == null)
             {
-                return $"Step {step.SortOrder} ({step.DisplayLabel()}) rolls what an earlier question picked, but that question is no longer in this flow.";
+                return $"{step.PositionPath()} ({step.DisplayLabel()}) rolls what an earlier step picked, but that step is no longer in this flow.";
             }
 
             if (!state.ChosenOracles.TryGetValue(source.ID, out var oracleId))
             {
-                return $"Step {step.SortOrder} ({step.DisplayLabel()}) rolls what step {source.SortOrder} ({source.DisplayLabel()}) picks, and nothing has been picked yet.";
+                return $"{step.PositionPath()} ({step.DisplayLabel()}) rolls what {source.PositionPath()} ({source.DisplayLabel()}) picks, and nothing has been picked yet.";
             }
 
-            // Found through the options rather than a separate lookup: the flow graph already
-            // carries every oracle its questions can reach, entries and all.
+            // The flow graph already carries every oracle its steps can reach, entries and
+            // all -- through a question's options and a roll's branches.
             oracle = flow.Steps
-                .SelectMany(s => s.Options)
-                .Select(o => o.Oracle)
+                .SelectMany(s => s.Options.Select(o => o.Oracle).Concat(s.Branches.Select(b => b.Oracle)))
                 .FirstOrDefault(o => o != null && o.ID == oracleId);
 
             return oracle == null
-                ? $"Step {step.SortOrder} ({step.DisplayLabel()}) was sent to an oracle that no longer exists."
+                ? $"{step.PositionPath()} ({step.DisplayLabel()}) was sent to an oracle that no longer exists."
                 : null;
         }
 
         // ------------------------------------------------------------------ questions
 
         private static string? TryAnswer(FlowStep step, FlowRunState state, string? answer,
-            out FlowRunStep? answered)
+            out FlowRunStep? answered, out Jump jump)
         {
             answered = null;
+            jump = Jump.None;
 
             var question = step.Question ?? string.Empty;
             string headline;
@@ -185,6 +202,11 @@ namespace GM_Toolbox.Services
                     state.ChosenOracles[step.ID] = option.OracleID.Value;
                     note = $"Rolls on {option.Oracle?.Name ?? "the chosen oracle"}";
                 }
+
+                if (option.Routes)
+                {
+                    jump = new Jump(option.EndsFlow ? null : option.TargetStepID);
+                }
             }
             else
             {
@@ -198,11 +220,6 @@ namespace GM_Toolbox.Services
                     return "That answer is longer than 200 characters.";
                 }
 
-                if (step.Kind == FlowStepKind.Number && !int.TryParse(answer.Trim(), out _))
-                {
-                    return "That question wants a whole number.";
-                }
-
                 headline = answer.Trim();
             }
 
@@ -212,7 +229,6 @@ namespace GM_Toolbox.Services
                 Label = step.DisplayLabel(),
                 OracleName = string.Empty,
                 IsQuestion = true,
-                // An answer wearing a roll's clothes -- see the comment on FlowRunStep.Outcome.
                 Outcome = new RollOutcome
                 {
                     IsDice = false,
@@ -221,34 +237,56 @@ namespace GM_Toolbox.Services
                     Result = note
                 }
             };
+            answered.Outcomes.Add(answered.Outcome);
 
             return null;
         }
 
         // ------------------------------------------------------------------ where next
 
-        /// <summary>
-        /// Where a step sends the run after landing on a given outcome.
-        ///
-        /// A branch matching that outcome wins; a branch with no target ends the run. Otherwise
-        /// the run falls through to the next step by SortOrder, which is what makes a flow with
-        /// no branches at all a plain ordered chain. Question steps carry no branches, so they
-        /// always take the fall-through and need no special case here.
-        /// </summary>
-        public static FlowStep? NextStep(Flow flow, FlowStep step, int? matchedEntryId)
+        /// <summary>One step's answer routing somewhere other than straight on.</summary>
+        private readonly struct Jump
         {
-            var branch = matchedEntryId == null
-                ? null
-                : step.Branches.FirstOrDefault(b => b.OracleEntryID == matchedEntryId.Value);
+            public static readonly Jump None = default;
 
-            if (branch != null)
+            public Jump(int? target)
             {
-                return branch.TargetStepSortOrder == null
-                    ? null
-                    : flow.Steps.FirstOrDefault(s => s.SortOrder == branch.TargetStepSortOrder.Value);
+                Jumps = true;
+                Target = target;
             }
 
-            return flow.Steps.FirstOrDefault(s => s.SortOrder == step.SortOrder + 1);
+            public bool Jumps { get; }
+
+            /// <summary>The step ID to go to, or null to end the run.</summary>
+            public int? Target { get; }
+        }
+
+        /// <summary>
+        /// Where a step sends the run once it has produced its outcome. An explicit jump wins
+        /// -- a picked option or a matched branch that routes -- and one with no target ends
+        /// the run. Otherwise the run moves to the next step in order.
+        /// </summary>
+        private static FlowStep? NextStep(Flow flow, FlowStep step, int? matchedEntryId, Jump jump)
+        {
+            if (!jump.Jumps && matchedEntryId != null && step.AllowsBranches())
+            {
+                var branch = step.Branches.FirstOrDefault(b => b.OracleEntryID == matchedEntryId.Value);
+                if (branch != null && branch.Routes)
+                {
+                    jump = new Jump(branch.EndsFlow ? null : branch.TargetStepID);
+                }
+            }
+
+            if (jump.Jumps)
+            {
+                return jump.Target == null
+                    ? null
+                    : flow.Steps.FirstOrDefault(s => s.ID == jump.Target.Value);
+            }
+
+            var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
+            var index = ordered.FindIndex(s => s.ID == step.ID);
+            return index >= 0 && index + 1 < ordered.Count ? ordered[index + 1] : null;
         }
 
         public static FlowStep? CurrentStep(Flow flow, FlowRunState state)
@@ -310,10 +348,12 @@ namespace GM_Toolbox.Services
             return new FlowRunState
             {
                 FlowID = flow.ID,
-                CurrentStepID = flow.Steps.OrderBy(s => s.SortOrder).FirstOrDefault()?.ID
+                CurrentStepID = flow.InRunOrder().FirstOrDefault()?.ID
             };
         }
 
-        private static string RunKey(int flowId) => $"flow-run-{flowId}";
+        // "v3": the state shape changed with the move to a flat list, so any run held in an
+        // older shape is abandoned rather than half-read.
+        private static string RunKey(int flowId) => $"flow-run-v3-{flowId}";
     }
 }

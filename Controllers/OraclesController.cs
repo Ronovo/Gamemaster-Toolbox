@@ -456,7 +456,10 @@ public class OraclesController : Controller
 
         var flowQuery = _context.Flows
             .Include(f => f.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Branches)
+            .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle)
+                .ThenInclude(o => o!.GameSystem)
+            .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle)
+                .ThenInclude(o => o!.OracleEntries)
             .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.GameSystem)
             .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.OracleEntries)
             // The options and their oracles too: a dropdown question is nothing without them,
@@ -645,7 +648,8 @@ public class OraclesController : Controller
 
         var existingOracles = await _context.Oracles.Include(o => o.GameSystem).ToListAsync();
 
-        error = FlowImporter.TryBuild(parsed!.Flows, systemsByName, oracles, existingOracles, out var flows);
+        error = FlowImporter.TryBuild(parsed!.Flows, parsed.FormatVersion, systemsByName, oracles,
+            existingOracles, out var flows);
         if (error != null)
         {
             ModelState.AddModelError("", error);

@@ -11,11 +11,11 @@ There is no database server to install: your whole toolbox is one file at
 - **Game Systems**
 - **Oracle Builder**
 - **Rolling and Drawing**
-- **Flows** — chain oracles together and run them a step at a time. Steps roll in order by
-default; any outcome can carry a *branch* that sends the run somewhere else instead, so a
-flow can fork, skip ahead, loop back, or stop early. A step can also **ask you something**
-rather than roll — a dropdown you author, a line of text, or a number — and a dropdown
-answer can decide which table the *next* step rolls on.
+- **Flows** — chain oracles together and run them a step at a time. Steps run in order, each
+once; any outcome can carry a *branch* that sends the run to another step or stops it early,
+so a flow can fork, skip ahead, loop back, or end. A step can also **ask you something**
+rather than roll — a dropdown you author, or a line of text — and a dropdown answer can
+decide which table the *next* step rolls on.
 - **Export / Import** — download every oracle and flow as a single versioned JSON file, and
 read one back in. The format carries no database IDs, so a file exported from one instance
 imports cleanly into another. Exports are also archived server-side under `App_Data/Exports/`.
@@ -113,35 +113,43 @@ does and therefore which of its other fields apply:
 
 | Kind         | What it does                                                 |
 | ------------ | ------------------------------------------------------------ |
-| `Roll`       | Rolls the oracle it names.                                   |
-| `Choice`     | Asks a question and offers a dropdown of options you author. |
-| `Text`       | Asks a question and takes a typed answer.                    |
-| `Number`     | Asks a question and takes a number.                          |
-| `RollChosen` | Rolls whichever oracle an earlier `Choice` step landed on.   |
+| `Roll`       | Rolls the oracle it names, once. Each outcome can also **pick a table** for a later `RollChosen` step. |
+| `Choice`     | Asks a question and offers a dropdown of options you author. An option can name an oracle. |
+| `Text`       | Asks a question and takes a typed answer (including a number). |
+| `RollChosen` | Rolls whichever oracle an earlier step picked — a `Choice` option or a `Roll` outcome. |
 
 
-Running a flow works through one step at a time. After a step rolls or is answered, the run moves
-to the step below it. That fall-through is the whole of the default behaviour: a flow with three
-`Roll` steps and nothing else set up is simply those three oracles, rolled in order.
+A flow is a **flat list**. Running it works through one step at a time, in order; when a step
+rolls or is answered the run moves to the next one. That fall-through is the whole of the
+default behaviour: a flow with three `Roll` steps and nothing else set up is simply those
+three oracles, rolled in order.
 
-A step can also carry `FlowBranch` rows, one per outcome at most, which override the fall-through:
+**A dependent chain** — roll A, then roll whatever A landed on — is two steps. Give the first
+`Roll` a `FlowBranch` on each outcome that names the table that outcome should lead to, then a
+`RollChosen` pointed back at that step.
 
+A `Roll` step (or a `Choice` option) can also route the run instead of just carrying on (this
+is advanced; picking a table is the ordinary use):
 
-| The branch says             | What the run does                                            |
-| --------------------------- | ------------------------------------------------------------ |
-| Go to step *n*              | Jumps there, whether that is forwards or backwards           |
-| End the flow                | Stops after this step                                        |
-| *no branch on that outcome* | Falls through to the next step, or ends if this was the last |
+| The branch says     | What the run does                                            |
+| ------------------- | ----------------------------------------------------------- |
+| Go to step *n*      | Jumps there, forwards or backwards; the run then continues from wherever it lands |
+| End the flow        | Stops after this step                                        |
+| *nothing*           | Falls through to the next step                               |
 
+A run still stops after 200 steps whatever it is doing, so a branch that points backwards
+cannot loop forever.
 
-So a `d6` "Encounter Type" whose 1–2 band branches to a monster table and whose 3–4 band branches
-to an NPC table rolls only the one it reached. Its 5–6 band can end the run outright.
+An older file still imports. `"kind": "Number"` and `"kind": "Fields"` both become `Text` (a
+Fields step's labels become the question text); a `"kind": "Loop"` is dropped and its body
+steps kept in sequence; `times`, `countMode` and `countDice` are ignored. A version 6 or 7
+file (flat `steps`, `blockEnd` spans, `goToStep` by position) imports the same way.
 
 ### JSON export format
 
 ```json
 {
-  "formatVersion": 5,
+  "formatVersion": 10,
   "exportedUtc": "2026-09-08T11:08:28Z",
   "gameSystems": [
     { "name": "Dungeons & Dragons", "genre": "Fantasy" }
@@ -161,36 +169,53 @@ to an NPC table rolls only the one it reached. Its 5–6 band can end the run ou
   ],
   "flows": [
     {
-      "name": "What you meet",
-      "gameSystem": "Dungeons & Dragons",
-      "description": "What is out there, and what it wants.",
+      "name": "Night market",
+      "gameSystem": "Cyberpunk Red",
+      "description": "Which role, then that role's stalls.",
       "steps": [
         {
-          "sortOrder": 1,
+          "id": 1,
           "kind": "Roll",
           "label": "Encounter Type",
           "oracle": { "name": "Wilderness Encounter", "gameSystem": "Dungeons & Dragons" },
           "branches": [
-            { "whenOutcome": 1, "goToStep": null },
-            { "whenOutcome": 2, "goToStep": 2 }
+            { "whenOutcome": 1, "picksOracle": { "name": "Hustle - Nomad", "gameSystem": "Cyberpunk Red" } },
+            { "whenOutcome": 2, "picksOracle": { "name": "Hustle - Solo",  "gameSystem": "Cyberpunk Red" } }
           ]
         },
         {
-          "sortOrder": 2,
+          "id": 2,
+          "kind": "RollChosen",
+          "label": "Stall",
+          "pickedAtStep": 1
+        },
+        {
+          "id": 3,
           "kind": "Choice",
-          "label": "Role",
-          "question": "Which role are you playing?",
+          "label": "Haggle?",
+          "question": "Do you haggle?",
           "options": [
-            { "sortOrder": 1, "label": "Nomad", "oracle": { "name": "Hustle - Nomad", "gameSystem": "Cyberpunk Red" } },
-            { "sortOrder": 2, "label": "Solo",  "oracle": { "name": "Hustle - Solo",  "gameSystem": "Cyberpunk Red" } }
+            { "sortOrder": 1, "label": "Yes" },
+            { "sortOrder": 2, "label": "No", "goToStep": 4 }
           ]
         },
-        { "sortOrder": 3, "kind": "RollChosen", "label": "Hustle", "pickedAtStep": 2 }
+        {
+          "id": 4,
+          "kind": "Text",
+          "label": "The trader",
+          "question": "Name, look, what they want"
+        }
       ]
     }
   ]
 }
 ```
+
+Version 10 makes a flow a flat list: `steps` no longer nest, every step has a per-file `id`
+(its position) that `pickedAtStep` and `goToStep` point at, and the `Loop` / `Fields` kinds
+and `times` / `countMode` / `countDice` fields are gone. Older files still import — a `Loop`
+is unwrapped, a `Fields` step becomes a `Text` question, and version 6/7 `blockEnd` spans are
+discarded.
 
 
 
@@ -216,12 +241,12 @@ when running with the SDK, not in the container.
 ```
 Controllers/     HomeController, OraclesController (all oracle CRUD, export, import),
                  FlowsController (flow CRUD, the step builder, branches, running a flow)
-Models/          Oracle, OracleEntry, Flow, FlowStep, FlowBranch, FlowChoiceOption, enums,
-                 view models, JSON transfer DTOs
+Models/          Oracle, OracleEntry, Flow, FlowStep, FlowBranch, FlowChoiceOption,
+                 enums, view models, JSON transfer DTOs
 Services/        OracleConfigurator (entry reconciliation), DeckFactory (deck generation),
                  OracleExporter / OracleImporter / FlowExporter / FlowImporter / OracleJson
-                 (file round-trip), OracleRoller and FlowRunner (rolling and answering),
-                 FlowConfigurator (step order, options, and branch/source remapping)
+                 (file round-trip), OracleRoller and FlowRunner (rolling, answering, the walk),
+                 FlowConfigurator (the step list: order, options, branches)
 Data/            ApplicationDbContext and EF Core migrations
 Views/           Razor views for Home, Oracles and Flows, plus the shared _RollPanel partial
 Areas/Identity/  Scaffolded ASP.NET Core Identity UI

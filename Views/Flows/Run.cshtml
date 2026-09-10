@@ -1,4 +1,4 @@
-﻿@model GM_Toolbox.Models.Flow
+@model GM_Toolbox.Models.Flow
 @using GM_Toolbox.Models.ViewModels
 @using GM_Toolbox.Models.Enums
 @using System.Text.Json
@@ -18,8 +18,6 @@
 
     // Seeds the log component with the run so far, so a page that has JavaScript ends up with
     // exactly the rows the server already rendered rather than wiping them on first render.
-    // The property names are lower-cased here to match what roll-panel.js reads off a response.
-    // JsonSerializer escapes < and > by default, so this is safe inside a script element.
     var seed = JsonSerializer.Serialize(state.Transcript.Select(t => new
     {
         label = t.Label,
@@ -70,9 +68,9 @@ else
                             </select>
 
                             <input name="answer" class="form-control mb-2" id="runAnswerInput"
-                                   type="@(currentKind == FlowStepKind.Number ? "number" : "text")"
-                                   hidden="@(currentKind != FlowStepKind.Text && currentKind != FlowStepKind.Number)"
-                                   disabled="@(currentKind != FlowStepKind.Text && currentKind != FlowStepKind.Number)" />
+                                   type="text"
+                                   hidden="@(currentKind != FlowStepKind.Text)"
+                                   disabled="@(currentKind != FlowStepKind.Text)" />
                         </div>
 
                         <button type="submit" class="btn btn-primary btn-lg w-100" id="runButton">@controlLabel</button>
@@ -91,6 +89,7 @@ else
                     <partial name="_RollPanel" model="@(new RollPanelModel {
                         Id = "runPanel",
                         Outcome = lastRolled?.Outcome,
+                        Outcomes = lastRolled?.Outcomes,
                         Error = runError,
                         Label = lastRolled?.Label })" />
                 </div>
@@ -183,14 +182,12 @@ else
                 try {
                     JSON.parse(seedEl.textContent).forEach(log.add);
                 } catch (e) {
-                    // A malformed seed is not worth losing the page over: the server-rendered
-                    // rows are already on screen and the run itself lives in the session.
+                    // A malformed seed is not worth losing the page over.
                 }
             }
 
             // Both answer controls are named "answer", so only the one this kind of step uses
-            // may be enabled -- a disabled control is not submitted, which is what keeps the
-            // dropdown from posting alongside the text box.
+            // may be enabled -- a disabled control is not submitted.
             function setControl(next, finished) {
                 runForm.hidden = finished;
                 finishedEl.hidden = !finished;
@@ -201,7 +198,7 @@ else
                 questionText.textContent = next.question || "";
 
                 var isChoice = next.kind === "Choice";
-                var isTyped = next.kind === "Text" || next.kind === "Number";
+                var isTyped = next.kind === "Text";
 
                 answerSelect.hidden = !isChoice;
                 answerSelect.disabled = !isChoice;
@@ -218,14 +215,11 @@ else
                 answerInput.hidden = !isTyped;
                 answerInput.disabled = !isTyped;
                 answerInput.value = "";
-                if (isTyped) {
-                    answerInput.type = next.kind === "Number" ? "number" : "text";
-                }
             }
 
             GmRoll.bind(runForm, {
                 onData: function (data) {
-                    panel.showOutcome(data.outcome, data.label);
+                    panel.showOutcome(data.outcome, data.label, data.outcomes);
                     log.add({
                         label: data.label,
                         isDice: data.outcome.isDice,
