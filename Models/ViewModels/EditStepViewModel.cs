@@ -19,7 +19,8 @@ namespace GM_Toolbox.Models.ViewModels
         public int? OracleID { get; set; }
         public int? SourceStepID { get; set; }
 
-        public bool IsQuestion => Kind.IsQuestion();
+        public bool IsQuestion => Kind == FlowStepKind.Choice || Kind == FlowStepKind.Text;
+        public bool IsLoop => Kind == FlowStepKind.Loop;
         public bool IsRoll => Kind == FlowStepKind.Roll;
         public bool IsRollChosen => Kind == FlowStepKind.RollChosen;
         public bool IsChoice => Kind == FlowStepKind.Choice;

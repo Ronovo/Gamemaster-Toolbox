@@ -39,7 +39,7 @@ namespace GM_Toolbox.Data.Migrations
 
                     b.HasIndex("GameSystemID");
 
-                    b.ToTable("Flows", (string)null);
+                    b.ToTable("Flows");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.FlowBranch", b =>
@@ -74,7 +74,7 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasIndex("FlowStepID", "OracleEntryID")
                         .IsUnique();
 
-                    b.ToTable("FlowBranches", (string)null);
+                    b.ToTable("FlowBranches");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.FlowChoiceOption", b =>
@@ -111,7 +111,7 @@ namespace GM_Toolbox.Data.Migrations
 
                     b.HasIndex("TargetStepID");
 
-                    b.ToTable("FlowChoiceOptions", (string)null);
+                    b.ToTable("FlowChoiceOptions");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
@@ -152,7 +152,7 @@ namespace GM_Toolbox.Data.Migrations
 
                     b.HasIndex("SourceStepID");
 
-                    b.ToTable("FlowSteps", (string)null);
+                    b.ToTable("FlowSteps");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.GameSystem", b =>
@@ -177,7 +177,7 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("GameSystems", (string)null);
+                    b.ToTable("GameSystems");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>
@@ -208,7 +208,7 @@ namespace GM_Toolbox.Data.Migrations
 
                     b.HasIndex("GameSystemID");
 
-                    b.ToTable("Oracles", (string)null);
+                    b.ToTable("Oracles");
                 });
 
             modelBuilder.Entity("GM_Toolbox.Models.OracleEntry", b =>
@@ -244,7 +244,75 @@ namespace GM_Toolbox.Data.Migrations
 
                     b.HasIndex("OracleID");
 
-                    b.ToTable("OracleEntries", (string)null);
+                    b.ToTable("OracleEntries");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.Sheet", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CurrentVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("DateUpdated")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DateUploaded")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("GameSystemID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("FileName");
+
+                    b.HasIndex("GameSystemID");
+
+                    b.ToTable("Sheets");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.SheetVersion", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Checksum")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SheetID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("SheetID", "Version")
+                        .IsUnique();
+
+                    b.ToTable("SheetVersions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -557,6 +625,27 @@ namespace GM_Toolbox.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("GM_Toolbox.Models.Sheet", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
+                        .WithMany()
+                        .HasForeignKey("GameSystemID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("GameSystem");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.SheetVersion", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.Sheet", "Sheet")
+                        .WithMany("Versions")
+                        .HasForeignKey("SheetID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sheet");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -623,6 +712,11 @@ namespace GM_Toolbox.Data.Migrations
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>
                 {
                     b.Navigation("OracleEntries");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.Sheet", b =>
+                {
+                    b.Navigation("Versions");
                 });
 #pragma warning restore 612, 618
         }

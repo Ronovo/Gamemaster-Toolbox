@@ -1,0 +1,47 @@
+@using GM_Toolbox.Models.ViewModels
+@model SheetIndexViewModel
+
+@if (Model.CatalogEmpty)
+{
+    <p class="text-muted">No sheets yet. Use <strong>Upload</strong> to add one.</p>
+}
+else if (Model.Results.TotalCount == 0)
+{
+    <p class="text-muted">No sheets match these filters.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Game System</th>
+                <th>Version</th>
+                <th>Date Uploaded</th>
+                <th>Date Updated</th>
+                <th>Checksum</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Results.Items)
+            {
+                <tr>
+                    <td>@item.FileName</td>
+                    <td>@item.GameSystemName</td>
+                    <td>@item.CurrentVersion</td>
+                    <td>@item.DateUploaded.ToLocalTime().ToString("g")</td>
+                    <td>@item.DateUpdated.ToLocalTime().ToString("g")</td>
+                    <td><code title="@item.CurrentChecksum">@item.CurrentChecksum[..8]</code></td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
+                        <a asp-action="Download" asp-route-id="@item.ID">Download</a> |
+                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_Pager" model='PagerModel.Create(Model.Results, "Index", Model.FilterRoute, controller: "Sheets")' />
+}

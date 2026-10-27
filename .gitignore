@@ -90,6 +90,9 @@ secrets.json
 App_Data/Exports/
 App_Data/**/*.json
 
+# Uploaded character sheet PDFs (runtime data, not source)
+App_Data/Sheets/
+
 # Logs
 *.log
 logs/

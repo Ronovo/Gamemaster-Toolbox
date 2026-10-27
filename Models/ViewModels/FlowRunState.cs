@@ -17,6 +17,9 @@ namespace GM_Toolbox.Models.ViewModels
 
         public Dictionary<int, int> ChosenOracles { get; set; } = new Dictionary<int, int>();
 
+        /// <summary>How many times the next roll repeats, set by a Loop step.</summary>
+        public int? PendingRepeat { get; set; }
+
         public bool HitStepLimit { get; set; }
 
         public bool Finished => CurrentStepID == null;

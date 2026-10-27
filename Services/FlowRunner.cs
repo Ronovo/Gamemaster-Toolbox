@@ -1,6 +1,7 @@
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
+using System.Globalization;
 using System.Text.Json;
 
 namespace GM_Toolbox.Services
@@ -25,6 +26,9 @@ namespace GM_Toolbox.Services
         /// clicking growing an unbounded transcript in the session store.
         /// </summary>
         public const int StepLimit = 200;
+
+        /// <summary>The most times a Loop step may repeat the roll after it.</summary>
+        public const int LoopLimit = 50;
 
         /// <summary>
         /// Rolls or answers whichever step the run is sitting on, and moves it along.
@@ -55,7 +59,7 @@ namespace GM_Toolbox.Services
             string? error;
             if (step.Kind.IsQuestion())
             {
-                error = TryAnswer(step, state, answer, out rolled, out jump);
+                error = TryAnswer(flow, step, state, answer, out rolled, out jump);
             }
             else
             {
@@ -103,11 +107,21 @@ namespace GM_Toolbox.Services
                 return $"{step.PositionPath()} ({step.DisplayLabel()}): {blocked}";
             }
 
-            var rollError = OracleRoller.TryRoll(oracle, session, out var outcome);
-            if (rollError != null || outcome == null)
+            var times = state.PendingRepeat ?? 1;
+            var outcomes = new List<RollOutcome>();
+            for (int i = 0; i < times; i++)
             {
-                return rollError ?? "That roll produced no outcome.";
+                var rollError = OracleRoller.TryRoll(oracle, session, out var each);
+                if (rollError != null || each == null)
+                {
+                    return rollError ?? "That roll produced no outcome.";
+                }
+                outcomes.Add(each);
             }
+            state.PendingRepeat = null;
+
+            // On a loop the last roll decides, both here and for branch routing.
+            var outcome = outcomes[outcomes.Count - 1];
 
             // If the matched outcome names a table, remember it so a later RollChosen step
             // pointed at this one can roll it -- exactly as TryAnswer does for a picked option.
@@ -126,7 +140,7 @@ namespace GM_Toolbox.Services
                 Label = step.DisplayLabel(),
                 OracleName = oracle.Name,
                 Outcome = outcome,
-                Outcomes = new List<RollOutcome> { outcome }
+                Outcomes = outcomes
             };
 
             return null;
@@ -172,17 +186,28 @@ namespace GM_Toolbox.Services
 
         // ------------------------------------------------------------------ questions
 
-        private static string? TryAnswer(FlowStep step, FlowRunState state, string? answer,
+        private static string? TryAnswer(Flow flow, FlowStep step, FlowRunState state, string? answer,
             out FlowRunStep? answered, out Jump jump)
         {
             answered = null;
             jump = Jump.None;
 
-            var question = step.Question ?? string.Empty;
+            var question = step.Prompt(flow);
             string headline;
             string note = string.Empty;
 
-            if (step.Kind == FlowStepKind.Choice)
+            if (step.Kind == FlowStepKind.Loop)
+            {
+                if (!int.TryParse(answer?.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var times)
+                    || times < 1 || times > LoopLimit)
+                {
+                    return $"Enter a whole number from 1 to {LoopLimit}.";
+                }
+
+                state.PendingRepeat = times;
+                headline = $"×{times}";
+            }
+            else if (step.Kind == FlowStepKind.Choice)
             {
                 if (!int.TryParse(answer, out var optionId))
                 {
@@ -284,9 +309,7 @@ namespace GM_Toolbox.Services
                     : flow.Steps.FirstOrDefault(s => s.ID == jump.Target.Value);
             }
 
-            var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
-            var index = ordered.FindIndex(s => s.ID == step.ID);
-            return index >= 0 && index + 1 < ordered.Count ? ordered[index + 1] : null;
+            return step.NextInOrder(flow);
         }
 
         public static FlowStep? CurrentStep(Flow flow, FlowRunState state)

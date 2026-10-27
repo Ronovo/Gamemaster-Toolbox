@@ -11,6 +11,7 @@ namespace GM_Toolbox.Models.Enums
             {
                 case FlowStepKind.Choice:
                 case FlowStepKind.Text:
+                case FlowStepKind.Loop:
                     return true;
                 default:
                     return false;

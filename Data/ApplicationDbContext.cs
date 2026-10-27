@@ -105,6 +105,25 @@ namespace GM_Toolbox.Data
                 .HasIndex(b => new { b.FlowStepID, b.OracleEntryID })
                 .IsUnique();
 
+            builder.Entity<Sheet>()
+                .HasOne(s => s.GameSystem)
+                .WithMany()
+                .HasForeignKey(s => s.GameSystemID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Sheet>()
+                .HasIndex(s => s.FileName);
+
+            builder.Entity<SheetVersion>()
+                .HasOne(v => v.Sheet)
+                .WithMany(s => s.Versions)
+                .HasForeignKey(v => v.SheetID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SheetVersion>()
+                .HasIndex(v => new { v.SheetID, v.Version })
+                .IsUnique();
+
             // No HasData seed. A fresh database starts with no game systems: this is a
             // distributed tool, and one instance's idea of which systems matter is not
             // another's. Create your own, or import a file that names them.
@@ -117,5 +136,7 @@ namespace GM_Toolbox.Data
         public DbSet<FlowStep> FlowSteps { get; set; }
         public DbSet<FlowBranch> FlowBranches { get; set; }
         public DbSet<FlowChoiceOption> FlowChoiceOptions { get; set; }
+        public DbSet<Sheet> Sheets { get; set; }
+        public DbSet<SheetVersion> SheetVersions { get; set; }
     }
 }

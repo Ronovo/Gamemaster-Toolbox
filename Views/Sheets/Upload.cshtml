@@ -1,0 +1,30 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Upload Sheet";
+    var gameSystems = (IEnumerable<SelectListItem>)ViewData["GameSystems"]!;
+}
+
+<h1>Upload Sheet</h1>
+
+<p class="text-muted">
+    Uploading a PDF with a filename you've already used checks its checksum against the
+    current version: identical content is left alone, different content becomes a new
+    version. A new filename creates a new sheet.
+</p>
+
+<form asp-action="Upload" method="post" enctype="multipart/form-data">
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <div class="form-group mb-3">
+        <label for="file" class="control-label">Character sheet (.pdf)</label>
+        <input type="file" id="file" name="file" accept=".pdf,application/pdf" class="form-control" />
+    </div>
+
+    <div class="form-group mb-3">
+        <label for="gameSystemId" class="control-label">Game System</label>
+        <select id="gameSystemId" name="gameSystemId" class="form-select" asp-items="gameSystems"></select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Upload</button>
+    <a asp-action="Index" class="btn btn-link">Cancel</a>
+</form>

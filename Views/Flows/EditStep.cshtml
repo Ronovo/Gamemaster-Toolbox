@@ -29,7 +29,7 @@
                 <input asp-for="Label" class="form-control" placeholder="Optional" />
                 <span class="small text-muted">
                     What the run transcript calls this step. Left blank it uses
-                    @(Model.IsQuestion ? "the question" : "the oracle's name").
+                    @(Model.IsQuestion ? "the question" : Model.IsLoop ? "\"Loop Step N\"" : "the oracle's name").
                 </span>
             </div>
 

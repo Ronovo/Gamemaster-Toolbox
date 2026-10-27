@@ -1,0 +1,66 @@
+@model GM_Toolbox.Models.Sheet
+
+@{
+    ViewData["Title"] = "Sheet Details";
+    var versions = Model.Versions.OrderByDescending(v => v.Version).ToList();
+}
+
+<h1>@Model.FileName</h1>
+
+@if (TempData["DetailsError"] != null)
+{
+    <div class="alert alert-warning">@TempData["DetailsError"]</div>
+}
+
+<div>
+    <h4>Sheet</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">Game System</dt>
+        <dd class="col-sm-10">@(Model.GameSystem?.Name ?? "—")</dd>
+        <dt class="col-sm-2">Date Uploaded</dt>
+        <dd class="col-sm-10">@Model.DateUploaded.ToLocalTime().ToString("g")</dd>
+        <dt class="col-sm-2">Date Updated</dt>
+        <dd class="col-sm-10">@Model.DateUpdated.ToLocalTime().ToString("g")</dd>
+        <dt class="col-sm-2">Current Version</dt>
+        <dd class="col-sm-10">@Model.CurrentVersion</dd>
+    </dl>
+</div>
+
+<h4>Version History</h4>
+<hr />
+<table class="table">
+    <thead>
+        <tr>
+            <th>Version</th>
+            <th>Uploaded At</th>
+            <th>Size</th>
+            <th>Checksum</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var version in versions)
+        {
+            var isCurrent = version.Version == Model.CurrentVersion;
+            <tr class="@(isCurrent ? "table-active" : null)">
+                <td>v@(version.Version) @(isCurrent ? "(current)" : null)</td>
+                <td>@version.UploadedAt.ToLocalTime().ToString("g")</td>
+                <td>@((version.FileSizeBytes / 1024.0).ToString("N0")) KB</td>
+                <td><code>@version.Checksum</code></td>
+                <td>
+                    <a asp-action="Download" asp-route-id="@Model.ID" asp-route-version="@version.Version">Download</a>
+                    @if (!isCurrent)
+                    {
+                        <text> | <a asp-action="DeleteVersion" asp-route-id="@Model.ID" asp-route-version="@version.Version">Delete</a></text>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div>
+    <a asp-action="Delete" asp-route-id="@Model.ID">Delete Sheet</a> |
+    <a asp-action="Index">Back to List</a>
+</div>

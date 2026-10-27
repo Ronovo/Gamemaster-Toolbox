@@ -117,16 +117,15 @@ namespace GM_Toolbox.Services
                     var key = dto.Id ?? dto.SortOrder;
                     if (key <= 0) key = _byKey.Count + 1;
 
-                    // A loop is gone: keep its body steps in place, and point any reference to
-                    // the loop at its first surviving step (filled once children are walked).
-                    if (string.Equals(dto.Kind, "Loop", StringComparison.OrdinalIgnoreCase))
+                    // The old nested loop is gone: keep its body steps in place, and point any
+                    // reference to it at its first surviving step (filled once children are walked).
+                    // A "Loop" with no body is the current Loop step and imports as one.
+                    if (string.Equals(dto.Kind, "Loop", StringComparison.OrdinalIgnoreCase)
+                        && dto.Steps is { Count: > 0 })
                     {
                         var before = _flow.Steps.Count;
-                        if (dto.Steps is { Count: > 0 })
-                        {
-                            var childError = Walk(dto.Steps);
-                            if (childError != null) return childError;
-                        }
+                        var childError = Walk(dto.Steps);
+                        if (childError != null) return childError;
                         _byKey[key] = _flow.Steps.Skip(before).FirstOrDefault();
                         continue;
                     }

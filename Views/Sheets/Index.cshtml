@@ -1,0 +1,41 @@
+@using GM_Toolbox.Models.ViewModels
+@model SheetIndexViewModel
+
+@{
+    ViewData["Title"] = "Sheets";
+}
+
+<h1>Sheets</h1>
+
+@if (TempData["UploadMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["UploadMessage"]</div>
+}
+
+<p>
+    <a asp-action="Upload">Upload</a>
+    <a asp-action="ExportAll">Export All</a>
+</p>
+
+@if (!Model.CatalogEmpty)
+{
+    <form method="get" asp-action="Index" class="mb-3" data-live-filter data-results="#list-results" data-partial="1">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" asp-for="Name"></label>
+                <input asp-for="Name" class="form-control" autocomplete="off" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" asp-for="GameSystemID"></label>
+                <select asp-for="GameSystemID" asp-items="Model.GameSystems" class="form-select"></select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary">Filter</button>
+            </div>
+        </div>
+    </form>
+}
+
+<div id="list-results">
+    <partial name="_SheetListResults" model="Model" />
+</div>

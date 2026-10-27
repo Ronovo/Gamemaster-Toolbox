@@ -1,0 +1,22 @@
+@model GM_Toolbox.Models.SheetVersion
+@{
+    ViewData["Title"] = "Delete Version";
+    var sheet = (GM_Toolbox.Models.Sheet)ViewData["Sheet"]!;
+}
+
+<h1>Delete Version</h1>
+
+<h3>Are you sure you want to delete version @Model.Version of "@sheet.FileName"?</h3>
+<div>
+    <dl class="row">
+        <dt class="col-sm-2">Uploaded At</dt>
+        <dd class="col-sm-10">@Model.UploadedAt.ToLocalTime().ToString("g")</dd>
+        <dt class="col-sm-2">Checksum</dt>
+        <dd class="col-sm-10"><code>@Model.Checksum</code></dd>
+    </dl>
+
+    <form asp-action="DeleteVersion" asp-route-id="@sheet.ID" asp-route-version="@Model.Version">
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-action="Details" asp-route-id="@sheet.ID">Back to Sheet</a>
+    </form>
+</div>

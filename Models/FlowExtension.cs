@@ -52,7 +52,33 @@ namespace GM_Toolbox.Models
                 return step.Question;
             }
 
+            if (step.Kind == FlowStepKind.Loop)
+            {
+                return $"Loop Step {step.SortOrder + 1}";
+            }
+
             return step.Oracle?.Name ?? $"Step {step.SortOrder}";
+        }
+
+        /// <summary>What the run asks at this step: the question text, or a Loop's count prompt.</summary>
+        public static string Prompt(this FlowStep step, Flow flow)
+        {
+            if (step.Kind != FlowStepKind.Loop)
+            {
+                return step.Question ?? string.Empty;
+            }
+
+            var next = step.NextInOrder(flow);
+            return next == null
+                ? "Loop how many times?"
+                : $"Loop {next.PositionPath()} ({next.DisplayLabel()}): how many times?";
+        }
+
+        public static FlowStep? NextInOrder(this FlowStep step, Flow flow)
+        {
+            var ordered = flow.InRunOrder().ToList();
+            var index = ordered.FindIndex(s => s.ID == step.ID);
+            return index >= 0 && index + 1 < ordered.Count ? ordered[index + 1] : null;
         }
 
         /// <summary>A readable position, "Step 2".</summary>
@@ -111,6 +137,18 @@ namespace GM_Toolbox.Models
                         return null;
                     }
                     return $"This step takes its oracle from {source.PositionPath()}, which neither asks a question nor rolls.";
+
+                case FlowStepKind.Loop:
+                    var next = step.NextInOrder(flow);
+                    if (next == null)
+                    {
+                        return "Nothing comes after this loop. Add a roll step after it.";
+                    }
+                    if (next.Kind != FlowStepKind.Roll && next.Kind != FlowStepKind.RollChosen)
+                    {
+                        return $"A loop repeats a roll, but {next.PositionPath()} does not roll. Move a roll step right after it.";
+                    }
+                    return null;
             }
 
             return null;
@@ -118,14 +156,7 @@ namespace GM_Toolbox.Models
 
         public static string ControlLabel(this FlowStep step)
         {
-            switch (step.Kind)
-            {
-                case FlowStepKind.Choice:
-                case FlowStepKind.Text:
-                    return "Continue";
-                default:
-                    return $"Roll: {step.DisplayLabel()}";
-            }
+            return step.Kind.IsQuestion() ? "Continue" : $"Roll: {step.DisplayLabel()}";
         }
 
         public static bool AllowsBranches(this FlowStep step)

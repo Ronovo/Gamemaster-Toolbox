@@ -117,6 +117,7 @@ does and therefore which of its other fields apply:
 | `Choice`     | Asks a question and offers a dropdown of options you author. An option can name an oracle. |
 | `Text`       | Asks a question and takes a typed answer (including a number). |
 | `RollChosen` | Rolls whichever oracle an earlier step picked — a `Choice` option or a `Roll` outcome. |
+| `Loop`       | Asks how many times (1–50) to roll the next step, which must be a `Roll` or `RollChosen`. The last roll decides branches and picked tables. |
 
 
 A flow is a **flat list**. Running it works through one step at a time, in order; when a step
@@ -141,8 +142,8 @@ A run still stops after 200 steps whatever it is doing, so a branch that points 
 cannot loop forever.
 
 An older file still imports. `"kind": "Number"` and `"kind": "Fields"` both become `Text` (a
-Fields step's labels become the question text); a `"kind": "Loop"` is dropped and its body
-steps kept in sequence; `times`, `countMode` and `countDice` are ignored. A version 6 or 7
+Fields step's labels become the question text); an old `"kind": "Loop"` with nested `steps` is
+dropped and its body steps kept in sequence; `times`, `countMode` and `countDice` are ignored. A version 6 or 7
 file (flat `steps`, `blockEnd` spans, `goToStep` by position) imports the same way.
 
 ### JSON export format
@@ -212,9 +213,9 @@ file (flat `steps`, `blockEnd` spans, `goToStep` by position) imports the same w
 ```
 
 Version 10 makes a flow a flat list: `steps` no longer nest, every step has a per-file `id`
-(its position) that `pickedAtStep` and `goToStep` point at, and the `Loop` / `Fields` kinds
-and `times` / `countMode` / `countDice` fields are gone. Older files still import — a `Loop`
-is unwrapped, a `Fields` step becomes a `Text` question, and version 6/7 `blockEnd` spans are
+(its position) that `pickedAtStep` and `goToStep` point at, and the nested `Loop` / `Fields`
+kinds and `times` / `countMode` / `countDice` fields are gone. Older files still import — a nested
+`Loop` is unwrapped, a `Fields` step becomes a `Text` question, and version 6/7 `blockEnd` spans are
 discarded.
 
 

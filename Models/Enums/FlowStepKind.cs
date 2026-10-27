@@ -14,6 +14,9 @@ namespace GM_Toolbox.Models.Enums
         Text = 2,
 
         [Display(Name = "Roll on another oracle")]
-        RollChosen = 4
+        RollChosen = 4,
+
+        [Display(Name = "Loop the next step")]
+        Loop = 5
     }
 }

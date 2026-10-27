@@ -425,7 +425,7 @@ public class FlowsController : Controller
         var blocked = flow.RunBlockedReason();
         if (blocked != null)
         {
-            return RunResponse(id, null, null, null, blocked);
+            return RunResponse(flow, null, null, null, blocked);
         }
 
         var state = FlowRunner.Load(flow, HttpContext.Session);
@@ -434,11 +434,11 @@ public class FlowsController : Controller
         if (error != null || rolled == null)
         {
             FlowRunner.Save(state, HttpContext.Session);
-            return RunResponse(id, null, null, null, error ?? "That step produced no outcome.");
+            return RunResponse(flow, null, null, null, error ?? "That step produced no outcome.");
         }
 
         FlowRunner.Save(state, HttpContext.Session);
-        return RunResponse(id, rolled, FlowRunner.CurrentStep(flow, state), state, null);
+        return RunResponse(flow, rolled, FlowRunner.CurrentStep(flow, state), state, null);
     }
 
     [HttpPost]
@@ -455,7 +455,7 @@ public class FlowsController : Controller
             var fresh = FlowRunner.Load(flow, HttpContext.Session);
             return Json(new
             {
-                next = NextDescriptor(FlowRunner.CurrentStep(flow, fresh)),
+                next = NextDescriptor(flow, FlowRunner.CurrentStep(flow, fresh)),
                 finished = fresh.Finished
             });
         }
@@ -465,7 +465,7 @@ public class FlowsController : Controller
 
     private bool IsAjaxRequest => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
-    private IActionResult RunResponse(int id, FlowRunStep? rolled, FlowStep? next,
+    private IActionResult RunResponse(Flow flow, FlowRunStep? rolled, FlowStep? next,
         FlowRunState? state, string? error)
     {
         if (IsAjaxRequest)
@@ -482,7 +482,7 @@ public class FlowsController : Controller
                 outcome = rolled.Outcome,
                 outcomes = rolled.Outcomes,
                 isQuestion = rolled.IsQuestion,
-                next = NextDescriptor(next),
+                next = NextDescriptor(flow, next),
                 finished = state!.Finished,
                 hitStepLimit = state.HitStepLimit
             });
@@ -493,10 +493,10 @@ public class FlowsController : Controller
             TempData["FlowRunError"] = error;
         }
 
-        return RedirectToAction(nameof(Run), new { id });
+        return RedirectToAction(nameof(Run), new { id = flow.ID });
     }
 
-    private static object? NextDescriptor(FlowStep? step)
+    private static object? NextDescriptor(Flow flow, FlowStep? step)
     {
         if (step == null)
         {
@@ -509,7 +509,7 @@ public class FlowsController : Controller
             kind = step.Kind.ToString(),
             isQuestion = step.Kind.IsQuestion(),
             label = step.DisplayLabel(),
-            question = step.Question,
+            question = step.Prompt(flow),
             buttonLabel = step.ControlLabel(),
             options = step.Options
                 .OrderBy(o => o.SortOrder)
@@ -607,6 +607,12 @@ public class FlowsController : Controller
                 return source == null
                     ? "No source set"
                     : $"Rolls what {source.PositionPath()} ({source.DisplayLabel()}) picks";
+
+            case FlowStepKind.Loop:
+                var next = step.NextInOrder(flow);
+                return next == null
+                    ? "Nothing to loop"
+                    : $"Loops {next.PositionPath()} ({next.DisplayLabel()})";
         }
 
         return string.Empty;
@@ -709,17 +715,10 @@ public class FlowsController : Controller
 
     private static string FallThroughLabel(Flow flow, FlowStep step)
     {
-        var next = NextStepInOrder(flow, step);
+        var next = step.NextInOrder(flow);
         return next != null
             ? $"{next.PositionPath()}: {next.DisplayLabel()}"
             : "ends the flow";
-    }
-
-    private static FlowStep? NextStepInOrder(Flow flow, FlowStep step)
-    {
-        var ordered = flow.InRunOrder().ToList();
-        var index = ordered.FindIndex(s => s.ID == step.ID);
-        return index >= 0 && index + 1 < ordered.Count ? ordered[index + 1] : null;
     }
 
     private static List<BranchTarget> SourceTargets(Flow flow)

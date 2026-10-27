@@ -25,8 +25,9 @@
         value = t.Outcome.Value,
         key = t.Outcome.Key,
         caption = t.Outcome.Caption,
-        result = t.Outcome.Result
-    }));
+        result = t.Outcome.Result,
+        outcomes = t.Outcomes
+    }), new JsonSerializerOptions(JsonSerializerDefaults.Web));
 }
 
 <h1>Run: @Model.Name</h1>
@@ -50,7 +51,7 @@ else
 
                         <div id="runQuestion" hidden="@(!currentKind.IsQuestion())">
                             <label class="form-label small" for="runAnswer" id="runQuestionText">
-                                @currentStep?.Question
+                                @currentStep?.Prompt(Model)
                             </label>
 
                             @* Disabled as well as hidden: both controls are named "answer",
@@ -71,6 +72,12 @@ else
                                    type="text"
                                    hidden="@(currentKind != FlowStepKind.Text)"
                                    disabled="@(currentKind != FlowStepKind.Text)" />
+
+                            <input name="answer" class="form-control mb-2" id="runAnswerNumber"
+                                   type="number" min="1" max="@GM_Toolbox.Services.FlowRunner.LoopLimit"
+                                   step="1" inputmode="numeric" required
+                                   hidden="@(currentKind != FlowStepKind.Loop)"
+                                   disabled="@(currentKind != FlowStepKind.Loop)" />
                         </div>
 
                         <button type="submit" class="btn btn-primary btn-lg w-100" id="runButton">@controlLabel</button>
@@ -118,16 +125,39 @@ else
                 {
                     <tr>
                         <td>@entry.Label</td>
-                        <td>
-                            <strong>@(entry.Outcome.IsDice ? entry.Outcome.Value?.ToString() : entry.Outcome.Key)</strong>
-                            @if (!string.IsNullOrEmpty(entry.Outcome.Caption))
-                            {
-                                <div class="small text-muted">@entry.Outcome.Caption</div>
-                            }
-                        </td>
-                        <td class="@(string.IsNullOrWhiteSpace(entry.Outcome.Result) ? "text-muted" : "")">
-                            @(string.IsNullOrWhiteSpace(entry.Outcome.Result) ? "(no result text)" : entry.Outcome.Result)
-                        </td>
+                        @if (entry.Outcomes.Count > 1)
+                        {
+                            <td colspan="2">
+                                <ol class="mb-0 ps-3">
+                                    @foreach (var item in entry.Outcomes)
+                                    {
+                                        <li>
+                                            <strong>@(item.IsDice ? item.Value?.ToString() : item.Key)</strong>
+                                            @if (!string.IsNullOrEmpty(item.Caption))
+                                            {
+                                                <span class="small text-muted ms-1">@item.Caption</span>
+                                            }
+                                            <span class="ms-1 @(string.IsNullOrWhiteSpace(item.Result) ? "text-muted" : "")">
+                                                @(string.IsNullOrWhiteSpace(item.Result) ? "(no result text)" : item.Result)
+                                            </span>
+                                        </li>
+                                    }
+                                </ol>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>
+                                <strong>@(entry.Outcome.IsDice ? entry.Outcome.Value?.ToString() : entry.Outcome.Key)</strong>
+                                @if (!string.IsNullOrEmpty(entry.Outcome.Caption))
+                                {
+                                    <div class="small text-muted">@entry.Outcome.Caption</div>
+                                }
+                            </td>
+                            <td class="@(string.IsNullOrWhiteSpace(entry.Outcome.Result) ? "text-muted" : "")">
+                                @(string.IsNullOrWhiteSpace(entry.Outcome.Result) ? "(no result text)" : entry.Outcome.Result)
+                            </td>
+                        }
                     </tr>
                 }
             </tbody>
@@ -174,6 +204,7 @@ else
             var questionText = document.getElementById("runQuestionText");
             var answerSelect = document.getElementById("runAnswerSelect");
             var answerInput = document.getElementById("runAnswerInput");
+            var answerNumber = document.getElementById("runAnswerNumber");
 
             // Re-render the server's rows through the component so both paths agree, and so the
             // pager works on a run that was resumed after a refresh.
@@ -215,6 +246,11 @@ else
                 answerInput.hidden = !isTyped;
                 answerInput.disabled = !isTyped;
                 answerInput.value = "";
+
+                var isLoop = next.kind === "Loop";
+                answerNumber.hidden = !isLoop;
+                answerNumber.disabled = !isLoop;
+                answerNumber.value = "";
             }
 
             GmRoll.bind(runForm, {
@@ -226,7 +262,8 @@ else
                         value: data.outcome.value,
                         key: data.outcome.key,
                         caption: data.outcome.caption,
-                        result: data.outcome.result
+                        result: data.outcome.result,
+                        outcomes: data.outcomes
                     });
                     stepLimitEl.hidden = !data.hitStepLimit;
                     setControl(data.next, data.finished);
@@ -248,6 +285,7 @@ else
             // it, since a hidden-but-enabled field would still post its empty value.
             answerSelect.disabled = answerSelect.hidden;
             answerInput.disabled = answerInput.hidden;
+            answerNumber.disabled = answerNumber.hidden;
         })();
     </script>
 }
