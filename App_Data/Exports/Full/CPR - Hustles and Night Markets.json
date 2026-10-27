@@ -1,0 +1,1460 @@
+{
+  "formatVersion": 10,
+  "exportedUtc": "2026-10-27T23:29:25.2198879Z",
+  "gameSystems": [
+    {
+      "name": "Cyberpunk Red",
+      "genre": "Sci-fi"
+    }
+  ],
+  "oracles": [
+    {
+      "name": "Hustle - Exec",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Landed a moderate success on a project, earned a reward bonus; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Nothing much happened, and Corporate was unimpressed. Lost a bonus; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Collected a paycheck, and that was it; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Got some dirt on a rival, and used it to score a bonus; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Pulled off a major project success and gained a bonus from the Head Office; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Took out a legitimate target that was threatening a job and took their funding; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Fixer",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Got a Media some information for a good bribe; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Got a Rocker a good Gig for your 12% fee; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Helped a client locate a desirable item they needed and got a cut; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Deal went south. You\u0027re keeping your head down til it blows over; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Got a Solo or Netrunner a profitable \u0022job\u0022 and took your agency fee; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Brought in a rare, illegal, or very hard to get item for a client; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Lawman",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Made a few minor busts, business as usual; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Got a reward from a grateful citizen. Or was it a bribe?; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Bust went bad, and it came out of your salary; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Nothing much happened this week. Collected a paycheck and that was it; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Pulled off a major drug or smuggling bust and gained a bonus from the boss; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Took down a big gang and got some of a \u0022civil seizure\u0022 bonus; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Media",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Wrote an expose that covered a major topic, made a big sale; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Wrote a popular \u0022puff piece\u0022 that got you some notice and some cash; Lvl 1-4 - 300eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Did some boring ad writing to pay the bills; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Exposed a big story that got you a few enemies, and some cash; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "No good stories and leads this week; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Wrote an expose that blew the lid off a major topic; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Medtech",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Patched up someone after a firefight; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Sold cyberware from a \u0022failed\u0022 medical case; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Helped Trauma Team on some backup work when they were overloaded; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Did some finor \u0022free clinic\u0022 work for lcoals. you can\u0027t eat goodwill though. ; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300ebv",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Did a major medical procedure for a very well-heeled client; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Designed and delivered medicines or street drugs to a client; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Netrunner",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Cracked a small system and sold the data; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Cracked a major Corporate system and sold the data; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "You got sidetracked and didn\u0027t hack anything this week; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 400eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Found a valuable data cache in an abandoned system and sold it.; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Brought down a major system with ransomware and got paid off to uninstall it; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Sabotaged or otherwise disabled a major system for a faceless client; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Nomad",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Made a legit shipment; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Protected a shipment; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Smuggled some small contraband; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Smuggled a huge shipment; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Delivered a client safely to destination; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Couldn\u0027t find work this week, legit or otherwise; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Rockerboy",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Played a small local gig; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "No gigs or jobs to be had this week; Lvl1 -4 - 0eb; lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Played a big gig for a rich Corporate or Local personality; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb ; Lvl 8-10 - 800eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Get some royalties in for your most recent Data Pool download; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb ; Lvl 8-10 - 800eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Opening act for a Big-Name group; Lvl 1-4 - 300eb; Lvl 5-7 - 500eb; Lvl 8-10 - 800eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Personal appearance netted you a large fee; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb ; Lvl 8-10 - 600eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Solo",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Bodyguard work, low-end client; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb ; Lvl 8-10 - 500eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Bodyguard work, high-end client; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb ; Lvl 8-10 - 600eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Difficult hit or extraction; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb ; Lvl 8-10 - 600eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "hired out as muscle to a fixer, Corp, or Gang; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb ; Lvl 8-10 - 500eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Attracted undue attention, had to lay low; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb ; Lvl 8-10 - 300eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Basic enforcer or hitman work for a local Corp; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb ; Lvl 8-10 - 500eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "Hustle - Tech",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "No jobs this week; Lvl 1-4 - 0eb; Lvl 5-7 - 100eb; Lvl 8-10 - 300eb",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Rebuilt some tech you scavenged in the Combat Zone; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Helped a client break into some place or installed security systems for a client; Lvl 1-4 - 200eb; Lvl 5-7 - 300eb; Lvl 8-10 - 600eb",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Did some modifications or repairs to some cybertech; Lvl 1-4 - \u006000eb; Lvl 5-7 - 100eb; Lvl 8-10 - 500eb",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Did some modifications or repairs to some weapons; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Sabotaged or otherwise disabled something for a client; Lvl 1-4 - 100eb; Lvl 5-7 - 200eb; Lvl 8-10 - 500eb",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "NM - Clothing",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 100,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Bag Lady Chic",
+          "rangeStart": 1,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 2,
+          "result": "Gang Colors",
+          "rangeStart": 6,
+          "rangeEnd": 10
+        },
+        {
+          "sortOrder": 3,
+          "result": "Generic Chic",
+          "rangeStart": 11,
+          "rangeEnd": 15
+        },
+        {
+          "sortOrder": 4,
+          "result": "Bohemian",
+          "rangeStart": 16,
+          "rangeEnd": 20
+        },
+        {
+          "sortOrder": 5,
+          "result": "Leisurewear",
+          "rangeStart": 21,
+          "rangeEnd": 25
+        },
+        {
+          "sortOrder": 6,
+          "result": "Nomad Leathers",
+          "rangeStart": 26,
+          "rangeEnd": 30
+        },
+        {
+          "sortOrder": 7,
+          "result": "Asia Pop",
+          "rangeStart": 31,
+          "rangeEnd": 35
+        },
+        {
+          "sortOrder": 8,
+          "result": "Urban Flash",
+          "rangeStart": 36,
+          "rangeEnd": 40
+        },
+        {
+          "sortOrder": 9,
+          "result": "Businesswear",
+          "rangeStart": 41,
+          "rangeEnd": 45
+        },
+        {
+          "sortOrder": 10,
+          "result": "High Fashion",
+          "rangeStart": 46,
+          "rangeEnd": 50
+        },
+        {
+          "sortOrder": 11,
+          "result": "Biometer - 100eb (Premium)",
+          "rangeStart": 51,
+          "rangeEnd": 55
+        },
+        {
+          "sortOrder": 12,
+          "result": "Chemskin - 100eb (Premium)",
+          "rangeStart": 56,
+          "rangeEnd": 60
+        },
+        {
+          "sortOrder": 13,
+          "result": "EMP Threading - 10eb (Cheap)",
+          "rangeStart": 61,
+          "rangeEnd": 65
+        },
+        {
+          "sortOrder": 14,
+          "result": "Light Tattoo - 100eb (Premium)",
+          "rangeStart": 66,
+          "rangeEnd": 70
+        },
+        {
+          "sortOrder": 15,
+          "result": "Shift Tacts - 100eb (Premium)",
+          "rangeStart": 71,
+          "rangeEnd": 75
+        },
+        {
+          "sortOrder": 16,
+          "result": "Skinwatch - 100eb (Premium)",
+          "rangeStart": 76,
+          "rangeEnd": 80
+        },
+        {
+          "sortOrder": 17,
+          "result": "Techhair - 100eb (Premium)",
+          "rangeStart": 81,
+          "rangeEnd": 85
+        },
+        {
+          "sortOrder": 18,
+          "result": "Generic Chic",
+          "rangeStart": 86,
+          "rangeEnd": 90
+        },
+        {
+          "sortOrder": 19,
+          "result": "Leisurewear",
+          "rangeStart": 91,
+          "rangeEnd": 95
+        },
+        {
+          "sortOrder": 20,
+          "result": "Gang Colors",
+          "rangeStart": 96,
+          "rangeEnd": 100
+        }
+      ]
+    },
+    {
+      "name": "NM - Cyberware",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 100,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Cybereye - 100eb (Premium)",
+          "rangeStart": 1,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 2,
+          "result": "Cyberaudio Suite - 500eb (Expensive)",
+          "rangeStart": 6,
+          "rangeEnd": 10
+        },
+        {
+          "sortOrder": 3,
+          "result": "Neural Link - 500eb (Expensive)",
+          "rangeStart": 11,
+          "rangeEnd": 15
+        },
+        {
+          "sortOrder": 4,
+          "result": "Cyberarm - 500eb (Expensive)",
+          "rangeStart": 16,
+          "rangeEnd": 20
+        },
+        {
+          "sortOrder": 5,
+          "result": "Cyberleg - 100eb (Premium)",
+          "rangeStart": 21,
+          "rangeEnd": 25
+        },
+        {
+          "sortOrder": 6,
+          "result": "External Cyberware of Exactly 1000eb - 1000eb (Very Expensive)",
+          "rangeStart": 26,
+          "rangeEnd": 30
+        },
+        {
+          "sortOrder": 7,
+          "result": "External Cyberware of 500eb or less - 500eb (Expensive)",
+          "rangeStart": 31,
+          "rangeEnd": 35
+        },
+        {
+          "sortOrder": 8,
+          "result": "Internal Cyberware of Exactly 1000eb - 1000eb (Very Expensive)",
+          "rangeStart": 36,
+          "rangeEnd": 40
+        },
+        {
+          "sortOrder": 9,
+          "result": "Internal Cyberware of 500eb or less - 500eb (Expensive)",
+          "rangeStart": 41,
+          "rangeEnd": 45
+        },
+        {
+          "sortOrder": 10,
+          "result": "Cybereye Option of 500eb or less - 500eb (Expensive)",
+          "rangeStart": 46,
+          "rangeEnd": 50
+        },
+        {
+          "sortOrder": 11,
+          "result": "Cybereye Option of 500eb or less -500eb (Expensive)",
+          "rangeStart": 51,
+          "rangeEnd": 55
+        },
+        {
+          "sortOrder": 12,
+          "result": "Cyberaudio Option of exactly 1000eb -1000eb (Very Expensive)",
+          "rangeStart": 56,
+          "rangeEnd": 60
+        },
+        {
+          "sortOrder": 13,
+          "result": "Cyberaudio Option of 500eb or less - 500eb (Expensive)",
+          "rangeStart": 61,
+          "rangeEnd": 65
+        },
+        {
+          "sortOrder": 14,
+          "result": "Neuralware Option of exactly 1000eb -1000eb (Very Expensive)",
+          "rangeStart": 66,
+          "rangeEnd": 70
+        },
+        {
+          "sortOrder": 15,
+          "result": "Neuralware Option of 500eb or less - 500eb (Expensive)",
+          "rangeStart": 71,
+          "rangeEnd": 75
+        },
+        {
+          "sortOrder": 16,
+          "result": "Cyberlimb of exactly 1000eb -1000eb (Very Expensive)",
+          "rangeStart": 76,
+          "rangeEnd": 80
+        },
+        {
+          "sortOrder": 17,
+          "result": "Cyberlimb of 500eb or less - 500eb (Expensive)",
+          "rangeStart": 81,
+          "rangeEnd": 85
+        },
+        {
+          "sortOrder": 18,
+          "result": "Fashionware of GM\u0027s Choice - 0eb (Custom)",
+          "rangeStart": 86,
+          "rangeEnd": 90
+        },
+        {
+          "sortOrder": 19,
+          "result": "Borgware of GM\u0027s Choice - 0eb (Custom)",
+          "rangeStart": 91,
+          "rangeEnd": 95
+        },
+        {
+          "sortOrder": 20,
+          "result": "Any Cyberware of GM\u0027s Choice - 0eb (Custom)",
+          "rangeStart": 96,
+          "rangeEnd": 100
+        }
+      ]
+    },
+    {
+      "name": "NM - Food and Drugs",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 100,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Canned Goods - 10eb (Cheap)",
+          "rangeStart": 1,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 2,
+          "result": "Packaged Goods - 10eb (Cheap)",
+          "rangeStart": 6,
+          "rangeEnd": 10
+        },
+        {
+          "sortOrder": 3,
+          "result": "Frozen Goods - 10eb (Cheap)",
+          "rangeStart": 11,
+          "rangeEnd": 15
+        },
+        {
+          "sortOrder": 4,
+          "result": "Bags of Grain - 20eb (Everyday)",
+          "rangeStart": 16,
+          "rangeEnd": 20
+        },
+        {
+          "sortOrder": 5,
+          "result": "Kibble Pack - 10eb (Cheap)",
+          "rangeStart": 21,
+          "rangeEnd": 25
+        },
+        {
+          "sortOrder": 6,
+          "result": "Bags of Prepak - 20eb (Everyday)",
+          "rangeStart": 26,
+          "rangeEnd": 30
+        },
+        {
+          "sortOrder": 7,
+          "result": "Street Drugs - 20eb (Everyday)",
+          "rangeStart": 31,
+          "rangeEnd": 35
+        },
+        {
+          "sortOrder": 8,
+          "result": "Poor Quality Alcohol - 10eb (Cheap)",
+          "rangeStart": 36,
+          "rangeEnd": 40
+        },
+        {
+          "sortOrder": 9,
+          "result": "Alcohol - 20eb (Cheap)",
+          "rangeStart": 41,
+          "rangeEnd": 45
+        },
+        {
+          "sortOrder": 10,
+          "result": "Excellent Quality Alcohol - 100eb (Premium)",
+          "rangeStart": 46,
+          "rangeEnd": 50
+        },
+        {
+          "sortOrder": 11,
+          "result": "MRE - 10eb (Cheap)",
+          "rangeStart": 51,
+          "rangeEnd": 55
+        },
+        {
+          "sortOrder": 12,
+          "result": "Live Chicken - 50eb (Costly)",
+          "rangeStart": 56,
+          "rangeEnd": 60
+        },
+        {
+          "sortOrder": 13,
+          "result": "Live Fish - 50eb (Costly)",
+          "rangeStart": 61,
+          "rangeEnd": 65
+        },
+        {
+          "sortOrder": 14,
+          "result": "Fresh Fruits - 50eb (Costly)",
+          "rangeStart": 66,
+          "rangeEnd": 70
+        },
+        {
+          "sortOrder": 15,
+          "result": "Fresh Vegetables - 50eb (Costly)",
+          "rangeStart": 71,
+          "rangeEnd": 75
+        },
+        {
+          "sortOrder": 16,
+          "result": "Root Vegetables - 20eb (Everyday)",
+          "rangeStart": 76,
+          "rangeEnd": 80
+        },
+        {
+          "sortOrder": 17,
+          "result": "Live Pigs- 100eb (Premium)",
+          "rangeStart": 81,
+          "rangeEnd": 85
+        },
+        {
+          "sortOrder": 18,
+          "result": "Exotic Fruit - 100eb (Premium)",
+          "rangeStart": 86,
+          "rangeEnd": 90
+        },
+        {
+          "sortOrder": 19,
+          "result": "Exotic Vegetables - 100eb (Premium)",
+          "rangeStart": 91,
+          "rangeEnd": 95
+        },
+        {
+          "sortOrder": 20,
+          "result": "Street Drugs - 50eb (Costly)",
+          "rangeStart": 96,
+          "rangeEnd": 100
+        }
+      ]
+    },
+    {
+      "name": "NM - Main Categories",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 6,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Food and Drugs",
+          "rangeStart": 1,
+          "rangeEnd": 1
+        },
+        {
+          "sortOrder": 2,
+          "result": "Personal Electronics",
+          "rangeStart": 2,
+          "rangeEnd": 2
+        },
+        {
+          "sortOrder": 3,
+          "result": "Weapons and Armor",
+          "rangeStart": 3,
+          "rangeEnd": 3
+        },
+        {
+          "sortOrder": 4,
+          "result": "Cyberware",
+          "rangeStart": 4,
+          "rangeEnd": 4
+        },
+        {
+          "sortOrder": 5,
+          "result": "Clothing and Fashionware",
+          "rangeStart": 5,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 6,
+          "result": "Survival Gear",
+          "rangeStart": 6,
+          "rangeEnd": 6
+        }
+      ]
+    },
+    {
+      "name": "NM - Personal Electronics",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 100,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Agent - 100eb (Premium)",
+          "rangeStart": 1,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 2,
+          "result": "Programs or hardware - 100eb (Premium)",
+          "rangeStart": 6,
+          "rangeEnd": 10
+        },
+        {
+          "sortOrder": 3,
+          "result": "Audio Recorder - 100eb (Premium)",
+          "rangeStart": 11,
+          "rangeEnd": 15
+        },
+        {
+          "sortOrder": 4,
+          "result": "Bug Detector - 500eb (Expensive)",
+          "rangeStart": 16,
+          "rangeEnd": 20
+        },
+        {
+          "sortOrder": 5,
+          "result": "Chemical Analyzer - 1000eb (Very Expensive)",
+          "rangeStart": 21,
+          "rangeEnd": 25
+        },
+        {
+          "sortOrder": 6,
+          "result": "Computer - 50eb (Costly)",
+          "rangeStart": 26,
+          "rangeEnd": 30
+        },
+        {
+          "sortOrder": 7,
+          "result": "Cyberdeck - 500eb (Expensive)",
+          "rangeStart": 31,
+          "rangeEnd": 35
+        },
+        {
+          "sortOrder": 8,
+          "result": "Disposable Cell Phone - 50eb (Costly)",
+          "rangeStart": 36,
+          "rangeEnd": 40
+        },
+        {
+          "sortOrder": 9,
+          "result": "Electric Guitar or Other Instrument - 500eb (Expensive)",
+          "rangeStart": 41,
+          "rangeEnd": 45
+        },
+        {
+          "sortOrder": 10,
+          "result": "Programs or Hardware - 500eb (Expensive)",
+          "rangeStart": 46,
+          "rangeEnd": 50
+        },
+        {
+          "sortOrder": 11,
+          "result": "Medscanner - 1000eb (Very Expensive)",
+          "rangeStart": 51,
+          "rangeEnd": 55
+        },
+        {
+          "sortOrder": 12,
+          "result": "Homing Tracer - 500eb (Expensive)",
+          "rangeStart": 56,
+          "rangeEnd": 60
+        },
+        {
+          "sortOrder": 13,
+          "result": "Radio Communicator - 100eb (Premium)",
+          "rangeStart": 61,
+          "rangeEnd": 65
+        },
+        {
+          "sortOrder": 14,
+          "result": "Techscanner - 1000eb (Very Expensive)",
+          "rangeStart": 66,
+          "rangeEnd": 70
+        },
+        {
+          "sortOrder": 15,
+          "result": "Smart Glasses - 500eb (Expensive)",
+          "rangeStart": 71,
+          "rangeEnd": 75
+        },
+        {
+          "sortOrder": 16,
+          "result": "Radio Detector - 500eb (Expensive)",
+          "rangeStart": 76,
+          "rangeEnd": 80
+        },
+        {
+          "sortOrder": 17,
+          "result": "Scrambler/Descrambler - 500eb (Expensive)",
+          "rangeStart": 81,
+          "rangeEnd": 85
+        },
+        {
+          "sortOrder": 18,
+          "result": "Music Scanner/Music Player - 50eb (Costly)",
+          "rangeStart": 86,
+          "rangeEnd": 90
+        },
+        {
+          "sortOrder": 19,
+          "result": "Braindance(BD) Viewer - 1000eb (Very Expensive)",
+          "rangeStart": 91,
+          "rangeEnd": 95
+        },
+        {
+          "sortOrder": 20,
+          "result": "Virtuality Goggles - 100eb (Premium)",
+          "rangeStart": 96,
+          "rangeEnd": 100
+        }
+      ]
+    },
+    {
+      "name": "NM - Survival Gear",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 100,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Anti-Smog Breathing Mask - 20eb (Everyday)",
+          "rangeStart": 1,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 2,
+          "result": "Auto Level Dampening Ear Protectors - 1000eb (Very Expensive)",
+          "rangeStart": 6,
+          "rangeEnd": 10
+        },
+        {
+          "sortOrder": 3,
+          "result": "Binoculars - 50eb (Costly)",
+          "rangeStart": 11,
+          "rangeEnd": 15
+        },
+        {
+          "sortOrder": 4,
+          "result": "Carryall - 20eb (Everyday)",
+          "rangeStart": 16,
+          "rangeEnd": 20
+        },
+        {
+          "sortOrder": 5,
+          "result": "Flashlight - 20eb (Everyday)",
+          "rangeStart": 21,
+          "rangeEnd": 25
+        },
+        {
+          "sortOrder": 6,
+          "result": "Duck Tape - 20eb (Everyday)",
+          "rangeStart": 26,
+          "rangeEnd": 30
+        },
+        {
+          "sortOrder": 7,
+          "result": "Inflatable Bed \u0026 Sleeping Bag - 20eb (Everyday)",
+          "rangeStart": 31,
+          "rangeEnd": 35
+        },
+        {
+          "sortOrder": 8,
+          "result": "Lock Picking Set - 20eb (Everyday)",
+          "rangeStart": 36,
+          "rangeEnd": 40
+        },
+        {
+          "sortOrder": 9,
+          "result": "Handcuffs - 50eb (Costly)",
+          "rangeStart": 41,
+          "rangeEnd": 45
+        },
+        {
+          "sortOrder": 10,
+          "result": "Medtech Bag - 100eb (Premium)",
+          "rangeStart": 46,
+          "rangeEnd": 50
+        },
+        {
+          "sortOrder": 11,
+          "result": "Tent and Camping Equipment - 50eb (Costly)",
+          "rangeStart": 51,
+          "rangeEnd": 55
+        },
+        {
+          "sortOrder": 12,
+          "result": "Rope(60m/yds) - 20eb (Everyday)",
+          "rangeStart": 56,
+          "rangeEnd": 60
+        },
+        {
+          "sortOrder": 13,
+          "result": "Techtool - 100eb (Premium)",
+          "rangeStart": 61,
+          "rangeEnd": 65
+        },
+        {
+          "sortOrder": 14,
+          "result": "Personal CarePak - 20eb (Everyday)",
+          "rangeStart": 66,
+          "rangeEnd": 70
+        },
+        {
+          "sortOrder": 15,
+          "result": "Radiation Suit - 1000eb (Very Premium)",
+          "rangeStart": 71,
+          "rangeEnd": 75
+        },
+        {
+          "sortOrder": 16,
+          "result": "Road Flare - 10eb (Cheap)",
+          "rangeStart": 76,
+          "rangeEnd": 80
+        },
+        {
+          "sortOrder": 17,
+          "result": "Grapple Gun - 100eb (Premium)",
+          "rangeStart": 81,
+          "rangeEnd": 85
+        },
+        {
+          "sortOrder": 18,
+          "result": "Tech Bag - 500eb (Expensive)",
+          "rangeStart": 86,
+          "rangeEnd": 90
+        },
+        {
+          "sortOrder": 19,
+          "result": "Shovel or Axe - 50eb (Costly)",
+          "rangeStart": 91,
+          "rangeEnd": 95
+        },
+        {
+          "sortOrder": 20,
+          "result": "Airhypo - 50eb (Costly)",
+          "rangeStart": 96,
+          "rangeEnd": 100
+        }
+      ]
+    },
+    {
+      "name": "NM - Weapons and Armor",
+      "gameSystem": "Cyberpunk Red",
+      "subtype": "Dice",
+      "diceCount": 1,
+      "diceFaces": 100,
+      "entries": [
+        {
+          "sortOrder": 1,
+          "result": "Medium Pistol - 50eb (Costly)",
+          "rangeStart": 1,
+          "rangeEnd": 5
+        },
+        {
+          "sortOrder": 2,
+          "result": "Heavy/Very Heavy Pistol - 100eb (Premium)",
+          "rangeStart": 6,
+          "rangeEnd": 10
+        },
+        {
+          "sortOrder": 3,
+          "result": "SMG - 100eb (Premium)",
+          "rangeStart": 11,
+          "rangeEnd": 15
+        },
+        {
+          "sortOrder": 4,
+          "result": "Heavy SMG - 100eb (Premium)",
+          "rangeStart": 16,
+          "rangeEnd": 20
+        },
+        {
+          "sortOrder": 5,
+          "result": "Shotgun - 500eb (Expensive)",
+          "rangeStart": 21,
+          "rangeEnd": 25
+        },
+        {
+          "sortOrder": 6,
+          "result": "Assault Rifle - 500eb (Premium)",
+          "rangeStart": 26,
+          "rangeEnd": 30
+        },
+        {
+          "sortOrder": 7,
+          "result": "Sniper Rifle - 500eb (Premium)",
+          "rangeStart": 31,
+          "rangeEnd": 35
+        },
+        {
+          "sortOrder": 8,
+          "result": "Bow or Crossbow - 100eb (Premium)",
+          "rangeStart": 36,
+          "rangeEnd": 40
+        },
+        {
+          "sortOrder": 9,
+          "result": "Grenade Launcher/Rocker Launcher - 500eb (Expensive)",
+          "rangeStart": 41,
+          "rangeEnd": 45
+        },
+        {
+          "sortOrder": 10,
+          "result": "Ammunition of 500 or less - 100eb (Expensive)",
+          "rangeStart": 46,
+          "rangeEnd": 50
+        },
+        {
+          "sortOrder": 11,
+          "result": "Single Exotic Weapon (DM Choice) - 0eb (Custom)",
+          "rangeStart": 51,
+          "rangeEnd": 55
+        },
+        {
+          "sortOrder": 12,
+          "result": "Light Melee Weapon - 50eb (Costly)",
+          "rangeStart": 56,
+          "rangeEnd": 60
+        },
+        {
+          "sortOrder": 13,
+          "result": "Medium Melee Weapon - 50eb (Costly)",
+          "rangeStart": 61,
+          "rangeEnd": 65
+        },
+        {
+          "sortOrder": 14,
+          "result": "Heavy Melee Weapon - 100eb (Premium)",
+          "rangeStart": 66,
+          "rangeEnd": 70
+        },
+        {
+          "sortOrder": 15,
+          "result": "Very Heavy Melee Weapon - 100eb (Premium)",
+          "rangeStart": 71,
+          "rangeEnd": 75
+        },
+        {
+          "sortOrder": 16,
+          "result": "Armor of 100eb or Less - 100eb (Premium) ",
+          "rangeStart": 76,
+          "rangeEnd": 80
+        },
+        {
+          "sortOrder": 17,
+          "result": "Armor of exactly 50eb - 50eb (Costly)",
+          "rangeStart": 81,
+          "rangeEnd": 85
+        },
+        {
+          "sortOrder": 18,
+          "result": "Armor of exactly 1000eb - 1000eb (Very Expensive)",
+          "rangeStart": 86,
+          "rangeEnd": 90
+        },
+        {
+          "sortOrder": 19,
+          "result": "Weapon Attachments of 100eb or less - 100eb (Premium)",
+          "rangeStart": 91,
+          "rangeEnd": 95
+        },
+        {
+          "sortOrder": 20,
+          "result": "Weapon Attachments of 500eb or higher - 500eb (Expensive)",
+          "rangeStart": 96,
+          "rangeEnd": 100
+        }
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "name": "Hustles",
+      "gameSystem": "Cyberpunk Red",
+      "description": "Hustle Flow",
+      "steps": [
+        {
+          "id": 1,
+          "sortOrder": 1,
+          "kind": "Choice",
+          "label": "Role",
+          "question": "Which Role Are You Playing?",
+          "options": [
+            {
+              "sortOrder": 1,
+              "label": "Hustle - Exec",
+              "oracle": {
+                "name": "Hustle - Exec",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 2,
+              "label": "Hustle - Fixer",
+              "oracle": {
+                "name": "Hustle - Fixer",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 3,
+              "label": "Hustle - Lawman",
+              "oracle": {
+                "name": "Hustle - Lawman",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 4,
+              "label": "Hustle - Media",
+              "oracle": {
+                "name": "Hustle - Media",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 5,
+              "label": "Hustle - Medtech",
+              "oracle": {
+                "name": "Hustle - Medtech",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 6,
+              "label": "Hustle - Netrunner",
+              "oracle": {
+                "name": "Hustle - Netrunner",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 7,
+              "label": "Hustle - Nomad",
+              "oracle": {
+                "name": "Hustle - Nomad",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 8,
+              "label": "Hustle - Rockerboy",
+              "oracle": {
+                "name": "Hustle - Rockerboy",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 9,
+              "label": "Hustle - Solo",
+              "oracle": {
+                "name": "Hustle - Solo",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "sortOrder": 10,
+              "label": "Hustle - Tech",
+              "oracle": {
+                "name": "Hustle - Tech",
+                "gameSystem": "Cyberpunk Red"
+              }
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "sortOrder": 2,
+          "kind": "RollChosen",
+          "label": "Hustle",
+          "pickedAtStep": 1
+        }
+      ]
+    },
+    {
+      "name": "Night Market",
+      "gameSystem": "Cyberpunk Red",
+      "description": "Rolling on the Night Market",
+      "steps": [
+        {
+          "id": 1,
+          "sortOrder": 1,
+          "kind": "Roll",
+          "label": "Main",
+          "oracle": {
+            "name": "NM - Main Categories",
+            "gameSystem": "Cyberpunk Red"
+          },
+          "branches": [
+            {
+              "whenOutcome": 1,
+              "picksOracle": {
+                "name": "NM - Food and Drugs",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "whenOutcome": 2,
+              "picksOracle": {
+                "name": "NM - Personal Electronics",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "whenOutcome": 3,
+              "picksOracle": {
+                "name": "NM - Weapons and Armor",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "whenOutcome": 4,
+              "picksOracle": {
+                "name": "NM - Cyberware",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "whenOutcome": 5,
+              "picksOracle": {
+                "name": "NM - Clothing",
+                "gameSystem": "Cyberpunk Red"
+              }
+            },
+            {
+              "whenOutcome": 6,
+              "picksOracle": {
+                "name": "NM - Survival Gear",
+                "gameSystem": "Cyberpunk Red"
+              }
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "sortOrder": 2,
+          "kind": "Loop",
+          "label": "Number of Rolls"
+        },
+        {
+          "id": 3,
+          "sortOrder": 3,
+          "kind": "RollChosen",
+          "label": "Roll",
+          "pickedAtStep": 1
+        }
+      ]
+    }
+  ]
+}

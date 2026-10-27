@@ -607,34 +607,31 @@ public class OraclesController : Controller
 
     public IActionResult Import(string? returnTo)
     {
-        ViewData["ReturnTo"] = NormalizeReturnTo(returnTo);
-        return View();
+        return View(BuildImportViewModel(NormalizeReturnTo(returnTo)));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Import(IFormFile? file, string? returnTo)
+    public async Task<IActionResult> Import(string? path, string? returnTo)
     {
         returnTo = NormalizeReturnTo(returnTo);
-        ViewData["ReturnTo"] = returnTo;
 
-        if (file == null || file.Length == 0)
+        var fullPath = ResolveImportFile(path);
+        if (fullPath == null)
         {
-            ModelState.AddModelError("", "Choose a file to import.");
-            return View();
+            return ImportFailed("Pick a file from the list to import.", returnTo);
         }
 
         OracleExportFile? parsed;
 
         try
         {
-            using var stream = file.OpenReadStream();
+            using var stream = System.IO.File.OpenRead(fullPath);
             parsed = await JsonSerializer.DeserializeAsync<OracleExportFile>(stream, OracleJson.Options);
         }
         catch (JsonException ex)
         {
-            ModelState.AddModelError("", $"That file is not valid JSON: {ex.Message}");
-            return View();
+            return ImportFailed($"That file is not valid JSON: {ex.Message}", returnTo);
         }
 
         var systemsByName = OracleImporter.BuildSystemLookup(await _context.GameSystems.ToListAsync());
@@ -642,8 +639,7 @@ public class OraclesController : Controller
         var error = OracleImporter.TryBuild(parsed, systemsByName, out var oracles);
         if (error != null)
         {
-            ModelState.AddModelError("", error);
-            return View();
+            return ImportFailed(error, returnTo);
         }
 
         var existingOracles = await _context.Oracles.Include(o => o.GameSystem).ToListAsync();
@@ -652,16 +648,14 @@ public class OraclesController : Controller
             existingOracles, out var flows);
         if (error != null)
         {
-            ModelState.AddModelError("", error);
-            return View();
+            return ImportFailed(error, returnTo);
         }
 
         var newSystems = systemsByName.Values.Where(s => s.ID == 0).ToList();
 
         if (oracles.Count == 0 && flows.Count == 0 && newSystems.Count == 0)
         {
-            ModelState.AddModelError("", "The file contains no game systems, oracles or flows to add.");
-            return View();
+            return ImportFailed("The file contains no game systems, oracles or flows to add.", returnTo);
         }
 
         // MULTI-USER: stamp each oracle with the current user's id before adding.
@@ -733,6 +727,53 @@ public class OraclesController : Controller
         return null;
     }
 
+    private string ExportsRoot => Path.Combine(_env.ContentRootPath, "App_Data", "Exports");
+
+    private IActionResult ImportFailed(string error, string? returnTo)
+    {
+        ModelState.AddModelError("", error);
+        return View(nameof(Import), BuildImportViewModel(returnTo));
+    }
+
+    private ImportViewModel BuildImportViewModel(string? returnTo)
+    {
+        var vm = new ImportViewModel { ReturnTo = returnTo };
+        if (!Directory.Exists(ExportsRoot)) return vm;
+
+        vm.Files = Directory.EnumerateFiles(ExportsRoot, "*.json", SearchOption.AllDirectories)
+            .Select(full =>
+            {
+                var relative = Path.GetRelativePath(ExportsRoot, full).Replace('\\', '/');
+                var slash = relative.LastIndexOf('/');
+                return new ImportFileItem
+                {
+                    Path = relative,
+                    Folder = slash < 0 ? "Exports" : relative.Substring(0, slash),
+                    Name = Path.GetFileName(full),
+                    Modified = System.IO.File.GetLastWriteTime(full)
+                };
+            })
+            .OrderByDescending(f => f.Modified)
+            .ToList();
+
+        return vm;
+    }
+
+    // Only a .json file inside App_Data/Exports is accepted, so a posted path cannot reach
+    // anywhere else on disk.
+    private string? ResolveImportFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        var root = Path.GetFullPath(ExportsRoot) + Path.DirectorySeparatorChar;
+        var full = Path.GetFullPath(Path.Combine(root, path));
+
+        if (!full.StartsWith(root, StringComparison.Ordinal)) return null;
+        if (!string.Equals(Path.GetExtension(full), ".json", StringComparison.OrdinalIgnoreCase)) return null;
+
+        return System.IO.File.Exists(full) ? full : null;
+    }
+
     private static string ImportMessage(int oracleCount, int flowCount, int newSystemCount)
     {
         var parts = new List<string>();
@@ -802,8 +843,7 @@ public class OraclesController : Controller
     // separate folders so a subset is never mistaken for a backup of everything.
     private async Task WriteExportArchive(byte[] bytes, string filename, bool isPartial)
     {
-        var folder = Path.Combine(
-            _env.ContentRootPath, "App_Data", "Exports", isPartial ? "Partial" : "Full");
+        var folder = Path.Combine(ExportsRoot, isPartial ? "Partial" : "Full");
 
         Directory.CreateDirectory(folder);
         // Explicitly reference System.IO.File to avoid ambiguity with the File() method of ControllerBase

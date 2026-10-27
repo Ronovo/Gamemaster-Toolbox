@@ -18,7 +18,8 @@ rather than roll — a dropdown you author, or a line of text — and a dropdown
 decide which table the *next* step rolls on.
 - **Export / Import** — download every oracle and flow as a single versioned JSON file, and
 read one back in. The format carries no database IDs, so a file exported from one instance
-imports cleanly into another. Exports are also archived server-side under `App_Data/Exports/`.
+imports cleanly into another. Every export is also saved under `App_Data/Exports/`, and the
+Import page imports from that folder.
 - **Accounts** — ASP.NET Core Identity is wired up for register and login. Nothing is
 restricted to a signed-in user yet: oracles are global and an account is currently just a
 name, so this is groundwork for per-owner oracles rather than a working permission system.
@@ -78,6 +79,18 @@ Currently Supported Import/Export Systems:
 - Game Systems
 - Oracles
 - Flows
+
+Imports and exports share one folder, `App_Data/Exports/`:
+
+| Folder      | What is in it                                                         |
+| ----------- | --------------------------------------------------------------------- |
+| `Full/`     | A copy of every "Everything" export, saved when you export             |
+| `Partial/`  | A copy of every partial export (selected oracles or flows)             |
+
+The Import page lists every `.json` file in that folder, newest first, each with its own
+Import button. Nothing is imported until you click one. To import a file from somewhere else,
+copy it into `App_Data/Exports/` first. In Docker that folder is inside the `/app/App_Data`
+volume; on a server with a bind mount, copy it into the mounted folder's `Exports/`.
 
 
 
@@ -251,7 +264,7 @@ Services/        OracleConfigurator (entry reconciliation), DeckFactory (deck ge
 Data/            ApplicationDbContext and EF Core migrations
 Views/           Razor views for Home, Oracles and Flows, plus the shared _RollPanel partial
 Areas/Identity/  Scaffolded ASP.NET Core Identity UI
-App_Data/        gmtoolbox.db (the database) and Exports/ (server-side archive of JSON exports)
+App_Data/        gmtoolbox.db (the database) and Exports/ (saved exports, import source)
 wwwroot/        Static assets (Bootstrap, jQuery, site CSS/JS, roll-panel.js)
 ```
 

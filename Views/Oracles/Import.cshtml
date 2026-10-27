@@ -1,7 +1,7 @@
-﻿@{
+﻿@model GM_Toolbox.Models.ViewModels.ImportViewModel
+@{
     ViewData["Title"] = "Import";
-    var returnTo = ViewData["ReturnTo"] as string;
-    var backController = returnTo == "Flows" || returnTo == "GameSystems" ? returnTo : "Oracles";
+    var backController = Model.ReturnTo == "Flows" || Model.ReturnTo == "GameSystems" ? Model.ReturnTo : "Oracles";
 }
 
 <h1>Import</h1>
@@ -13,15 +13,46 @@
     from the file. Use Clear All first if you want a clean slate for oracles and flows.
 </p>
 
-<form asp-action="Import" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="returnTo" value="@returnTo" />
-    <div asp-validation-summary="All" class="text-danger"></div>
+<p class="text-muted">
+    These are the export files in <code>App_Data/Exports</code>. To import another file, copy
+    it into that folder first.
+</p>
 
-    <div class="form-group mb-3">
-        <label for="file" class="control-label">Export file (.json)</label>
-        <input type="file" id="file" name="file" accept=".json,application/json" class="form-control" />
-    </div>
+<div asp-validation-summary="All" class="text-danger"></div>
 
-    <button type="submit" class="btn btn-primary">Import</button>
-    <a asp-controller="@backController" asp-action="Index" class="btn btn-link">Cancel</a>
-</form>
+@if (Model.Files.Count == 0)
+{
+    <p>No export files found in <code>App_Data/Exports</code>.</p>
+}
+else
+{
+    <table class="table table-sm align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Folder</th>
+                <th scope="col">File</th>
+                <th scope="col">Modified</th>
+                <th scope="col"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var file in Model.Files)
+            {
+                <tr>
+                    <td>@file.Folder</td>
+                    <td>@file.Name</td>
+                    <td class="small text-muted">@file.Modified.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td class="text-end">
+                        <form asp-action="Import" method="post" class="d-inline">
+                            <input type="hidden" name="returnTo" value="@Model.ReturnTo" />
+                            <input type="hidden" name="path" value="@file.Path" />
+                            <button type="submit" class="btn btn-sm btn-primary">Import</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a asp-controller="@backController" asp-action="Index">Cancel</a>
