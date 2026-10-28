@@ -3,10 +3,13 @@ using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
 using GM_Toolbox.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
+// Reading and running are open to everyone; anything that changes data needs an account.
+[Authorize]
 public class FlowsController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -18,6 +21,7 @@ public class FlowsController : Controller
         _configurator = configurator;
     }
 
+    [AllowAnonymous]
     public async Task<IActionResult> Index(string? name, int? gameSystemId, int page = 1)
     {
         var vm = await BuildFlowIndex(name, gameSystemId, page);
@@ -29,6 +33,7 @@ public class FlowsController : Controller
         return View(vm);
     }
 
+    [AllowAnonymous]
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null) return NotFound();
@@ -48,7 +53,7 @@ public class FlowsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,Description,GameSystemID")] Flow flow)
+    public async Task<IActionResult> Create([Bind("Name,Description,GameSystemID,Visibility")] Flow flow)
     {
         if (ModelState.IsValid)
         {
@@ -75,7 +80,7 @@ public class FlowsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,Description,GameSystemID")] Flow flow)
+    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,Description,GameSystemID,Visibility")] Flow flow)
     {
         if (id != flow.ID) return NotFound();
 
@@ -91,6 +96,7 @@ public class FlowsController : Controller
         existing.Name = flow.Name;
         existing.Description = flow.Description;
         existing.GameSystemID = flow.GameSystemID;
+        existing.Visibility = flow.Visibility;
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -396,6 +402,7 @@ public class FlowsController : Controller
 
     // ------------------------------------------------------------------ running
 
+    [AllowAnonymous]
     public async Task<IActionResult> Run(int? id)
     {
         if (id == null) return NotFound();
@@ -417,6 +424,7 @@ public class FlowsController : Controller
 
     [HttpPost, ActionName("Run")]
     [ValidateAntiForgeryToken]
+    [AllowAnonymous]
     public async Task<IActionResult> RollStep(int id, string? answer)
     {
         var flow = await LoadFlow(id);
@@ -443,6 +451,7 @@ public class FlowsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [AllowAnonymous]
     public async Task<IActionResult> Restart(int id)
     {
         var flow = await LoadFlow(id);

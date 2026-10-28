@@ -4,12 +4,15 @@ using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
 using GM_Toolbox.Models.ViewModels;
 using GM_Toolbox.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
+// Reading and rolling are open to everyone; anything that changes data needs an account.
+[Authorize]
 public class OraclesController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -22,6 +25,7 @@ public class OraclesController : Controller
         _env = env;
     }
 
+    [AllowAnonymous]
     public async Task<IActionResult> Index(string? name, int? gameSystemId, string? oracleType, int page = 1)
     {
         var vm = await BuildOracleIndex(name, gameSystemId, oracleType, page);
@@ -33,6 +37,7 @@ public class OraclesController : Controller
         return View(vm);
     }
 
+    [AllowAnonymous]
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null)
@@ -46,6 +51,7 @@ public class OraclesController : Controller
         return View(existing);
     }
 
+    [AllowAnonymous]
     public async Task<IActionResult> Roll(int? id)
     {
         if (id == null) return NotFound();
@@ -73,6 +79,7 @@ public class OraclesController : Controller
 
     [HttpPost, ActionName("Roll")]
     [ValidateAntiForgeryToken]
+    [AllowAnonymous]
     public async Task<IActionResult> RollOnce(int id)
     {
         var oracle = await LoadOracleWithEntries(id);
@@ -95,6 +102,7 @@ public class OraclesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [AllowAnonymous]
     public async Task<IActionResult> Reshuffle(int id)
     {
         var oracle = await LoadOracleWithEntries(id);
@@ -125,7 +133,7 @@ public class OraclesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
+    public async Task<IActionResult> Create([Bind("Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces,Visibility")] Oracle oracle)
     {
         ClearDiceForCards(oracle);
 
@@ -173,7 +181,7 @@ public class OraclesController : Controller
     // go to Configure so you can pick how many outcomes to generate.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
+    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces,Visibility")] Oracle oracle)
     {
         if (id != oracle.ID)
         {
@@ -204,6 +212,7 @@ public class OraclesController : Controller
 		existing.OracleSubtype = oracle.OracleSubtype;
 		existing.DiceCount = oracle.DiceCount;
 		existing.DiceFaces = oracle.DiceFaces;
+		existing.Visibility = oracle.Visibility;
 
 		if (rollChanged)
 		{
@@ -410,6 +419,7 @@ public class OraclesController : Controller
 
     // Asks what to export before exporting it. The download itself is the POST below.
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> Export(ExportViewModel vm)
     {
         vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
@@ -430,6 +440,7 @@ public class OraclesController : Controller
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> ExportOracleIds(string? oracleName, int? oracleGameSystemId, string? oracleType)
     {
         var query = OracleListQuery.ApplyFilters(_context.Oracles, oracleName, oracleGameSystemId, oracleType);
@@ -437,6 +448,7 @@ public class OraclesController : Controller
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> ExportFlowIds(string? flowName, int? flowGameSystemId)
     {
         var query = FlowListQuery.ApplyFilters(_context.Flows, flowName, flowGameSystemId);
@@ -445,6 +457,7 @@ public class OraclesController : Controller
 
     [HttpPost, ActionName("Export")]
     [ValidateAntiForgeryToken]
+    [AllowAnonymous]
     public async Task<IActionResult> ExportConfirmed(ExportViewModel vm)
     {
         vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
@@ -563,44 +576,52 @@ public class OraclesController : Controller
         return File(bytes, "application/json", filename);
     }
 
-    // Shows what Clear All is about to destroy.
+    // Shows what Clear All is about to destroy: the signed-in account's own oracles and flows.
     public async Task<IActionResult> ClearAll()
     {
+        var me = _context.CurrentUserId;
         var vm = new ClearAllViewModel
         {
-            OracleCount = await _context.Oracles.CountAsync(),
-            EntryCount = await _context.OracleEntries.CountAsync(),
-            FlowCount = await _context.Flows.CountAsync(),
-            FlowStepCount = await _context.FlowSteps.CountAsync()
+            OracleCount = await _context.Oracles.CountAsync(o => o.OwnerId == me),
+            EntryCount = await _context.OracleEntries.CountAsync(e => _context.Oracles.Any(o => o.ID == e.OracleID && o.OwnerId == me)),
+            FlowCount = await _context.Flows.CountAsync(f => f.OwnerId == me),
+            FlowStepCount = await _context.FlowSteps.CountAsync(s => s.Flow!.OwnerId == me)
         };
 
         return View(vm);
     }
 
-    // Destroys everything confirmed in Oracles/ClearAll
+    // Destroys everything confirmed in Oracles/ClearAll. ExecuteDelete skips SaveChanges, so each delete
+    // is narrowed to the account's own rows here rather than by OwnershipRules.
     [HttpPost, ActionName("ClearAll")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ClearAllConfirmed()
     {
-        // TODO FOR MULTI-USER: filter both deletes to the current user, and drop the reseed
-        // entirely — you cannot reseed a table that still holds other people's rows.
+        var me = _context.CurrentUserId;
+        var myOracles = _context.Oracles.IgnoreQueryFilters().Where(o => o.OwnerId == me).Select(o => o.ID);
+        var anyoneElsesFlows = _context.Flows.IgnoreQueryFilters().Where(f => f.OwnerId != me);
+        if (await anyoneElsesFlows.AnyAsync(f => f.Steps.Any(s =>
+                (s.OracleID != null && myOracles.Contains(s.OracleID.Value))
+                || s.Options.Any(o => o.OracleID != null && myOracles.Contains(o.OracleID.Value))
+                || s.Branches.Any(b => b.OracleID != null && myOracles.Contains(b.OracleID.Value)))))
+        {
+            TempData["OwnershipError"] = "Someone else's flow uses one of your oracles, so Clear All can't remove them.";
+            return RedirectToAction(nameof(ClearAll));
+        }
+
         using (var transaction = await _context.Database.BeginTransactionAsync())
         {
-            await _context.FlowBranches.ExecuteDeleteAsync();
-            await _context.FlowChoiceOptions.ExecuteDeleteAsync();
-            await _context.FlowSteps.ExecuteDeleteAsync();
-            await _context.Flows.ExecuteDeleteAsync();
+            await _context.FlowBranches.Where(b => b.FlowStep!.Flow!.OwnerId == me).ExecuteDeleteAsync();
+            await _context.FlowChoiceOptions.Where(o => o.FlowStep!.Flow!.OwnerId == me).ExecuteDeleteAsync();
+            await _context.FlowSteps.Where(s => s.Flow!.OwnerId == me).ExecuteDeleteAsync();
+            await _context.Flows.IgnoreQueryFilters().Where(f => f.OwnerId == me).ExecuteDeleteAsync();
 
             // Children first: OracleEntries has a required FK to Oracles.
-            await _context.OracleEntries.ExecuteDeleteAsync();
-            await _context.Oracles.ExecuteDeleteAsync();
+            await _context.OracleEntries.Where(e => myOracles.Contains(e.OracleID)).ExecuteDeleteAsync();
+            await _context.Oracles.IgnoreQueryFilters().Where(o => o.OwnerId == me).ExecuteDeleteAsync();
 
             await transaction.CommitAsync();
         }
-
-        await _context.Database.ExecuteSqlRawAsync(
-            "DELETE FROM sqlite_sequence WHERE name IN " +
-            "('Oracles', 'OracleEntries', 'Flows', 'FlowSteps', 'FlowBranches', 'FlowChoiceOptions');");
 
         return RedirectToAction(nameof(Index));
     }
@@ -658,8 +679,6 @@ public class OraclesController : Controller
             return ImportFailed("The file contains no game systems, oracles or flows to add.", returnTo);
         }
 
-        // MULTI-USER: stamp each oracle with the current user's id before adding.
-        //
         // AddRange takes the whole graph — EF inserts each Oracle, reads back its
         // generated ID, and fills in OracleID on its entries automatically. 
         foreach (var system in newSystems)
@@ -703,19 +722,29 @@ public class OraclesController : Controller
         return RedirectToAction(nameof(Roll), new { id });
     }
 
+    // Flows another account keeps private are counted but not named.
     private async Task<List<string>> FlowsUsing(int oracleId)
     {
-        var fromSteps = await _context.FlowSteps
+        var fromSteps = await _context.FlowSteps.IgnoreQueryFilters()
             .Where(s => s.OracleID == oracleId)
-            .Select(s => s.Flow!.Name)
+            .Select(s => s.Flow!)
             .ToListAsync();
 
-        var fromOptions = await _context.FlowChoiceOptions
+        var fromOptions = await _context.FlowChoiceOptions.IgnoreQueryFilters()
             .Where(o => o.OracleID == oracleId)
-            .Select(o => o.FlowStep!.Flow!.Name)
+            .Select(o => o.FlowStep!.Flow!)
             .ToListAsync();
 
-        return fromSteps.Concat(fromOptions).Distinct().OrderBy(name => name).ToList();
+        var me = _context.CurrentUserId;
+        var flows = fromSteps.Concat(fromOptions).DistinctBy(f => f.ID).ToList();
+        var hidden = flows.Count(f => f.Visibility != Visibility.Everyone && f.OwnerId != me);
+        var names = flows.Where(f => f.Visibility == Visibility.Everyone || f.OwnerId == me)
+            .Select(f => f.Name).Distinct().OrderBy(name => name).ToList();
+        if (hidden > 0)
+        {
+            names.Add(hidden == 1 ? "a flow someone else keeps private" : $"{hidden} flows someone else keeps private");
+        }
+        return names;
     }
 
     private static string? NormalizeReturnTo(string? returnTo)

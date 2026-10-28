@@ -1,0 +1,16 @@
+@page
+@model SecurityQuestionModel
+@{
+    ViewData["Title"] = "Security question";
+}
+
+<h1>@ViewData["Title"]</h1>
+<div class="row">
+    <div class="col-md-4">
+        <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
+            <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+            <partial name="_SecurityFields" model="(Model.Input.Question, nameof(Model.Input))" />
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+        </form>
+    </div>
+</div>

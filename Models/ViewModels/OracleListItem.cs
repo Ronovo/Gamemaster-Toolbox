@@ -6,10 +6,12 @@ namespace GM_Toolbox.Models.ViewModels
     /// <summary>
     /// One row of the oracle list.
     /// </summary>
-    public class OracleListItem
+    public class OracleListItem : IOwned
     {
         public int ID { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string? OwnerId { get; set; }
+        public Visibility Visibility { get; set; }
 
         [Display(Name = "Oracle Type")]
         public OracleSubtype OracleSubtype { get; set; }

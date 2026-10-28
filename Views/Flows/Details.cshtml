@@ -156,8 +156,11 @@ else
 }
 
 <div>
-    <a asp-action="Steps" asp-route-id="@flow.ID">Steps</a> |
-    <a asp-action="Edit" asp-route-id="@flow.ID">Edit</a> |
-    <a asp-action="Delete" asp-route-id="@flow.ID">Delete</a> |
+    @if (User.CanEdit(flow))
+    {
+        <a asp-action="Steps" asp-route-id="@flow.ID">Steps</a><text> | </text>
+        <a asp-action="Edit" asp-route-id="@flow.ID">Edit</a><text> | </text>
+        <a asp-action="Delete" asp-route-id="@flow.ID">Delete</a><text> | </text>
+    }
     <a asp-action="Index">Back to List</a>
 </div>

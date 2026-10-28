@@ -26,8 +26,11 @@ else
                     <td>@item.Name</td>
                     <td>@item.Genre</td>
                     <td>
-                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
-                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        @if (User.CanEdit(item))
+                        {
+                            <a asp-action="Edit" asp-route-id="@item.ID">Edit</a><text> | </text>
+                            <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        }
                     </td>
                 </tr>
             }

@@ -1,12 +1,16 @@
+using GM_Toolbox.Models.Enums;
+
 namespace GM_Toolbox.Models.ViewModels
 {
     /// <summary>
     /// One row of the flow list. 
     /// </summary>
-    public class FlowListItem
+    public class FlowListItem : IOwned
     {
         public int ID { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string? OwnerId { get; set; }
+        public Visibility Visibility { get; set; }
         public string? Description { get; set; }
 
         public string GameSystemName { get; set; } = string.Empty;

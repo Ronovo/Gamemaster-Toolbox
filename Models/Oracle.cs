@@ -6,7 +6,7 @@ namespace GM_Toolbox.Models
     /// <summary>
     /// The Core Oracle Object
     /// </summary>
-    public class Oracle : IValidatableObject
+    public class Oracle : IValidatableObject, IOwned
     {
         public int ID { get; set; }
 
@@ -30,6 +30,11 @@ namespace GM_Toolbox.Models
         public int? DiceFaces { get; set; }
 
         public ICollection<OracleEntry> OracleEntries { get; set; } = new List<OracleEntry>();
+
+        public string? OwnerId { get; set; }
+
+        [Display(Name = "Who can see this")]
+        public Visibility Visibility { get; set; }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {

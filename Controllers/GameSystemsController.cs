@@ -1,9 +1,12 @@
 ﻿using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+// The list is open to everyone; anything that changes data needs an account.
+[Authorize]
 public class GameSystemsController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -13,6 +16,7 @@ public class GameSystemsController : Controller
         _context = context;
     }
 
+    [AllowAnonymous]
     public async Task<IActionResult> Index(string? name, string? genre, int page = 1)
     {
         var nameTerm = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
@@ -69,7 +73,7 @@ public class GameSystemsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,Genre")] GameSystem gameSystem)
+    public async Task<IActionResult> Create([Bind("Name,Genre,Visibility")] GameSystem gameSystem)
     {
         if (await _context.GameSystems.AnyAsync(g => g.Name == gameSystem.Name))
         {
@@ -97,7 +101,7 @@ public class GameSystemsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Genre")] GameSystem gameSystem)
+    public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Genre,Visibility")] GameSystem gameSystem)
     {
         if (id != gameSystem.ID) return NotFound();
 
@@ -119,6 +123,7 @@ public class GameSystemsController : Controller
 
         existing.Name = gameSystem.Name;
         existing.Genre = gameSystem.Genre;
+        existing.Visibility = gameSystem.Visibility;
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -131,8 +136,8 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FirstOrDefaultAsync(g => g.ID == id);
         if (gameSystem == null) return NotFound();
 
-        ViewData["OracleCount"] = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
-        ViewData["FlowCount"] = await _context.Flows.CountAsync(f => f.GameSystemID == id);
+        ViewData["OracleCount"] = await _context.Oracles.IgnoreQueryFilters().CountAsync(o => o.GameSystemID == id);
+        ViewData["FlowCount"] = await _context.Flows.IgnoreQueryFilters().CountAsync(f => f.GameSystemID == id);
         return View(gameSystem);
     }
 
@@ -145,8 +150,9 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FindAsync(id);
         if (gameSystem == null) return RedirectToAction(nameof(Index));
 
-        var oracleCount = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
-        var flowCount = await _context.Flows.CountAsync(f => f.GameSystemID == id);
+        // Counted across every account: someone else's private oracle still holds on to it.
+        var oracleCount = await _context.Oracles.IgnoreQueryFilters().CountAsync(o => o.GameSystemID == id);
+        var flowCount = await _context.Flows.IgnoreQueryFilters().CountAsync(f => f.GameSystemID == id);
 
         if (oracleCount > 0 || flowCount > 0)
         {

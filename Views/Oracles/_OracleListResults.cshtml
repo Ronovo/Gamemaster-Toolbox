@@ -42,10 +42,16 @@ else
                         {
                             <a asp-action="Roll" asp-route-id="@item.ID"><strong>Roll</strong></a><text> | </text>
                         }
-                        <a asp-action="Configure" asp-route-id="@item.ID" asp-route-returnTo="Index">Configure</a> |
-                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
-                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
-                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        @if (User.CanEdit(item))
+                        {
+                            <a asp-action="Configure" asp-route-id="@item.ID" asp-route-returnTo="Index">Configure</a><text> | </text>
+                            <a asp-action="Edit" asp-route-id="@item.ID">Edit</a><text> | </text>
+                        }
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a>
+                        @if (User.CanEdit(item))
+                        {
+                            <text> | </text><a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        }
                     </td>
                 </tr>
             }

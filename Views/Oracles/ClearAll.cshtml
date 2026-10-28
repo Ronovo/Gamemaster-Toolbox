@@ -4,11 +4,11 @@
     ViewData["Title"] = "Clear All";
 }
 
-<h1>Clear All Oracles and Flows</h1>
+<h1>Clear All Your Oracles and Flows</h1>
 
 <div class="alert alert-danger">
     <p>
-        This permanently deletes <strong>@Model.OracleCount</strong> oracle(s)
+        This permanently deletes your <strong>@Model.OracleCount</strong> oracle(s)
         and <strong>@Model.EntryCount</strong> entries. It cannot be undone.
     </p>
     @if (Model.FlowCount > 0)
@@ -25,7 +25,7 @@
 <a asp-action="Export" class="btn btn-secondary">Export All First</a>
 
 <form asp-action="ClearAll" method="post" class="d-inline">
-    <button type="submit" class="btn btn-danger">Delete Everything</button>
+    <button type="submit" class="btn btn-danger">Delete All of Mine</button>
 </form>
 
 <a asp-action="Index" class="btn btn-link">Cancel</a>

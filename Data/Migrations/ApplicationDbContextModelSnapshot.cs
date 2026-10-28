@@ -35,6 +35,13 @@ namespace GM_Toolbox.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
                     b.HasIndex("GameSystemID");
@@ -172,9 +179,16 @@ namespace GM_Toolbox.Data.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("OwnerId", "Name")
                         .IsUnique();
 
                     b.ToTable("GameSystems");
@@ -201,6 +215,13 @@ namespace GM_Toolbox.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OracleSubtype")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Visibility")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

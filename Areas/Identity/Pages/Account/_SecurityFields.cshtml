@@ -1,0 +1,16 @@
+@model (string? Question, string Prefix)
+<div class="form-floating mb-3">
+    <select class="form-select" id="@(Model.Prefix)Question" name="@(Model.Prefix).Question" required>
+        <option value="">Pick a question</option>
+        @foreach (var q in GM_Toolbox.Services.SecurityQuestions.All)
+        {
+            <option selected="@(q == Model.Question)">@q</option>
+        }
+    </select>
+    <label for="@(Model.Prefix)Question">Security question</label>
+</div>
+<div class="form-floating mb-3">
+    <input class="form-control" id="@(Model.Prefix)Answer" name="@(Model.Prefix).Answer" maxlength="100" autocomplete="off" placeholder="Answer" required />
+    <label for="@(Model.Prefix)Answer">Answer</label>
+</div>
+<p class="text-muted small">You need this answer to reset your password.</p>

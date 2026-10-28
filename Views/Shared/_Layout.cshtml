@@ -62,6 +62,10 @@
     </header>
     <div class="container">
         <main role="main" class="pb-3">
+            @if (TempData["OwnershipError"] is string ownershipError)
+            {
+                <div class="alert alert-danger" role="alert">@ownershipError</div>
+            }
             @RenderBody()
         </main>
     </div>

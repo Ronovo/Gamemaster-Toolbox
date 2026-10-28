@@ -68,6 +68,8 @@ namespace GM_Toolbox.Services
             {
                 ID = f.ID,
                 Name = f.Name,
+                OwnerId = f.OwnerId,
+                Visibility = f.Visibility,
                 Description = f.Description,
                 GameSystemName = f.GameSystem!.Name,
                 StepCount = f.Steps.Count,
@@ -93,6 +95,8 @@ namespace GM_Toolbox.Services
             {
                 ID = f.ID,
                 Name = f.Name,
+                OwnerId = f.OwnerId,
+                Visibility = f.Visibility,
                 Description = f.Description,
                 GameSystemName = f.GameSystemName,
                 StepCount = f.StepCount,
@@ -114,6 +118,8 @@ namespace GM_Toolbox.Services
         {
             public int ID { get; set; }
             public string Name { get; set; } = string.Empty;
+            public string? OwnerId { get; set; }
+            public Visibility Visibility { get; set; }
             public string? Description { get; set; }
             public string GameSystemName { get; set; } = string.Empty;
             public int StepCount { get; set; }

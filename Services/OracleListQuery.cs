@@ -106,6 +106,8 @@ namespace GM_Toolbox.Services
             {
                 ID = o.ID,
                 Name = o.Name,
+                OwnerId = o.OwnerId,
+                Visibility = o.Visibility,
                 OracleSubtype = o.OracleSubtype,
                 DiceCount = o.DiceCount,
                 DiceFaces = o.DiceFaces,

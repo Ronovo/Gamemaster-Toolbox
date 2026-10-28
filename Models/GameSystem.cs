@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using GM_Toolbox.Models.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models
 {
-    public class GameSystem
+    public class GameSystem : IOwned
     {
         public int ID { get; set; }
 
@@ -11,5 +12,10 @@ namespace GM_Toolbox.Models
 
         [Required, MaxLength(100)]
         public string Genre { get; set; } = string.Empty;
+
+        public string? OwnerId { get; set; }
+
+        [Display(Name = "Who can see this")]
+        public Visibility Visibility { get; set; }
     }
 }

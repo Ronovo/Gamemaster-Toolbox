@@ -1,14 +1,39 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using GM_Toolbox.Models;
+using GM_Toolbox.Models.Enums;
 
 namespace GM_Toolbox.Data
 {
-    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext(options)
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options,
+        IHttpContextAccessor? httpContextAccessor = null) : IdentityDbContext(options)
     {
+        // The signed-in account, or null for a visitor and for work outside a request, like startup.
+        public string? CurrentUserId => httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            await new OwnershipRules(this).CheckAsync(cancellationToken);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // Every query sees only what everyone can see plus the signed-in account's own items.
+            // IgnoreQueryFilters() is for checks that must count everything, like "is this still in use".
+            builder.Entity<Oracle>()
+                .HasQueryFilter(o => o.Visibility == Visibility.Everyone || (CurrentUserId != null && o.OwnerId == CurrentUserId));
+            builder.Entity<Flow>()
+                .HasQueryFilter(f => f.Visibility == Visibility.Everyone || (CurrentUserId != null && f.OwnerId == CurrentUserId));
+            builder.Entity<GameSystem>()
+                .HasQueryFilter(g => g.Visibility == Visibility.Everyone || (CurrentUserId != null && g.OwnerId == CurrentUserId));
+
+            builder.Entity<Oracle>().Property(o => o.Visibility).HasConversion<string>();
+            builder.Entity<Flow>().Property(f => f.Visibility).HasConversion<string>();
+            builder.Entity<GameSystem>().Property(g => g.Visibility).HasConversion<string>();
 
             builder.Entity<Oracle>()
                 .Property(o => o.OracleSubtype)
@@ -24,8 +49,9 @@ namespace GM_Toolbox.Data
                 .Property(g => g.Name)
                 .UseCollation("NOCASE");
 
+            // Unique per owner, so a private game system never blocks someone else's name.
             builder.Entity<GameSystem>()
-                .HasIndex(g => g.Name)
+                .HasIndex(g => new { g.OwnerId, g.Name })
                 .IsUnique();
 
             builder.Entity<Flow>()

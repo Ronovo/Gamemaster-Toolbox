@@ -20,10 +20,19 @@ decide which table the *next* step rolls on.
 read one back in. The format carries no database IDs, so a file exported from one instance
 imports cleanly into another. Every export is also saved under `App_Data/Exports/`, and the
 Import page imports from that folder.
-- **Accounts** — ASP.NET Core Identity is wired up for register and login. Nothing is
-restricted to a signed-in user yet: oracles are global and an account is currently just a
-name, so this is groundwork for per-owner oracles rather than a working permission system.
-Email confirmation is off, because there is no mail sender configured to confirm with.
+- **Accounts** — a username and password, plus a security question picked when registering.
+"Forgot your password?" resets it with the answer; five wrong answers lock resets for 15
+minutes. Anyone can browse, roll and run what everyone can see; making or changing anything
+needs an account.
+- **Who can see it** — every oracle, flow and game system is either "Only me" or "Everyone".
+Only the account that made one can change it, and items from before accounts are open to
+any signed-in account. Something everyone can see can only use things everyone can see: its
+game system, and for a flow every oracle it rolls or picks. To share a private item with one
+person, export it and send them the file.
+- **Log in with Ronovo** — with `RONOVO_SSO_URL` (the portfolio's address) and
+`RONOVO_SSO_PUBLIC_KEY` (from the portfolio's `python sso.py`) set, the login page offers a
+Ronovo login. The first one creates an account named after the Ronovo username. Without them
+the app runs on its own accounts.
 
 
 

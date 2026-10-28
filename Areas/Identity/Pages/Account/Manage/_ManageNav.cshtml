@@ -1,0 +1,11 @@
+@{
+    var active = ViewData["ActivePage"] as string;
+    string Active(string page) => string.Equals(active, page, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<ul class="nav nav-pills flex-column">
+    <li class="nav-item"><a class="nav-link @Active("Index")" id="profile" asp-page="./Index">Profile</a></li>
+    <li class="nav-item"><a class="nav-link @Active("ChangePassword")" id="change-password" asp-page="./ChangePassword">Password</a></li>
+    <li class="nav-item"><a class="nav-link" asp-page="/Account/SecurityQuestion" asp-area="Identity">Security question</a></li>
+    <li class="nav-item"><a class="nav-link @Active("TwoFactorAuthentication")" id="two-factor" asp-page="./TwoFactorAuthentication">Two-factor authentication</a></li>
+    <li class="nav-item"><a class="nav-link @Active("PersonalData")" id="personal-data" asp-page="./PersonalData">Personal data</a></li>
+</ul>

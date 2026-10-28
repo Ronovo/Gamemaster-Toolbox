@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using GM_Toolbox.Filters;
 using GM_Toolbox.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,17 +14,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Account confirmation is off because there is nothing to confirm with: no IEmailSender is
-// registered, so a required confirmation would strand every new account on a "check your email"
-// page for mail that is never sent. Nothing is gated on being signed in yet either -- no
-// [Authorize], no owner column on any oracle -- so an account is currently just a name. Turn
-// this back on at the same time as wiring up a real mail sender, not before.
+// Accounts are a username and password with no email, so there is nothing to confirm. A
+// forgotten password is reset with the account's security question (SecurityQuestions).
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>();
-builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddControllersWithViews(options => options.Filters.Add<OwnershipExceptionFilter>());
+builder.Services.AddScoped<SecurityQuestions>();
 builder.Services.AddScoped<OracleConfigurator>();
 builder.Services.AddScoped<FlowConfigurator>();
 builder.Services.AddScoped<SheetStorageService>();
+builder.Services.AddSingleton<RonovoLogin>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

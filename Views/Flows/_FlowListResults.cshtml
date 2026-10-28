@@ -53,10 +53,16 @@ else
                         {
                             <a asp-action="Run" asp-route-id="@item.ID"><strong>Run</strong></a><text> | </text>
                         }
-                        <a asp-action="Steps" asp-route-id="@item.ID">Steps</a> |
-                        <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
-                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
-                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        @if (User.CanEdit(item))
+                        {
+                            <a asp-action="Steps" asp-route-id="@item.ID">Steps</a><text> | </text>
+                            <a asp-action="Edit" asp-route-id="@item.ID">Edit</a><text> | </text>
+                        }
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a>
+                        @if (User.CanEdit(item))
+                        {
+                            <text> | </text><a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        }
                     </td>
                 </tr>
             }
