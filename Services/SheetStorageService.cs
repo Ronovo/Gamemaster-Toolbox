@@ -32,7 +32,7 @@ namespace GM_Toolbox.Services
 
         private string SheetsRoot => Path.Combine(_env.ContentRootPath, "App_Data", "Sheets");
 
-        public async Task<(string? Error, SheetUploadResult? Result)> SaveUploadAsync(IFormFile? file, int? gameSystemId)
+        public async Task<(string? Error, SheetUploadResult? Result)> SaveUploadAsync(IFormFile? file, int? gameSystemId, string ownerId)
         {
             if (file == null || file.Length == 0)
             {
@@ -62,17 +62,18 @@ namespace GM_Toolbox.Services
             var fileName = file.FileName.Trim();
             var now = DateTime.UtcNow;
 
-            // Case-insensitive exact filename match, no other normalization -- keeps the
-            // versioning rule simple and predictable.
+            // Case-insensitive exact filename match among the uploader's own sheets, no other
+            // normalization -- keeps the versioning rule simple and predictable.
             var needle = fileName.ToLower();
             var existing = await _context.Sheets
                 .Include(s => s.Versions)
-                .FirstOrDefaultAsync(s => s.FileName.ToLower() == needle);
+                .FirstOrDefaultAsync(s => s.OwnerId == ownerId && s.FileName.ToLower() == needle);
 
             if (existing == null)
             {
                 var sheet = new Sheet
                 {
+                    OwnerId = ownerId,
                     FileName = fileName,
                     GameSystemID = gameSystemId,
                     DateUploaded = now,

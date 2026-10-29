@@ -86,8 +86,6 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        // ------------------------------------------------------------------ rolling
-
         private static string? TryRoll(Flow flow, FlowStep step, FlowRunState state,
             ISession session, out FlowRunStep? rolled)
         {
@@ -184,8 +182,6 @@ namespace GM_Toolbox.Services
                 : null;
         }
 
-        // ------------------------------------------------------------------ questions
-
         private static string? TryAnswer(Flow flow, FlowStep step, FlowRunState state, string? answer,
             out FlowRunStep? answered, out Jump jump)
         {
@@ -267,8 +263,6 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        // ------------------------------------------------------------------ where next
-
         /// <summary>One step's answer routing somewhere other than straight on.</summary>
         private readonly struct Jump
         {
@@ -316,8 +310,6 @@ namespace GM_Toolbox.Services
         {
             return flow.Steps.FirstOrDefault(s => s.ID == state.CurrentStepID);
         }
-
-        // ------------------------------------------------------------------ session
 
         /// <summary>
         /// The run held in this browser session, or a fresh one pointing at the first step.
@@ -375,8 +367,6 @@ namespace GM_Toolbox.Services
             };
         }
 
-        // "v3": the state shape changed with the move to a flat list, so any run held in an
-        // older shape is abandoned rather than half-read.
         private static string RunKey(int flowId) => $"flow-run-v3-{flowId}";
     }
 }

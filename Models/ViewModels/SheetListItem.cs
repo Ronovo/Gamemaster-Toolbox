@@ -8,6 +8,7 @@ namespace GM_Toolbox.Models.ViewModels
     public class SheetListItem
     {
         public int ID { get; set; }
+        public string OwnerId { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
 
         [Display(Name = "Game System")]

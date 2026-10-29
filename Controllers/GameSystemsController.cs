@@ -115,9 +115,8 @@ public class GameSystemsController : Controller
             return View(gameSystem);
         }
 
-        // Load-then-assign rather than _context.Update() on the bound object, for the same
-        // reason as OraclesController.Edit: Update() would write defaults over any property
-        // the [Bind] list above does not name.
+        // Load-then-assign rather than _context.Update() on the bound object: Update() would write
+        // defaults over any property the [Bind] list above does not name.
         var existing = await _context.GameSystems.FindAsync(id);
         if (existing == null) return NotFound();
 
@@ -141,8 +140,6 @@ public class GameSystemsController : Controller
         return View(gameSystem);
     }
 
-    // Renamed because the POST would otherwise share a signature with the GET;
-    // [ActionName] keeps the route as Delete.
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)

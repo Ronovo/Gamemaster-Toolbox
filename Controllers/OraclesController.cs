@@ -127,7 +127,6 @@ public class OraclesController : Controller
     {
         ViewData["GameSystemID"] = await GameSystemSelectList();
         ViewData["OracleSubtype"] = SubtypeSelectList();
-        // Start on a plain d6 so the die preset and its fields have something to show.
         return View(new Oracle { DiceCount = 1, DiceFaces = 6 });
     }
 
@@ -156,7 +155,6 @@ public class OraclesController : Controller
         return View(oracle);
     }
 
-    // Serves the form for editing an oracle's Name, GameSystem and OracleSubtype.
     public async Task<IActionResult> Edit(int? id)
     {
         if (id == null)
@@ -238,7 +236,6 @@ public class OraclesController : Controller
 		return RedirectToAction(nameof(Index));
     }
 
-    // Deleting an oracle takes its entries with it (cascade on the FK).
     public async Task<IActionResult> Delete(int? id)
     {
         if (id == null)
@@ -258,8 +255,6 @@ public class OraclesController : Controller
         return View(oracle);
     }
 
-    // Renamed because the POST would otherwise share a signature with the GET;
-    // [ActionName] keeps the route as Delete.
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int? id)
@@ -380,7 +375,6 @@ public class OraclesController : Controller
 
         if (!ModelState.IsValid)
         {
-            // Rebuild the fields the form didn't post back, then re-show
             vm.Name = oracle.Name;
             vm.IsDice = isDice;
             vm.OracleSubtype = oracle.OracleSubtype;
@@ -568,7 +562,6 @@ public class OraclesController : Controller
 
         var json = JsonSerializer.Serialize(file, OracleJson.Options);
         var bytes = Encoding.UTF8.GetBytes(json);
-        // fff = milliseconds, so two exports in the same second do not collide
         var filename = $"gm-toolbox-{DateTime.Now:yyyy-MM-dd-HHmmssfff}.json";
 
         await WriteExportArchive(bytes, filename, vm.Scope != ExportScope.Everything);
@@ -679,8 +672,6 @@ public class OraclesController : Controller
             return ImportFailed("The file contains no game systems, oracles or flows to add.", returnTo);
         }
 
-        // AddRange takes the whole graph — EF inserts each Oracle, reads back its
-        // generated ID, and fills in OracleID on its entries automatically. 
         foreach (var system in newSystems)
         {
             if (_context.Entry(system).State == EntityState.Detached)
@@ -756,7 +747,25 @@ public class OraclesController : Controller
         return null;
     }
 
-    private string ExportsRoot => Path.Combine(_env.ContentRootPath, "App_Data", "Exports");
+    // Each account's own export folder. The first time it is made it gets a copy of every file in
+    // ExportTemplate, so there is always something to import.
+    private string UserExportsRoot()
+    {
+        var root = Path.Combine(_env.ContentRootPath, "App_Data", "Exports", _context.CurrentUserId!);
+        if (!Directory.Exists(root))
+        {
+            Directory.CreateDirectory(root);
+            var template = Path.Combine(_env.ContentRootPath, "ExportTemplate");
+            if (Directory.Exists(template))
+            {
+                foreach (var file in Directory.EnumerateFiles(template))
+                {
+                    System.IO.File.Copy(file, Path.Combine(root, Path.GetFileName(file)));
+                }
+            }
+        }
+        return root;
+    }
 
     private IActionResult ImportFailed(string error, string? returnTo)
     {
@@ -767,12 +776,12 @@ public class OraclesController : Controller
     private ImportViewModel BuildImportViewModel(string? returnTo)
     {
         var vm = new ImportViewModel { ReturnTo = returnTo };
-        if (!Directory.Exists(ExportsRoot)) return vm;
+        var root = UserExportsRoot();
 
-        vm.Files = Directory.EnumerateFiles(ExportsRoot, "*.json", SearchOption.AllDirectories)
+        vm.Files = Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
             .Select(full =>
             {
-                var relative = Path.GetRelativePath(ExportsRoot, full).Replace('\\', '/');
+                var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
                 var slash = relative.LastIndexOf('/');
                 return new ImportFileItem
                 {
@@ -788,13 +797,13 @@ public class OraclesController : Controller
         return vm;
     }
 
-    // Only a .json file inside App_Data/Exports is accepted, so a posted path cannot reach
-    // anywhere else on disk.
+    // Only a .json file inside the account's own export folder is accepted, so a posted path cannot
+    // reach another account's exports or anywhere else on disk.
     private string? ResolveImportFile(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
 
-        var root = Path.GetFullPath(ExportsRoot) + Path.DirectorySeparatorChar;
+        var root = Path.GetFullPath(UserExportsRoot()) + Path.DirectorySeparatorChar;
         var full = Path.GetFullPath(Path.Combine(root, path));
 
         if (!full.StartsWith(root, StringComparison.Ordinal)) return null;
@@ -868,14 +877,16 @@ public class OraclesController : Controller
         return string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase);
     }
 
-    // Keeps a server-side copy alongside the download. Full and partial exports go to
-    // separate folders so a subset is never mistaken for a backup of everything.
+    // Keeps a copy in the account's export folder alongside the download; an export made while
+    // logged out is only downloaded. Full and partial exports go to separate folders so a subset
+    // is never mistaken for a backup of everything.
     private async Task WriteExportArchive(byte[] bytes, string filename, bool isPartial)
     {
-        var folder = Path.Combine(ExportsRoot, isPartial ? "Partial" : "Full");
+        if (_context.CurrentUserId == null) return;
+
+        var folder = Path.Combine(UserExportsRoot(), isPartial ? "Partial" : "Full");
 
         Directory.CreateDirectory(folder);
-        // Explicitly reference System.IO.File to avoid ambiguity with the File() method of ControllerBase
         await System.IO.File.WriteAllBytesAsync(Path.Combine(folder, filename), bytes);
     }
 

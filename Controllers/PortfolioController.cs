@@ -18,15 +18,12 @@ public class PortfolioController : Controller
     private readonly PortfolioLogin _portfolio;
     private readonly UserManager<IdentityUser> _users;
     private readonly SignInManager<IdentityUser> _signIn;
-    private readonly SecurityQuestions _questions;
 
-    public PortfolioController(PortfolioLogin portfolio, UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn,
-        SecurityQuestions questions)
+    public PortfolioController(PortfolioLogin portfolio, UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn)
     {
         _portfolio = portfolio;
         _users = users;
         _signIn = signIn;
-        _questions = questions;
     }
 
     [HttpGet("login")]
@@ -138,11 +135,6 @@ public class PortfolioController : Controller
 
         ClearPending();
         await _signIn.SignInAsync(user!, isPersistent: true);
-        // Accounts made before security questions set one straight after logging in.
-        if (!await _questions.HasAsync(user!))
-        {
-            return Redirect("/Identity/Account/SecurityQuestion");
-        }
         return Redirect("/");
     }
 

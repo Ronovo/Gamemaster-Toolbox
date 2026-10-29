@@ -1,13 +1,6 @@
-// Shared roller front end, used by Oracles/Roll and Flows/Run.
-//
-// This was inline in Roll.cshtml until Flows needed the same three things: post a form as JSON
-// with a plain-submit fallback, render an outcome into a panel, and keep a paged table of the
-// outcomes so far.
-//
-// Deliberately plain: no framework, no innerHTML, everything built with createElement and
-// textContent, matching the rest of wwwroot/js. The element hooks are data-roll-* attributes
-// looked up inside a root element rather than global ids, so a page can hold more than one
-// panel or log. Views/Shared/_RollPanel.cshtml renders the markup these names expect.
+// Shared roller front end, used by Oracles/Roll and Flows/Run. Its elements are found by data-roll-*
+// attributes inside a root element, so a page can hold more than one panel or log;
+// Views/Shared/_RollPanel.cshtml renders the markup these names expect.
 
 window.GmRoll = (function () {
     "use strict";

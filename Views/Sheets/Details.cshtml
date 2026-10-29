@@ -1,8 +1,10 @@
+@using System.Security.Claims
 @model GM_Toolbox.Models.Sheet
 
 @{
     ViewData["Title"] = "Sheet Details";
     var versions = Model.Versions.OrderByDescending(v => v.Version).ToList();
+    var mine = Model.OwnerId == User.FindFirstValue(ClaimTypes.NameIdentifier);
 }
 
 <h1>@Model.FileName</h1>
@@ -49,10 +51,13 @@
                 <td>@((version.FileSizeBytes / 1024.0).ToString("N0")) KB</td>
                 <td><code>@version.Checksum</code></td>
                 <td>
-                    <a asp-action="Download" asp-route-id="@Model.ID" asp-route-version="@version.Version">Download</a>
-                    @if (!isCurrent)
+                    @if (mine)
                     {
-                        <text> | <a asp-action="DeleteVersion" asp-route-id="@Model.ID" asp-route-version="@version.Version">Delete</a></text>
+                        <a asp-action="Download" asp-route-id="@Model.ID" asp-route-version="@version.Version">Download</a>
+                        @if (!isCurrent)
+                        {
+                            <text> | <a asp-action="DeleteVersion" asp-route-id="@Model.ID" asp-route-version="@version.Version">Delete</a></text>
+                        }
                     }
                 </td>
             </tr>
@@ -61,6 +66,9 @@
 </table>
 
 <div>
-    <a asp-action="Delete" asp-route-id="@Model.ID">Delete Sheet</a> |
+    @if (mine)
+    {
+        <a asp-action="Delete" asp-route-id="@Model.ID">Delete Sheet</a> <text>|</text>
+    }
     <a asp-action="Index">Back to List</a>
 </div>

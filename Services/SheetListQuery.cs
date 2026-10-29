@@ -55,6 +55,7 @@ namespace GM_Toolbox.Services
             return sheets.Select(s => new SheetListItem
             {
                 ID = s.ID,
+                OwnerId = s.OwnerId,
                 FileName = s.FileName,
                 GameSystemName = s.GameSystem!.Name,
                 DateUploaded = s.DateUploaded,

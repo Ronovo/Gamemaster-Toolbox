@@ -213,7 +213,6 @@ else
                 try {
                     JSON.parse(seedEl.textContent).forEach(log.add);
                 } catch (e) {
-                    // A malformed seed is not worth losing the page over.
                 }
             }
 

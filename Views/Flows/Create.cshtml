@@ -3,10 +3,7 @@
 @{
     ViewData["Title"] = "Create Flow";
 
-    // A flow is nothing but oracles in an order, so both of these have to exist before the
-    // form is worth showing. Without the checks the picker on the next page would be empty
-    // and the [Range] on GameSystemID would make this form unsubmittable, with nothing on
-    // screen saying why.
+    // Without a game system and an oracle the form can't be submitted, so say so instead.
     var gameSystems = ViewBag.GameSystemID as SelectList;
     var hasGameSystems = gameSystems is not null && gameSystems.Any();
     var oracleCount = ViewData["OracleCount"] as int? ?? 0;

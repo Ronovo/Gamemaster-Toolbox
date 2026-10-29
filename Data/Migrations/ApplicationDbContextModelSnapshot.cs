@@ -291,11 +291,15 @@ namespace GM_Toolbox.Data.Migrations
                     b.Property<int?>("GameSystemID")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
-                    b.HasIndex("FileName");
-
                     b.HasIndex("GameSystemID");
+
+                    b.HasIndex("OwnerId", "FileName");
 
                     b.ToTable("Sheets");
                 });

@@ -138,7 +138,7 @@ namespace GM_Toolbox.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Sheet>()
-                .HasIndex(s => s.FileName);
+                .HasIndex(s => new { s.OwnerId, s.FileName });
 
             builder.Entity<SheetVersion>()
                 .HasOne(v => v.Sheet)
@@ -149,10 +149,6 @@ namespace GM_Toolbox.Data
             builder.Entity<SheetVersion>()
                 .HasIndex(v => new { v.SheetID, v.Version })
                 .IsUnique();
-
-            // No HasData seed. A fresh database starts with no game systems: this is a
-            // distributed tool, and one instance's idea of which systems matter is not
-            // another's. Create your own, or import a file that names them.
         }
 
         public DbSet<Oracle> Oracles { get; set; }

@@ -1,6 +1,4 @@
-# See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-# This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:de0ee358cdd672f7017a003bed21e9ac9ed48a27c922a59b18175b6e82fa7fee AS base
 USER $APP_UID
 WORKDIR /app
@@ -8,7 +6,6 @@ EXPOSE 8080
 EXPOSE 8081
 
 
-# This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
@@ -18,13 +15,11 @@ COPY . .
 WORKDIR "/src/."
 RUN dotnet build "./GM Toolbox.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./GM Toolbox.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
-# It keeps the SDK and the source in /src so git-sync can pull and republish into /app on every start.
+# Keeps the SDK and the source in /src so git-sync can pull and republish into /app on every start.
 FROM build AS final
 ENV REPO_URL=https://github.com/Ronovo/Gamemaster-Toolbox.git \
     SYNC_DIR=/src \
@@ -49,6 +44,5 @@ USER $APP_UID
 VOLUME ["/app/App_Data"]
 EXPOSE 8080
 
-# GM_Toolbox.dll, not "GM Toolbox.dll": the project sets <AssemblyName>GM_Toolbox</AssemblyName>
-# because the folder name has a space in it and that broke the EF tooling.
+# The project sets <AssemblyName>GM_Toolbox</AssemblyName>, so the dll has no space in its name.
 ENTRYPOINT ["git-sync", "dotnet", "GM_Toolbox.dll"]

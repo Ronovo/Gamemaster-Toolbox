@@ -14,15 +14,15 @@
 </p>
 
 <p class="text-muted">
-    These are the export files in <code>App_Data/Exports</code>. To import another file, copy
-    it into that folder first.
+    These are your own saved exports, plus an example to try. Only you can see them. To import
+    another file, copy it into your folder under <code>App_Data/Exports</code> first.
 </p>
 
 <div asp-validation-summary="All" class="text-danger"></div>
 
 @if (Model.Files.Count == 0)
 {
-    <p>No export files found in <code>App_Data/Exports</code>.</p>
+    <p>No export files found in your folder under <code>App_Data/Exports</code>.</p>
 }
 else
 {

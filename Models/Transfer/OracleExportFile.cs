@@ -6,7 +6,7 @@ namespace GM_Toolbox.Models.Transfer
     /// The whole export file — one of these is what gets serialised to the .json
     /// the user downloads, and what an uploaded .json is read back into.
     ///
-    /// Deliberately carries no database IDs and no owner. See OracleDto.
+    /// Deliberately carries no database IDs and no owner, so it imports into any toolbox.
     /// </summary>
     public class OracleExportFile
     {

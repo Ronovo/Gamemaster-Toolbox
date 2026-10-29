@@ -4,9 +4,8 @@ using GM_Toolbox.Models.Enums;
 namespace GM_Toolbox.Models
 {
     /// <summary>
-    /// TA derived Dice Spec class from the Oracle DiceFaces and NumberOfDice. 
-    /// Provides functions like Min And Max, and allowing 
-    /// for range spans (i.e. 2d6 = 2-12, 11 Outcomes)
+    /// The dice an oracle rolls, from its DiceCount and DiceFaces: the lowest and highest totals
+    /// and how many outcomes fit (2d6 rolls 2-12, 11 outcomes).
     /// </summary>
     public class DiceSpec
     {

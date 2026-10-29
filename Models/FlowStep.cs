@@ -5,7 +5,8 @@ namespace GM_Toolbox.Models
 {
     /// <summary>
     /// One link in a flow. What it does when the run reaches it is decided by Kind: it rolls an
-    /// oracle, asks a question, or rolls whichever oracle an earlier step picked.
+    /// oracle, asks a question, rolls whichever oracle an earlier step picked, or asks how many
+    /// times to roll the next step.
     /// </summary>
     public class FlowStep : IValidatableObject
     {

@@ -5,12 +5,6 @@ using System.Text.Json;
 
 namespace GM_Toolbox.Services
 {
-    /// <summary>
-    /// Methods to work with the Oracle Roller, such as
-    /// - Deck Maintenance 
-    /// - Rolling Dice
-    /// - Pulling cards from a deck
-    /// </summary>
     public static class OracleRoller
     {
         public static string? TryRoll(Oracle oracle, ISession session, out RollOutcome? outcome)
@@ -35,9 +29,6 @@ namespace GM_Toolbox.Services
 
         /// <summary>
         /// Rolls a bare spec and returns the total, with the individual dice in `rolled`.
-        ///
-        /// Split out of TryRollDice so anything needing a number rather than an oracle
-        /// outcome -- a loop asking how many times to run -- goes through the same RNG.
         /// </summary>
         public static int RollDice(DiceSpec spec, out int[] rolled)
         {

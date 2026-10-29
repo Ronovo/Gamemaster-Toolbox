@@ -129,8 +129,6 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // ------------------------------------------------------------------ steps
-
     public async Task<IActionResult> Steps(int? id)
     {
         if (id == null) return NotFound();
@@ -208,8 +206,6 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Steps), new { id });
     }
 
-    // ------------------------------------------------------------------ edit step
-
     public async Task<IActionResult> EditStep(int? id)
     {
         if (id == null) return NotFound();
@@ -250,8 +246,6 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Steps), new { id = flow.ID });
     }
 
-    // ------------------------------------------------------------------ branches
-
     public async Task<IActionResult> Branches(int? id)
     {
         if (id == null) return NotFound();
@@ -288,8 +282,6 @@ public class FlowsController : Controller
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Steps), new { id = flow.ID });
     }
-
-    // ------------------------------------------------------------------ options
 
     public async Task<IActionResult> Options(int? id)
     {
@@ -399,8 +391,6 @@ public class FlowsController : Controller
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Options), new { id });
     }
-
-    // ------------------------------------------------------------------ running
 
     [AllowAnonymous]
     public async Task<IActionResult> Run(int? id)
@@ -527,8 +517,6 @@ public class FlowsController : Controller
         };
     }
 
-    // ------------------------------------------------------------------ error re-render
-
     private async Task<IActionResult> StepsWithError(Flow flow, string error, FlowStepsViewModel? posted)
     {
         ModelState.AddModelError("", error);
@@ -565,8 +553,6 @@ public class FlowsController : Controller
         }
         return View(nameof(Options), vm);
     }
-
-    // ------------------------------------------------------------------ view models
 
     private FlowStepsViewModel BuildStepsViewModel(Flow flow)
     {
@@ -650,7 +636,6 @@ public class FlowsController : Controller
         return null;
     }
 
-    /// <summary>Whether <paramref name="a"/> is reached before <paramref name="b"/> in run order.</summary>
     private static bool StepRunsBefore(Flow flow, FlowStep a, FlowStep b)
     {
         foreach (var step in flow.InRunOrder())

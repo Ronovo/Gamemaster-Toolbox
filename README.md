@@ -16,10 +16,14 @@ once; any outcome can carry a *branch* that sends the run to another step or sto
 so a flow can fork, skip ahead, loop back, or end. A step can also **ask you something**
 rather than roll — a dropdown you author, or a line of text — and a dropdown answer can
 decide which table the *next* step rolls on.
-- **Export / Import** — download every oracle and flow as a single versioned JSON file, and
-read one back in. The format carries no database IDs, so a file exported from one instance
-imports cleanly into another. Every export is also saved under `App_Data/Exports/`, and the
-Import page imports from that folder.
+- **Sheets** — upload character sheet PDFs, with a version history when you upload a new copy
+under the same file name. Everyone signed in can see the list; only the account that uploaded a
+sheet can download it, add versions or delete it, and **Export All** zips your own sheets.
+- **Export / Import** — download every oracle and flow you can see as a single versioned JSON
+file, and read one back in. Who can see an item isn't in the file, so imported items start as
+"Only me". The format carries no database IDs, so a file exported from one instance
+imports cleanly into another. Every export you make while logged in is also saved in
+your own folder under `App_Data/Exports/`, and the Import page imports from that folder.
 - **Accounts** — a username and password, plus a security question picked when registering.
 "Forgot your password?" resets it with the answer; five wrong answers lock resets for 15
 minutes. Anyone can browse, roll and run what everyone can see; making or changing anything
@@ -63,7 +67,22 @@ dotnet run
 
 Open **[http://localhost:9000](http://localhost:9000)**.
 
-To stop it: `dotnet run`
+To stop it: press Ctrl+C.
+
+### Updates in Docker
+
+On every start the container runs `docker/git-sync.sh` before the app. It fetches the latest
+commit on GitHub `main` into `/src`, so a pushed commit goes live on the next restart without
+rebuilding the image. When that commit hasn't been built yet it republishes the app first, and a
+failed build is tried again on the next start. If GitHub can't be reached the app starts on the
+code it already has.
+
+| Variable      | What it does                                                         | Default in the image                        |
+| ------------- | -------------------------------------------------------------------- | ------------------------------------------- |
+| `REPO_URL`    | The repo to pull. Set it empty to run exactly what is in the image.   | This repo on GitHub                          |
+| `REPO_BRANCH` | Branch to pull                                                       | `main`                                       |
+| `SYNC_DIR`    | Folder the code is pulled into                                       | `/src`                                       |
+| `BUILD_CMD`   | Runs after pulling a commit that hasn't been built yet               | `dotnet publish` into `/app`                 |
 
 ### Letting other people in
 
@@ -76,9 +95,9 @@ fails for everyone else.
 `dotnet run` deliberately binds to `localhost` only, so nobody else can reach it no matter
 which port they try.
 
-That is as far as it is meant to go. There are no permissions yet — everyone who can reach it
-can edit everything — so this is built for a machine on **your network**, shared with people
-who are **in the room** with you. 
+That is as far as it is meant to go. Accounts decide who can change what (see **Who can see
+it** above), but this is still built for a machine on **your network**, shared with people who
+are **in the room** with you.
 
 Exposing it to the open internet is not something it is set up
 for, and you would be on your own doing it.
@@ -91,16 +110,20 @@ Currently Supported Import/Export Systems:
 - Oracles
 - Flows
 
-Imports and exports share one folder, `App_Data/Exports/`:
+Each account has its own export folder, `App_Data/Exports/<account id>/`, and nobody else can
+see or import its files. The folder is made the first time it is needed, with a copy of every
+file in `ExportTemplate/` (an example to try), and then holds:
 
 | Folder      | What is in it                                                         |
 | ----------- | --------------------------------------------------------------------- |
 | `Full/`     | A copy of every "Everything" export, saved when you export             |
 | `Partial/`  | A copy of every partial export (selected oracles or flows)             |
 
-The Import page lists every `.json` file in that folder, newest first, each with its own
+Exporting without logging in only downloads the file; nothing is saved on the server.
+
+The Import page lists every `.json` file in your folder, newest first, each with its own
 Import button. Nothing is imported until you click one. To import a file from somewhere else,
-copy it into `App_Data/Exports/` first. In Docker that folder is inside the `/app/App_Data`
+copy it into your folder first. In Docker that folder is inside the `/app/App_Data`
 volume; on a server with a bind mount, copy it into the mounted folder's `Exports/`.
 
 
@@ -141,7 +164,7 @@ does and therefore which of its other fields apply:
 | `Choice`     | Asks a question and offers a dropdown of options you author. An option can name an oracle. |
 | `Text`       | Asks a question and takes a typed answer (including a number). |
 | `RollChosen` | Rolls whichever oracle an earlier step picked — a `Choice` option or a `Roll` outcome. |
-| `Loop`       | Asks how many times (1–50) to roll the next step, which must be a `Roll` or `RollChosen`. The last roll decides branches and picked tables. |
+| `Loop`       | Asks how many times (1-50) to roll the next step, which must be a `Roll` or `RollChosen`. The last roll decides branches and picked tables. |
 
 
 A flow is a **flat list**. Running it works through one step at a time, in order; when a step
@@ -236,11 +259,13 @@ file (flat `steps`, `blockEnd` spans, `goToStep` by position) imports the same w
 }
 ```
 
+Every oracle a flow names must be in the same file or already in your toolbox; the two
+`Hustle` oracles above stand for ones you already have.
+
 Version 10 makes a flow a flat list: `steps` no longer nest, every step has a per-file `id`
 (its position) that `pickedAtStep` and `goToStep` point at, and the nested `Loop` / `Fields`
-kinds and `times` / `countMode` / `countDice` fields are gone. Older files still import — a nested
-`Loop` is unwrapped, a `Fields` step becomes a `Text` question, and version 6/7 `blockEnd` spans are
-discarded.
+kinds and `times` / `countMode` / `countDice` fields are gone. How older files import is
+covered under **How a flow is put together**.
 
 
 
@@ -253,6 +278,8 @@ things around.
 | Setting                               | Default                             | What it does                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ConnectionStrings:DefaultConnection` | `Data Source=App_Data/gmtoolbox.db` | Where the database file lives. A relative path is resolved against the app's content root, so it lands in `App_Data/` no matter which folder you launched from. An absolute path is respected as-is.                                                                                                                            |
+| `PORTFOLIO_SSO_URL`                   | unset                               | The portfolio's address. With `PORTFOLIO_SSO_PUBLIC_KEY`, turns on logging in with a portfolio account. |
+| `PORTFOLIO_SSO_PUBLIC_KEY`            | unset                               | Checks the portfolio's login tokens. The portfolio's `python sso.py` prints it. |
 | `ForceHttps`                          | `false`                             | Off, because the default setup has no certificate to redirect to — the container serves plain HTTP, and bouncing to a port nothing is listening on would just break it. Turn it on only where the app itself holds a certificate. Leave it off behind a reverse proxy that terminates TLS, which has already done the redirect. |
 
 
@@ -265,17 +292,25 @@ when running with the SDK, not in the container.
 
 ```
 Controllers/     HomeController, OraclesController (all oracle CRUD, export, import),
-                 FlowsController (flow CRUD, the step builder, branches, running a flow)
+                 FlowsController (flow CRUD, the step builder, branches, running a flow),
+                 GameSystemsController, SheetsController, PortfolioController (portfolio login)
 Models/          Oracle, OracleEntry, Flow, FlowStep, FlowBranch, FlowChoiceOption,
                  enums, view models, JSON transfer DTOs
 Services/        OracleConfigurator (entry reconciliation), DeckFactory (deck generation),
                  OracleExporter / OracleImporter / FlowExporter / FlowImporter / OracleJson
                  (file round-trip), OracleRoller and FlowRunner (rolling, answering, the walk),
-                 FlowConfigurator (the step list: order, options, branches)
-Data/            ApplicationDbContext and EF Core migrations
-Views/           Razor views for Home, Oracles and Flows, plus the shared _RollPanel partial
+                 FlowConfigurator (the step list: order, options, branches),
+                 OracleListQuery / FlowListQuery / SheetListQuery / FilterSelectLists (list pages),
+                 SheetStorageService / SheetFileValidator (sheet PDFs), SecurityQuestions,
+                 PortfolioLogin
+Data/            ApplicationDbContext, OwnershipRules and EF Core migrations
+Filters/         OwnershipExceptionFilter
+Views/           Razor views for Home, Oracles, Flows, GameSystems, Sheets and Portfolio, plus the
+                 shared _RollPanel partial
 Areas/Identity/  Scaffolded ASP.NET Core Identity UI
-App_Data/        gmtoolbox.db (the database) and Exports/ (saved exports, import source)
+App_Data/        gmtoolbox.db (the database), Exports/ (each account's saved exports) and Sheets/
+ExportTemplate/  The example every new export folder starts with
+docker/          git-sync.sh, which updates the container from GitHub on start
 wwwroot/        Static assets (Bootstrap, jQuery, site CSS/JS, roll-panel.js)
 ```
 

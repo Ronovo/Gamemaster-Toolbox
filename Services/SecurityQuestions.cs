@@ -4,9 +4,8 @@ using Microsoft.AspNetCore.Identity;
 
 namespace GM_Toolbox.Services;
 
-// Security questions for password resets. The same 30 questions are in every portfolio app.
-// They are kept as Identity user tokens rather than claims, because claims are copied into the
-// login cookie and the answer hash has no business there.
+// Security questions for password resets. They are kept as Identity user tokens rather than claims,
+// because claims are copied into the login cookie and the answer hash has no business there.
 public class SecurityQuestions(UserManager<IdentityUser> users, IPasswordHasher<IdentityUser> hasher)
 {
     public static readonly IReadOnlyList<string> All =
@@ -83,8 +82,9 @@ public class SecurityQuestions(UserManager<IdentityUser> users, IPasswordHasher<
     }
 
     /// <summary>
-    /// Sets a new password when the security answer is right, which also logs the account out
-    /// everywhere. Too many wrong answers lock resets for a while. Returns what went wrong, or null.
+    /// Sets a new password when the security answer is right; other sessions end at their next
+    /// security stamp check. Too many wrong answers lock resets for a while. Returns what went wrong,
+    /// or null.
     /// </summary>
     public async Task<string?> ResetAsync(string userName, string? answer, string newPassword)
     {

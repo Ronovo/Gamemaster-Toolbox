@@ -2,9 +2,8 @@ namespace GM_Toolbox.Services
 {
     public static class SheetFileValidator
     {
-        // Comfortably under ASP.NET Core's ~30MB default multipart body limit, so an
-        // oversized upload gets this friendly message instead of an unhandled
-        // BadHttpRequestException from Kestrel.
+        // Under Kestrel's ~28.6MB default request body limit, so an oversized upload gets this
+        // message instead of an unhandled BadHttpRequestException.
         public const long MaxFileSizeBytes = 25 * 1024 * 1024;
 
         private static readonly byte[] PdfMagicBytes = "%PDF-"u8.ToArray();

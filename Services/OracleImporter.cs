@@ -10,15 +10,14 @@ namespace GM_Toolbox.Services
     /// Pure — no DbContext. Returns an error message or null, the same contract
     /// OracleConfigurator.Reconcile uses, so the controller owns ModelState.
     ///
-    /// All-or-nothing: any validation failure returns an error and leaves oracles empty.
-    /// One bad oracle means nothing is imported, which is what lets Clear All be a safe
-    /// step — export, clear, re-import either restores everything or changes nothing.
+    /// All-or-nothing: any validation failure returns an error and leaves oracles empty, so one
+    /// bad oracle means nothing is imported. Who can see each item isn't in the file, so imports
+    /// come back as "Only me".
     /// </summary>
     public static class OracleImporter
     {
         public const int SupportedFormatVersion = 10;
 
-        /// </summary>
         public static Dictionary<string, GameSystem> BuildSystemLookup(IEnumerable<GameSystem> existingSystems)
         {
             return existingSystems.ToDictionary(g => g.Name, g => g, StringComparer.OrdinalIgnoreCase);
@@ -56,8 +55,7 @@ namespace GM_Toolbox.Services
             if (systemsError != null)
                 return systemsError;
 
-            // An empty oracles array is not an error here any more. Whether the file is worth
-            // importing depends on its flows too, and only the controller sees both.
+            // An empty oracles array is fine: the file may hold only flows, which the controller checks.
             if (file.Oracles == null)
                 return null;
 

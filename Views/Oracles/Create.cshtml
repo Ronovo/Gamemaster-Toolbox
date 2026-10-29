@@ -5,9 +5,7 @@
 @{
     ViewData["Title"] = "Create";
 
-    // A new database starts with no game systems. Without this, Create shows an empty
-    // dropdown and the [Range(1, int.MaxValue)] on GameSystemID means the form can never
-    // be submitted — a dead end with nothing on screen explaining why.
+    // Without a game system the form can't be submitted, so say so instead.
     var gameSystems = ViewBag.GameSystemID as SelectList;
     var hasGameSystems = gameSystems is not null && gameSystems.Any();
 }

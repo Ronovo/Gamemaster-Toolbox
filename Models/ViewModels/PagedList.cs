@@ -1,8 +1,7 @@
 namespace GM_Toolbox.Models.ViewModels
 {
     /// <summary>
-    /// One page of a filtered list. Page size is fixed at 10 everywhere that lists
-    /// oracles, flows, or game systems.
+    /// One page of a filtered list. Page size is fixed at 10 everywhere.
     /// </summary>
     public class PagedList<T>
     {

@@ -1,12 +1,11 @@
 using System.ComponentModel.DataAnnotations;
-using GM_Toolbox.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GM_Toolbox.Areas.Identity.Pages.Account;
 
-public class LoginModel(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, SecurityQuestions questions) : PageModel
+public class LoginModel(SignInManager<IdentityUser> signIn) : PageModel
 {
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -15,7 +14,6 @@ public class LoginModel(UserManager<IdentityUser> users, SignInManager<IdentityU
 
     public bool WasReset { get; set; }
 
-    // Accounts made before usernames log in with the email address they registered with.
     public class InputModel
     {
         [Required, Display(Name = "Username")]
@@ -43,10 +41,6 @@ public class LoginModel(UserManager<IdentityUser> users, SignInManager<IdentityU
         }
 
         var result = await signIn.PasswordSignInAsync(Input.UserName, Input.Password, Input.RememberMe, lockoutOnFailure: true);
-        if (result.RequiresTwoFactor)
-        {
-            return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, Input.RememberMe });
-        }
         if (result.IsLockedOut)
         {
             ModelState.AddModelError(string.Empty, "Too many wrong passwords. Try again later.");
@@ -58,12 +52,6 @@ public class LoginModel(UserManager<IdentityUser> users, SignInManager<IdentityU
             return Page();
         }
 
-        // Accounts made before security questions set one straight after logging in.
-        var user = await users.FindByNameAsync(Input.UserName);
-        if (user != null && !await questions.HasAsync(user))
-        {
-            return RedirectToPage("./SecurityQuestion", new { returnUrl });
-        }
         return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
     }
 }

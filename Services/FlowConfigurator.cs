@@ -431,8 +431,6 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        // ------------------------------------------------------------------ helpers
-
         private static void Renumber(Flow flow)
         {
             var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();

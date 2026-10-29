@@ -7,11 +7,10 @@ namespace GM_Toolbox.Services
     /// <summary>
     /// Validates the flows in a parsed export file and turns them into Flow entities ready to add.
     ///
-    /// Pure -- no DbContext, like OracleImporter, and all-or-nothing for the same reason: one
-    /// bad flow means nothing at all is imported, which is what keeps export, Clear All,
-    /// re-import a safe round trip.
+    /// Pure -- no DbContext, like OracleImporter, and all-or-nothing: one bad flow means nothing
+    /// at all is imported.
     ///
-    /// A flow is now a flat list of steps. Older files still import:
+    /// A flow is a flat list of steps. Older files still import:
     /// - a <c>Loop</c> step is dropped and its body steps kept in place;
     /// - a <c>Fields</c> step becomes a <c>Text</c> question whose text is its labels;
     /// - <c>Number</c> is <c>Text</c>; <c>times</c> / <c>countMode</c> / <c>countDice</c> are ignored;
@@ -78,7 +77,7 @@ namespace GM_Toolbox.Services
 
         /// <summary>
         /// Turns one flow's step DTOs into a flat, wired-up list of FlowStep entities. Nested
-        /// <c>Steps</c> (v8+) and flat <c>blockEnd</c> spans (v6/7) both funnel through here;
+        /// <c>Steps</c> (v8-9) and flat <c>blockEnd</c> spans (v6/7) both funnel through here;
         /// either way, loops disappear and their bodies stay.
         /// </summary>
         private sealed class FlowBuilder
@@ -87,7 +86,7 @@ namespace GM_Toolbox.Services
             private readonly OracleResolver _lookup;
             private readonly Flow _flow;
 
-            // file key (Id in v8, SortOrder in v6/7) -> the step it maps to, or null when the
+            // file key (Id from v8 on, SortOrder in v6/7) -> the step it maps to, or null when the
             // step it named was dropped (an empty loop) so a reference to it just carries on
             private readonly Dictionary<int, FlowStep?> _byKey = new();
 
@@ -177,7 +176,6 @@ namespace GM_Toolbox.Services
                         return $"{_where}: a \"roll on another oracle\" step takes its oracle from a step that is neither a dropdown question nor a roll.";
                 }
 
-                // SortOrder was assigned in emission order; make sure it is a clean 1..N.
                 var ordered = _flow.Steps.OrderBy(s => s.SortOrder).ToList();
                 for (int i = 0; i < ordered.Count; i++)
                     ordered[i].SortOrder = i + 1;
@@ -307,7 +305,7 @@ namespace GM_Toolbox.Services
 
                 var name = string.IsNullOrWhiteSpace(kindName) ? nameof(FlowStepKind.Roll) : kindName;
 
-                // Retired kinds fold into Text: "Number" always did, "Fields" now does too.
+                // Retired kinds "Number" and "Fields" fold into Text.
                 if (string.Equals(name, "Number", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(name, "Fields", StringComparison.OrdinalIgnoreCase))
                     name = nameof(FlowStepKind.Text);

@@ -1,10 +1,13 @@
 using System.IO.Compression;
 using GM_Toolbox.Data;
+using GM_Toolbox.Models;
 using GM_Toolbox.Models.ViewModels;
 using GM_Toolbox.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+[Authorize]
 public class SheetsController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -50,7 +53,7 @@ public class SheetsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(IFormFile? file, int? gameSystemId)
     {
-        var (error, result) = await _storage.SaveUploadAsync(file, gameSystemId);
+        var (error, result) = await _storage.SaveUploadAsync(file, gameSystemId, _context.CurrentUserId!);
 
         if (error != null)
         {
@@ -74,6 +77,7 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return NotFound();
+        if (!IsMine(sheet)) return Forbid();
 
         var targetVersion = version ?? sheet.CurrentVersion;
         var versionRow = sheet.Versions.FirstOrDefault(v => v.Version == targetVersion);
@@ -89,7 +93,7 @@ public class SheetsController : Controller
 
     public async Task<IActionResult> ExportAll()
     {
-        var sheets = await _context.Sheets.ToListAsync();
+        var sheets = await _context.Sheets.Where(s => s.OwnerId == _context.CurrentUserId).ToListAsync();
 
         using var memory = new MemoryStream();
         using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
@@ -115,18 +119,18 @@ public class SheetsController : Controller
 
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return NotFound();
+        if (!IsMine(sheet)) return Forbid();
 
         return View(sheet);
     }
 
-    // Renamed because the POST would otherwise share a signature with the GET;
-    // [ActionName] keeps the route as Delete.
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var sheet = await _context.Sheets.FindAsync(id);
         if (sheet == null) return RedirectToAction(nameof(Index));
+        if (!IsMine(sheet)) return Forbid();
 
         _context.Sheets.Remove(sheet);
         await _context.SaveChangesAsync();
@@ -139,6 +143,7 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return NotFound();
+        if (!IsMine(sheet)) return Forbid();
 
         var versionRow = sheet.Versions.FirstOrDefault(v => v.Version == version);
         if (versionRow == null) return NotFound();
@@ -153,6 +158,7 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return RedirectToAction(nameof(Index));
+        if (!IsMine(sheet)) return Forbid();
 
         // A sheet must always have a current version -- deleting it should go through
         // "Delete" for the whole sheet instead.
@@ -171,6 +177,8 @@ public class SheetsController : Controller
 
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    private bool IsMine(Sheet sheet) => sheet.OwnerId == _context.CurrentUserId;
 
     private bool WantsPartial()
     {

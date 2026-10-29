@@ -86,12 +86,9 @@ secrets.json
 *.db-shm
 *.db-wal
 
-# Server-side export archive (runtime data, not source), except the one tracked example file.
-App_Data/Exports/*
-!App_Data/Exports/Full/
-App_Data/Exports/Full/*
+# Server-side export archive (runtime data, not source).
+App_Data/Exports/
 App_Data/**/*.json
-!App_Data/Exports/Full/CPR - Hustles and Night Markets.json
 
 # Uploaded character sheet PDFs (runtime data, not source)
 App_Data/Sheets/

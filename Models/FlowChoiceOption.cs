@@ -23,8 +23,8 @@ namespace GM_Toolbox.Models
         public Oracle? Oracle { get; set; }
 
         /// <summary>
-        /// "Picking this option sends the run to this step" (by ID). Null keeps the old
-        /// behaviour, where an option only names an oracle and the run carries on.
+        /// "Picking this option sends the run to this step" (by ID). Null means the run carries on
+        /// to the next step.
         /// </summary>
         [Display(Name = "Goes to step")]
         public int? TargetStepID { get; set; }

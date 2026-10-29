@@ -19,8 +19,8 @@ namespace GM_Toolbox.Models.ViewModels
         public int BranchCount { get; set; }
 
         /// <summary>
-        /// True when a step points at an oracle that has no outcomes, or a dice oracle whose
-        /// bands were never set. Either way the flow would stall partway through a run.
+        /// True when a step points at an oracle with no outcomes or unset dice bands, a question
+        /// has no text, or a "roll the picked oracle" step has no source. The flow would stall.
         /// </summary>
         public bool HasUnfinishedOracle { get; set; }
 

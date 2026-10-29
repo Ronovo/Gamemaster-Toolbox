@@ -6,11 +6,7 @@ namespace GM_Toolbox.Services
     public static class OracleJson
     {
         /// <summary>
-        /// One set of JSON settings shared by export and import.
-        ///
-        /// Both directions MUST use this same instance. If export writes camelCase and
-        /// import expects PascalCase, every round trip silently produces empty objects
-        /// instead of an error.
+        /// The JSON settings export and import share, so both use the same property casing.
         /// </summary>
         public static readonly JsonSerializerOptions Options = new JsonSerializerOptions
         {

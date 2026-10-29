@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <Content Remove="App_Data/**" />
-    <Content Include="App_Data/Exports/Full/CPR - Hustles and Night Markets.json" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="ExportTemplate/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

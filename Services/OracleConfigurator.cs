@@ -100,12 +100,11 @@ namespace GM_Toolbox.Services
                 .Where(e => e.CardCode != null)
                 .ToDictionary(e => e.CardCode!);
 
-            // Drop entries whose card is no longer in the deck.
             foreach (var entry in existing)
                 if (entry.CardCode == null || !deckCodes.Contains(entry.CardCode))
                     _context.OracleEntries.Remove(entry);
 
-            // Add the net entries to the deck
+            // Add the deck's cards that have no entry yet
             for (int n = 0; n < deck.Count; n++)
             {
                 if (existingByCode.TryGetValue(deck[n].CardCode, out var entry))

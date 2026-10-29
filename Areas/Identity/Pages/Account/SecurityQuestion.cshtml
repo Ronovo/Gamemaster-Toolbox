@@ -10,6 +10,13 @@
         <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
             <partial name="_SecurityFields" model="(Model.Input.Question, nameof(Model.Input))" />
+            @if (Model.HasQuestion)
+            {
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.CurrentPassword" type="password" class="form-control" autocomplete="current-password" placeholder="Current password" />
+                    <label asp-for="Input.CurrentPassword">Current password</label>
+                </div>
+            }
             <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
         </form>
     </div>

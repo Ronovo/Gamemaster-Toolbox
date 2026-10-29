@@ -1,5 +1,3 @@
-// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
 
 // Theme picker: the head script already stamped data-gm-theme so the first paint is right.
 // This keeps the select, navbar light/dark classes, and localStorage in step after that.

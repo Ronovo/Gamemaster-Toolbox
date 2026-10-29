@@ -1,5 +1,9 @@
+@using System.Security.Claims
 @using GM_Toolbox.Models.ViewModels
 @model SheetIndexViewModel
+@{
+    var me = User.FindFirstValue(ClaimTypes.NameIdentifier);
+}
 
 @if (Model.CatalogEmpty)
 {
@@ -34,9 +38,12 @@ else
                     <td>@item.DateUpdated.ToLocalTime().ToString("g")</td>
                     <td><code title="@item.CurrentChecksum">@item.CurrentChecksum[..8]</code></td>
                     <td>
-                        <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
-                        <a asp-action="Download" asp-route-id="@item.ID">Download</a> |
-                        <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+                        <a asp-action="Details" asp-route-id="@item.ID">Details</a>
+                        @if (item.OwnerId == me)
+                        {
+                            <text> | <a asp-action="Download" asp-route-id="@item.ID">Download</a> |
+                            <a asp-action="Delete" asp-route-id="@item.ID">Delete</a></text>
+                        }
                     </td>
                 </tr>
             }
