@@ -103,11 +103,8 @@
 }
 
 <div>
-    @if (Model != null && User.CanEdit(Model))
-    {
-        <a asp-action="Configure" asp-route-id="@Model.ID">Configure</a><text> | </text>
-        <a asp-action="Edit" asp-route-id="@Model.ID">Edit</a><text> | </text>
-        <a asp-action="Delete" asp-route-id="@Model.ID">Delete</a><text> | </text>
-    }
+    <a asp-action="Configure" asp-route-id="@Model.ID">Configure</a><text> | </text>
+    <a asp-action="Edit" asp-route-id="@Model.ID">Edit</a><text> | </text>
+    <a asp-action="Delete" asp-route-id="@Model.ID">Delete</a><text> | </text>
     <a asp-action="Index">Back to List</a>
 </div>

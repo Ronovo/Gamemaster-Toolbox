@@ -2,12 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models
 {
-    public class Sheet
+    public class Sheet : IOwned
     {
         public int ID { get; set; }
 
-        [Required]
-        public string OwnerId { get; set; } = string.Empty;
+        public string? OwnerId { get; set; }
 
         [Required, MaxLength(255)]
         public string FileName { get; set; } = string.Empty;

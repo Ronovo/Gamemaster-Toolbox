@@ -1,0 +1,31 @@
+@page
+@model GM_Toolbox.Areas.Identity.Pages.Account.Manage.DeletePersonalDataModel
+@{
+    Layout = "/Areas/Identity/Pages/Account/Manage/_Layout.cshtml";
+    ViewData["Title"] = "Delete account";
+    ViewData["ActivePage"] = "PersonalData";
+}
+
+<h3>@ViewData["Title"]</h3>
+
+<div class="alert alert-warning" role="alert">
+    <p>
+        <strong>This deletes your account and everything in it: your game systems, oracles, flows and sheets.
+        It can't be undone.</strong> Export anything you want to keep first.
+    </p>
+</div>
+
+<div>
+    <form method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        @if (Model.RequirePassword)
+        {
+            <div class="form-floating mb-3">
+                <input asp-for="Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Password" />
+                <label asp-for="Password" class="form-label"></label>
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+        }
+        <button class="w-100 btn btn-lg btn-danger" type="submit">Delete my account</button>
+    </form>
+</div>

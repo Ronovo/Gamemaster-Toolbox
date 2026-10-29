@@ -8,7 +8,7 @@ namespace GM_Toolbox.Models
     /// oracle, asks a question, rolls whichever oracle an earlier step picked, or asks how many
     /// times to roll the next step.
     /// </summary>
-    public class FlowStep : IValidatableObject
+    public class FlowStep : ISortable
     {
         public int ID { get; set; }
 
@@ -42,37 +42,5 @@ namespace GM_Toolbox.Models
         public ICollection<FlowBranch> Branches { get; set; } = new List<FlowBranch>();
 
         public ICollection<FlowChoiceOption> Options { get; set; } = new List<FlowChoiceOption>();
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            switch (Kind)
-            {
-                case FlowStepKind.Roll:
-                    if (OracleID == null || OracleID <= 0)
-                    {
-                        yield return new ValidationResult(
-                            "Pick an oracle for this step to roll.", new[] { nameof(OracleID) });
-                    }
-                    break;
-
-                case FlowStepKind.Choice:
-                case FlowStepKind.Text:
-                    if (string.IsNullOrWhiteSpace(Question))
-                    {
-                        yield return new ValidationResult(
-                            "Type the question this step asks.", new[] { nameof(Question) });
-                    }
-                    break;
-
-                case FlowStepKind.RollChosen:
-                    if (SourceStepID == null)
-                    {
-                        yield return new ValidationResult(
-                            "Say which step this one takes its oracle from.",
-                            new[] { nameof(SourceStepID) });
-                    }
-                    break;
-            }
-        }
     }
 }

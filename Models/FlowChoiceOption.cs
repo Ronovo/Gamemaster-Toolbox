@@ -5,7 +5,7 @@ namespace GM_Toolbox.Models
     /// <summary>
     /// One entry in a Choice step's dropdown.
     /// </summary>
-    public class FlowChoiceOption
+    public class FlowChoiceOption : ISortable
     {
         public int ID { get; set; }
 

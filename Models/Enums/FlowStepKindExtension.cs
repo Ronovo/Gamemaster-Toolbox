@@ -1,6 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using System.Reflection;
-
 namespace GM_Toolbox.Models.Enums
 {
     public static class FlowStepKindExtension
@@ -22,15 +19,6 @@ namespace GM_Toolbox.Models.Enums
         public static bool CanBranch(this FlowStepKind kind)
         {
             return kind == FlowStepKind.Roll;
-        }
-
-        public static string DisplayName(this FlowStepKind kind)
-        {
-            var display = typeof(FlowStepKind)
-                .GetField(kind.ToString())
-                ?.GetCustomAttribute<DisplayAttribute>();
-
-            return display?.Name ?? kind.ToString();
         }
     }
 }

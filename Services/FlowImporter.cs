@@ -20,7 +20,6 @@ namespace GM_Toolbox.Services
     {
         public static string? TryBuild(
             List<FlowDto>? dtos,
-            int formatVersion,
             Dictionary<string, GameSystem> systemsByName,
             List<Oracle> importedOracles,
             IEnumerable<Oracle> existingOracles,
@@ -41,6 +40,8 @@ namespace GM_Toolbox.Services
                 var dto = dtos[i];
                 var label = $"Flow {i + 1}";
 
+                if (dto == null)
+                    return $"{label}: is empty.";
                 if (string.IsNullOrWhiteSpace(dto.Name))
                     return $"{label}: name is missing.";
                 if (dto.Name.Length > 100)
@@ -112,6 +113,8 @@ namespace GM_Toolbox.Services
                 for (int i = 0; i < siblings.Count; i++)
                 {
                     var dto = siblings[i];
+                    if (dto == null)
+                        return $"{_where}: step #{i + 1} is empty.";
                     var where = $"{_where}: step {(dto.Id?.ToString() ?? "#" + (i + 1))}";
                     var key = dto.Id ?? dto.SortOrder;
                     if (key <= 0) key = _byKey.Count + 1;
@@ -176,9 +179,7 @@ namespace GM_Toolbox.Services
                         return $"{_where}: a \"roll on another oracle\" step takes its oracle from a step that is neither a dropdown question nor a roll.";
                 }
 
-                var ordered = _flow.Steps.OrderBy(s => s.SortOrder).ToList();
-                for (int i = 0; i < ordered.Count; i++)
-                    ordered[i].SortOrder = i + 1;
+                _flow.Steps.OrderBy(s => s.SortOrder).ToList().Renumber();
 
                 return null;
             }
@@ -229,6 +230,8 @@ namespace GM_Toolbox.Services
                 {
                     var option = options[i];
 
+                    if (option == null)
+                        return $"{where} has an empty option.";
                     if (string.IsNullOrWhiteSpace(option.Label))
                         return $"{where} has an option with no label.";
                     if (option.Label.Length > 100)
@@ -267,6 +270,8 @@ namespace GM_Toolbox.Services
 
                 foreach (var branchDto in branches)
                 {
+                    if (branchDto == null)
+                        return $"{where} has an empty branch.";
                     if (!entriesBySortOrder.TryGetValue(branchDto.WhenOutcome, out var entry))
                         return $"{where} branches on outcome {branchDto.WhenOutcome}, which \"{oracle.Name}\" does not have.";
                     if (!seen.Add(branchDto.WhenOutcome))

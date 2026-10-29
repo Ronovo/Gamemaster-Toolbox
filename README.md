@@ -17,22 +17,16 @@ so a flow can fork, skip ahead, loop back, or end. A step can also **ask you som
 rather than roll — a dropdown you author, or a line of text — and a dropdown answer can
 decide which table the *next* step rolls on.
 - **Sheets** — upload character sheet PDFs, with a version history when you upload a new copy
-under the same file name. Everyone signed in can see the list; only the account that uploaded a
-sheet can download it, add versions or delete it, and **Export All** zips your own sheets.
-- **Export / Import** — download every oracle and flow you can see as a single versioned JSON
-file, and read one back in. Who can see an item isn't in the file, so imported items start as
-"Only me". The format carries no database IDs, so a file exported from one instance
-imports cleanly into another. Every export you make while logged in is also saved in
-your own folder under `App_Data/Exports/`, and the Import page imports from that folder.
+under the same file name. **Export All** zips your sheets.
+- **Export / Import** — download your oracles and flows as a single versioned JSON file to your
+computer, and upload one back in. The format carries no database IDs, so a file exported from one
+account or instance imports cleanly into another. Nothing is kept on the server: the file is yours.
 - **Accounts** — a username and password, plus a security question picked when registering.
 "Forgot your password?" resets it with the answer; five wrong answers lock resets for 15
-minutes. Anyone can browse, roll and run what everyone can see; making or changing anything
-needs an account.
-- **Who can see it** — every oracle, flow and game system is either "Only me" or "Everyone".
-Only the account that made one can change it, and items from before accounts are open to
-any signed-in account. Something everyone can see can only use things everyone can see: its
-game system, and for a flow every oracle it rolls or picks. To share a private item with one
-person, export it and send them the file.
+minutes. Logged out, only the About and login pages open; everything else needs an account.
+- **Private by design** — every game system, oracle, flow and sheet belongs to the account that
+made it, and nobody else can see or use it. To share, export the file and send it. Deleting your
+account (under your account's **Personal data**) deletes everything in it, sheet files included.
 - **Log in with a portfolio account** — with `PORTFOLIO_SSO_URL` (the portfolio's address) and
 `PORTFOLIO_SSO_PUBLIC_KEY` (from the portfolio's `python sso.py`) set, the login page offers to log in
 with a portfolio account. It reads **Log in as** and the portfolio username when this browser is logged in
@@ -69,6 +63,8 @@ Open **[http://localhost:9000](http://localhost:9000)**.
 
 To stop it: press Ctrl+C.
 
+To run the tests: `dotnet test Tests/GM_Toolbox.Tests.csproj`.
+
 ### Updates in Docker
 
 On every start the container runs `docker/git-sync.sh` before the app. It fetches the latest
@@ -95,9 +91,8 @@ fails for everyone else.
 `dotnet run` deliberately binds to `localhost` only, so nobody else can reach it no matter
 which port they try.
 
-That is as far as it is meant to go. Accounts decide who can change what (see **Who can see
-it** above), but this is still built for a machine on **your network**, shared with people who
-are **in the room** with you.
+That is as far as it is meant to go. Every account's items are private to it, but this is still
+built for a machine on **your network**, shared with people who are **in the room** with you.
 
 Exposing it to the open internet is not something it is set up
 for, and you would be on your own doing it.
@@ -110,23 +105,11 @@ Currently Supported Import/Export Systems:
 - Oracles
 - Flows
 
-Each account has its own export folder, `App_Data/Exports/<account id>/`, and nobody else can
-see or import its files. The folder is made the first time it is needed, with a copy of every
-file in `ExportTemplate/` (an example to try), and then holds:
-
-| Folder      | What is in it                                                         |
-| ----------- | --------------------------------------------------------------------- |
-| `Full/`     | A copy of every "Everything" export, saved when you export             |
-| `Partial/`  | A copy of every partial export (selected oracles or flows)             |
-
-Exporting without logging in only downloads the file; nothing is saved on the server.
-
-The Import page lists every `.json` file in your folder, newest first, each with its own
-Import button. Nothing is imported until you click one. To import a file from somewhere else,
-copy it into your folder first. In Docker that folder is inside the `/app/App_Data`
-volume; on a server with a bind mount, copy it into the mounted folder's `Exports/`.
-
-
+**Export** downloads a JSON file to your computer: everything, all oracles, or the oracles or flows
+you pick. **Import** uploads one (up to 5 MB) and adds what is in it to your account. To share with
+another gamemaster, send them the file. The Import page also has a **Download an example file**
+link, which serves `ExportTemplate/CPR - Hustles and Night Markets.json`, so there is always
+something to try.
 
 ### How an oracle is put together
 
@@ -308,8 +291,9 @@ Filters/         OwnershipExceptionFilter
 Views/           Razor views for Home, Oracles, Flows, GameSystems, Sheets and Portfolio, plus the
                  shared _RollPanel partial
 Areas/Identity/  Scaffolded ASP.NET Core Identity UI
-App_Data/        gmtoolbox.db (the database), Exports/ (each account's saved exports) and Sheets/
-ExportTemplate/  The example every new export folder starts with
+App_Data/        gmtoolbox.db (the database) and Sheets/
+ExportTemplate/  The example file the Import page offers to download
+Tests/           xUnit tests: privacy rules, the importer, and the pages through a test server
 docker/          git-sync.sh, which updates the container from GitHub on start
 wwwroot/        Static assets (Bootstrap, jQuery, site CSS/JS, roll-panel.js)
 ```

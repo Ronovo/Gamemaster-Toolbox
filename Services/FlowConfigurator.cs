@@ -174,7 +174,7 @@ namespace GM_Toolbox.Services
                 }
             }
 
-            Renumber(flow);
+            flow.Steps.OrderBy(s => s.SortOrder).ToList().Renumber();
             return null;
         }
 
@@ -199,11 +199,7 @@ namespace GM_Toolbox.Services
             }
 
             (ordered[index], ordered[target]) = (ordered[target], ordered[index]);
-
-            for (int i = 0; i < ordered.Count; i++)
-            {
-                ordered[i].SortOrder = i + 1;
-            }
+            ordered.Renumber();
 
             return null;
         }
@@ -400,7 +396,7 @@ namespace GM_Toolbox.Services
             _context.FlowChoiceOptions.Remove(option);
             step.Options.Remove(option);
 
-            RenumberOptions(step.Options.OrderBy(o => o.SortOrder).ToList());
+            step.Options.OrderBy(o => o.SortOrder).ToList().Renumber();
             return null;
         }
 
@@ -426,18 +422,8 @@ namespace GM_Toolbox.Services
             }
 
             (ordered[index], ordered[target]) = (ordered[target], ordered[index]);
-
-            RenumberOptions(ordered);
+            ordered.Renumber();
             return null;
-        }
-
-        private static void Renumber(Flow flow)
-        {
-            var ordered = flow.Steps.OrderBy(s => s.SortOrder).ToList();
-            for (int i = 0; i < ordered.Count; i++)
-            {
-                ordered[i].SortOrder = i + 1;
-            }
         }
 
         private static void Append(FlowStep step, string label, int? oracleId)
@@ -451,14 +437,6 @@ namespace GM_Toolbox.Services
             };
 
             step.Options.Add(option);
-        }
-
-        private static void RenumberOptions(List<FlowChoiceOption> ordered)
-        {
-            for (int i = 0; i < ordered.Count; i++)
-            {
-                ordered[i].SortOrder = i + 1;
-            }
         }
 
         private string? ResolveOracle(int? oracleId, out int? resolved)

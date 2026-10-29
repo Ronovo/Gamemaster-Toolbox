@@ -1,6 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using System.Reflection;
-
 namespace GM_Toolbox.Models.Enums
 {
     public static class OracleSubtypeExtension
@@ -19,15 +16,6 @@ namespace GM_Toolbox.Models.Enums
                 default:
                     return OracleCategory.Dice;
             }
-        }
-
-        public static string DisplayName(this OracleSubtype s)
-        {
-            var display = typeof(OracleSubtype)
-                .GetField(s.ToString())
-                ?.GetCustomAttribute<DisplayAttribute>();
-
-            return display?.Name ?? s.ToString();
         }
     }
 }

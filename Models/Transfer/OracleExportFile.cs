@@ -10,7 +10,9 @@ namespace GM_Toolbox.Models.Transfer
     /// </summary>
     public class OracleExportFile
     {
-        public int FormatVersion { get; set; } = 10;
+        public const int CurrentFormatVersion = 10;
+
+        public int FormatVersion { get; set; } = CurrentFormatVersion;
         public DateTime ExportedUtc { get; set; }
 
         public List<GameSystemDto> GameSystems { get; set; } = new List<GameSystemDto>();

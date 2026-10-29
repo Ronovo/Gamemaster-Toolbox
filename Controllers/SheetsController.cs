@@ -3,11 +3,9 @@ using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.ViewModels;
 using GM_Toolbox.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-[Authorize]
 public class SheetsController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -22,7 +20,7 @@ public class SheetsController : Controller
     public async Task<IActionResult> Index(string? name, int? gameSystemId, int page = 1)
     {
         var vm = await BuildSheetIndex(name, gameSystemId, page);
-        if (WantsPartial())
+        if (Request.WantsPartial())
         {
             return PartialView("_SheetListResults", vm);
         }
@@ -77,7 +75,6 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return NotFound();
-        if (!IsMine(sheet)) return Forbid();
 
         var targetVersion = version ?? sheet.CurrentVersion;
         var versionRow = sheet.Versions.FirstOrDefault(v => v.Version == targetVersion);
@@ -93,7 +90,7 @@ public class SheetsController : Controller
 
     public async Task<IActionResult> ExportAll()
     {
-        var sheets = await _context.Sheets.Where(s => s.OwnerId == _context.CurrentUserId).ToListAsync();
+        var sheets = await _context.Sheets.ToListAsync();
 
         using var memory = new MemoryStream();
         using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
@@ -102,7 +99,7 @@ public class SheetsController : Controller
             foreach (var sheet in sheets)
             {
                 var bytes = await _storage.ReadVersionAsync(sheet.ID, sheet.CurrentVersion);
-                var entryName = UniqueEntryName(sheet.FileName, usedNames);
+                var entryName = UniqueEntryName(SheetStorageService.SafeFileName(sheet.FileName), usedNames);
                 var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
                 await using var entryStream = entry.Open();
                 await entryStream.WriteAsync(bytes);
@@ -119,7 +116,6 @@ public class SheetsController : Controller
 
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return NotFound();
-        if (!IsMine(sheet)) return Forbid();
 
         return View(sheet);
     }
@@ -130,7 +126,6 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.FindAsync(id);
         if (sheet == null) return RedirectToAction(nameof(Index));
-        if (!IsMine(sheet)) return Forbid();
 
         _context.Sheets.Remove(sheet);
         await _context.SaveChangesAsync();
@@ -143,7 +138,6 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return NotFound();
-        if (!IsMine(sheet)) return Forbid();
 
         var versionRow = sheet.Versions.FirstOrDefault(v => v.Version == version);
         if (versionRow == null) return NotFound();
@@ -158,7 +152,6 @@ public class SheetsController : Controller
     {
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return RedirectToAction(nameof(Index));
-        if (!IsMine(sheet)) return Forbid();
 
         // A sheet must always have a current version -- deleting it should go through
         // "Delete" for the whole sheet instead.
@@ -178,29 +171,12 @@ public class SheetsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    private bool IsMine(Sheet sheet) => sheet.OwnerId == _context.CurrentUserId;
-
-    private bool WantsPartial()
-    {
-        return string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase);
-    }
-
     private async Task<SheetIndexViewModel> BuildSheetIndex(string? name, int? gameSystemId, int page)
     {
-        if (gameSystemId is <= 0) gameSystemId = null;
-        var term = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
-
-        var systems = await _context.GameSystems.OrderBy(g => g.Name).ToListAsync();
-        var filtered = SheetListQuery.ApplyFilters(_context.Sheets, term, gameSystemId);
-
-        return new SheetIndexViewModel
-        {
-            Name = term,
-            GameSystemID = gameSystemId,
-            CatalogEmpty = !await _context.Sheets.AnyAsync(),
-            Results = await SheetListQuery.ToPagedListAsync(filtered, page),
-            GameSystems = FilterSelectLists.GameSystems(systems)
-        };
+        var vm = new SheetIndexViewModel();
+        await vm.FillAsync(name, gameSystemId, _context.GameSystems, _context.Sheets);
+        vm.Results = await SheetListQuery.ToPagedListAsync(SheetListQuery.ApplyFilters(_context.Sheets, vm.Name, vm.GameSystemID), page);
+        return vm;
     }
 
     private static string InsertVersionSuffix(string fileName, int version)

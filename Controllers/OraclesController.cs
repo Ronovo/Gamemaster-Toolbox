@@ -4,17 +4,17 @@ using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.Transfer;
 using GM_Toolbox.Models.ViewModels;
 using GM_Toolbox.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-// Reading and rolling are open to everyone; anything that changes data needs an account.
-[Authorize]
 public class OraclesController : Controller
 {
+    private const string ExampleFileName = "CPR - Hustles and Night Markets.json";
+    private const long MaxImportBytes = 5 * 1024 * 1024;
+
     private readonly ApplicationDbContext _context;
     private readonly OracleConfigurator _configurator;
     private readonly IWebHostEnvironment _env;
@@ -25,11 +25,10 @@ public class OraclesController : Controller
         _env = env;
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Index(string? name, int? gameSystemId, string? oracleType, int page = 1)
     {
         var vm = await BuildOracleIndex(name, gameSystemId, oracleType, page);
-        if (WantsPartial())
+        if (Request.WantsPartial())
         {
             return PartialView("_OracleListResults", vm);
         }
@@ -37,7 +36,6 @@ public class OraclesController : Controller
         return View(vm);
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null)
@@ -51,7 +49,6 @@ public class OraclesController : Controller
         return View(existing);
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Roll(int? id)
     {
         if (id == null) return NotFound();
@@ -79,7 +76,6 @@ public class OraclesController : Controller
 
     [HttpPost, ActionName("Roll")]
     [ValidateAntiForgeryToken]
-    [AllowAnonymous]
     public async Task<IActionResult> RollOnce(int id)
     {
         var oracle = await LoadOracleWithEntries(id);
@@ -102,7 +98,6 @@ public class OraclesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AllowAnonymous]
     public async Task<IActionResult> Reshuffle(int id)
     {
         var oracle = await LoadOracleWithEntries(id);
@@ -115,7 +110,7 @@ public class OraclesController : Controller
 
         OracleRoller.Reshuffle(oracle, HttpContext.Session);
 
-        if (IsAjaxRequest)
+        if (Request.IsAjax())
         {
             return Json(new { cardsRemaining = OracleRoller.CardsRemaining(oracle, HttpContext.Session) });
         }
@@ -125,14 +120,14 @@ public class OraclesController : Controller
 
     public async Task<IActionResult> Create()
     {
-        ViewData["GameSystemID"] = await GameSystemSelectList();
+        ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems);
         ViewData["OracleSubtype"] = SubtypeSelectList();
         return View(new Oracle { DiceCount = 1, DiceFaces = 6 });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces,Visibility")] Oracle oracle)
+    public async Task<IActionResult> Create([Bind("Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
     {
         ClearDiceForCards(oracle);
 
@@ -150,7 +145,7 @@ public class OraclesController : Controller
 
             return RedirectToAction(nameof(Configure), new { id = oracle.ID });
         }
-        ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
+        ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, oracle.GameSystemID);
         ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
         return View(oracle);
     }
@@ -169,7 +164,7 @@ public class OraclesController : Controller
             return NotFound();
         }
 
-        ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
+        ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, oracle.GameSystemID);
         ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
         return View(oracle);
     }
@@ -179,7 +174,7 @@ public class OraclesController : Controller
     // go to Configure so you can pick how many outcomes to generate.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces,Visibility")] Oracle oracle)
+    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,OracleSubtype,GameSystemID,DiceCount,DiceFaces")] Oracle oracle)
     {
         if (id != oracle.ID)
         {
@@ -190,7 +185,7 @@ public class OraclesController : Controller
 
 		if (!ModelState.IsValid)
 		{
-            ViewData["GameSystemID"] = await GameSystemSelectList(oracle.GameSystemID);
+            ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, oracle.GameSystemID);
             ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
             return View(oracle);
 		}
@@ -210,7 +205,6 @@ public class OraclesController : Controller
 		existing.OracleSubtype = oracle.OracleSubtype;
 		existing.DiceCount = oracle.DiceCount;
 		existing.DiceFaces = oracle.DiceFaces;
-		existing.Visibility = oracle.Visibility;
 
 		if (rollChanged)
 		{
@@ -413,7 +407,6 @@ public class OraclesController : Controller
 
     // Asks what to export before exporting it. The download itself is the POST below.
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> Export(ExportViewModel vm)
     {
         vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
@@ -434,7 +427,6 @@ public class OraclesController : Controller
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> ExportOracleIds(string? oracleName, int? oracleGameSystemId, string? oracleType)
     {
         var query = OracleListQuery.ApplyFilters(_context.Oracles, oracleName, oracleGameSystemId, oracleType);
@@ -442,7 +434,6 @@ public class OraclesController : Controller
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> ExportFlowIds(string? flowName, int? flowGameSystemId)
     {
         var query = FlowListQuery.ApplyFilters(_context.Flows, flowName, flowGameSystemId);
@@ -451,7 +442,6 @@ public class OraclesController : Controller
 
     [HttpPost, ActionName("Export")]
     [ValidateAntiForgeryToken]
-    [AllowAnonymous]
     public async Task<IActionResult> ExportConfirmed(ExportViewModel vm)
     {
         vm.ReturnTo = NormalizeReturnTo(vm.ReturnTo);
@@ -461,24 +451,7 @@ public class OraclesController : Controller
             .Include(o => o.GameSystem)
             .AsQueryable();
 
-        var flowQuery = _context.Flows
-            .Include(f => f.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle)
-                .ThenInclude(o => o!.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle)
-                .ThenInclude(o => o!.OracleEntries)
-            .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.OracleEntries)
-            // The options and their oracles too: a dropdown question is nothing without them,
-            // and FlowExporter bundles those oracles into the file.
-            .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle)
-                .ThenInclude(o => o!.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle)
-                .ThenInclude(o => o!.OracleEntries)
-            // Split, for the same reason FlowsController.LoadFlow is: several collections down
-            // different branches multiply out into one very wide result set.
-            .AsSplitQuery()
-            .AsQueryable();
+        var flowQuery = _context.Flows.WithStepsAndOracles();
 
         List<Oracle> oracles;
         List<Flow> flows;
@@ -562,11 +535,7 @@ public class OraclesController : Controller
 
         var json = JsonSerializer.Serialize(file, OracleJson.Options);
         var bytes = Encoding.UTF8.GetBytes(json);
-        var filename = $"gm-toolbox-{DateTime.Now:yyyy-MM-dd-HHmmssfff}.json";
-
-        await WriteExportArchive(bytes, filename, vm.Scope != ExportScope.Everything);
-
-        return File(bytes, "application/json", filename);
+        return File(bytes, "application/json", $"gm-toolbox-{DateTime.Now:yyyy-MM-dd-HHmmssfff}.json");
     }
 
     // Shows what Clear All is about to destroy: the signed-in account's own oracles and flows.
@@ -584,35 +553,16 @@ public class OraclesController : Controller
         return View(vm);
     }
 
-    // Destroys everything confirmed in Oracles/ClearAll. ExecuteDelete skips SaveChanges, so each delete
-    // is narrowed to the account's own rows here rather than by OwnershipRules.
+    // Destroys everything confirmed in Oracles/ClearAll. The query filters keep each delete to the account's own
+    // rows; steps, options and branches go with their flows, and entries with their oracles.
     [HttpPost, ActionName("ClearAll")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ClearAllConfirmed()
     {
-        var me = _context.CurrentUserId;
-        var myOracles = _context.Oracles.IgnoreQueryFilters().Where(o => o.OwnerId == me).Select(o => o.ID);
-        var anyoneElsesFlows = _context.Flows.IgnoreQueryFilters().Where(f => f.OwnerId != me);
-        if (await anyoneElsesFlows.AnyAsync(f => f.Steps.Any(s =>
-                (s.OracleID != null && myOracles.Contains(s.OracleID.Value))
-                || s.Options.Any(o => o.OracleID != null && myOracles.Contains(o.OracleID.Value))
-                || s.Branches.Any(b => b.OracleID != null && myOracles.Contains(b.OracleID.Value)))))
-        {
-            TempData["OwnershipError"] = "Someone else's flow uses one of your oracles, so Clear All can't remove them.";
-            return RedirectToAction(nameof(ClearAll));
-        }
-
         using (var transaction = await _context.Database.BeginTransactionAsync())
         {
-            await _context.FlowBranches.Where(b => b.FlowStep!.Flow!.OwnerId == me).ExecuteDeleteAsync();
-            await _context.FlowChoiceOptions.Where(o => o.FlowStep!.Flow!.OwnerId == me).ExecuteDeleteAsync();
-            await _context.FlowSteps.Where(s => s.Flow!.OwnerId == me).ExecuteDeleteAsync();
-            await _context.Flows.IgnoreQueryFilters().Where(f => f.OwnerId == me).ExecuteDeleteAsync();
-
-            // Children first: OracleEntries has a required FK to Oracles.
-            await _context.OracleEntries.Where(e => myOracles.Contains(e.OracleID)).ExecuteDeleteAsync();
-            await _context.Oracles.IgnoreQueryFilters().Where(o => o.OwnerId == me).ExecuteDeleteAsync();
-
+            await _context.Flows.ExecuteDeleteAsync();
+            await _context.Oracles.ExecuteDeleteAsync();
             await transaction.CommitAsync();
         }
 
@@ -621,26 +571,33 @@ public class OraclesController : Controller
 
     public IActionResult Import(string? returnTo)
     {
-        return View(BuildImportViewModel(NormalizeReturnTo(returnTo)));
+        return View(new ImportViewModel { ReturnTo = NormalizeReturnTo(returnTo) });
+    }
+
+    public IActionResult ExampleFile()
+    {
+        return PhysicalFile(Path.Combine(_env.ContentRootPath, "ExportTemplate", ExampleFileName),
+            "application/json", ExampleFileName);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Import(string? path, string? returnTo)
+    [RequestSizeLimit(MaxImportBytes + 64 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxImportBytes)]
+    public async Task<IActionResult> Import(IFormFile? file, string? returnTo)
     {
         returnTo = NormalizeReturnTo(returnTo);
 
-        var fullPath = ResolveImportFile(path);
-        if (fullPath == null)
+        if (file == null || file.Length == 0)
         {
-            return ImportFailed("Pick a file from the list to import.", returnTo);
+            return ImportFailed("Choose an export file to import.", returnTo);
         }
 
         OracleExportFile? parsed;
 
         try
         {
-            using var stream = System.IO.File.OpenRead(fullPath);
+            await using var stream = file.OpenReadStream();
             parsed = await JsonSerializer.DeserializeAsync<OracleExportFile>(stream, OracleJson.Options);
         }
         catch (JsonException ex)
@@ -658,8 +615,7 @@ public class OraclesController : Controller
 
         var existingOracles = await _context.Oracles.Include(o => o.GameSystem).ToListAsync();
 
-        error = FlowImporter.TryBuild(parsed!.Flows, parsed.FormatVersion, systemsByName, oracles,
-            existingOracles, out var flows);
+        error = FlowImporter.TryBuild(parsed!.Flows, systemsByName, oracles, existingOracles, out var flows);
         if (error != null)
         {
             return ImportFailed(error, returnTo);
@@ -692,11 +648,9 @@ public class OraclesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private bool IsAjaxRequest => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
-
     private IActionResult RollResponse(int id, RollOutcome? outcome, string? error)
     {
-        if (IsAjaxRequest)
+        if (Request.IsAjax())
         {
             return error != null ? Json(new { error }) : Json(outcome);
         }
@@ -713,29 +667,15 @@ public class OraclesController : Controller
         return RedirectToAction(nameof(Roll), new { id });
     }
 
-    // Flows another account keeps private are counted but not named.
-    private async Task<List<string>> FlowsUsing(int oracleId)
+    private Task<List<string>> FlowsUsing(int oracleId)
     {
-        var fromSteps = await _context.FlowSteps.IgnoreQueryFilters()
-            .Where(s => s.OracleID == oracleId)
-            .Select(s => s.Flow!)
+        return _context.Flows
+            .Where(f => f.Steps.Any(s => s.OracleID == oracleId
+                || s.Options.Any(o => o.OracleID == oracleId)
+                || s.Branches.Any(b => b.OracleID == oracleId)))
+            .OrderBy(f => f.Name)
+            .Select(f => f.Name)
             .ToListAsync();
-
-        var fromOptions = await _context.FlowChoiceOptions.IgnoreQueryFilters()
-            .Where(o => o.OracleID == oracleId)
-            .Select(o => o.FlowStep!.Flow!)
-            .ToListAsync();
-
-        var me = _context.CurrentUserId;
-        var flows = fromSteps.Concat(fromOptions).DistinctBy(f => f.ID).ToList();
-        var hidden = flows.Count(f => f.Visibility != Visibility.Everyone && f.OwnerId != me);
-        var names = flows.Where(f => f.Visibility == Visibility.Everyone || f.OwnerId == me)
-            .Select(f => f.Name).Distinct().OrderBy(name => name).ToList();
-        if (hidden > 0)
-        {
-            names.Add(hidden == 1 ? "a flow someone else keeps private" : $"{hidden} flows someone else keeps private");
-        }
-        return names;
     }
 
     private static string? NormalizeReturnTo(string? returnTo)
@@ -747,69 +687,10 @@ public class OraclesController : Controller
         return null;
     }
 
-    // Each account's own export folder. The first time it is made it gets a copy of every file in
-    // ExportTemplate, so there is always something to import.
-    private string UserExportsRoot()
-    {
-        var root = Path.Combine(_env.ContentRootPath, "App_Data", "Exports", _context.CurrentUserId!);
-        if (!Directory.Exists(root))
-        {
-            Directory.CreateDirectory(root);
-            var template = Path.Combine(_env.ContentRootPath, "ExportTemplate");
-            if (Directory.Exists(template))
-            {
-                foreach (var file in Directory.EnumerateFiles(template))
-                {
-                    System.IO.File.Copy(file, Path.Combine(root, Path.GetFileName(file)));
-                }
-            }
-        }
-        return root;
-    }
-
     private IActionResult ImportFailed(string error, string? returnTo)
     {
         ModelState.AddModelError("", error);
-        return View(nameof(Import), BuildImportViewModel(returnTo));
-    }
-
-    private ImportViewModel BuildImportViewModel(string? returnTo)
-    {
-        var vm = new ImportViewModel { ReturnTo = returnTo };
-        var root = UserExportsRoot();
-
-        vm.Files = Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
-            .Select(full =>
-            {
-                var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
-                var slash = relative.LastIndexOf('/');
-                return new ImportFileItem
-                {
-                    Path = relative,
-                    Folder = slash < 0 ? "Exports" : relative.Substring(0, slash),
-                    Name = Path.GetFileName(full),
-                    Modified = System.IO.File.GetLastWriteTime(full)
-                };
-            })
-            .OrderByDescending(f => f.Modified)
-            .ToList();
-
-        return vm;
-    }
-
-    // Only a .json file inside the account's own export folder is accepted, so a posted path cannot
-    // reach another account's exports or anywhere else on disk.
-    private string? ResolveImportFile(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return null;
-
-        var root = Path.GetFullPath(UserExportsRoot()) + Path.DirectorySeparatorChar;
-        var full = Path.GetFullPath(Path.Combine(root, path));
-
-        if (!full.StartsWith(root, StringComparison.Ordinal)) return null;
-        if (!string.Equals(Path.GetExtension(full), ".json", StringComparison.OrdinalIgnoreCase)) return null;
-
-        return System.IO.File.Exists(full) ? full : null;
+        return View(nameof(Import), new ImportViewModel { ReturnTo = returnTo });
     }
 
     private static string ImportMessage(int oracleCount, int flowCount, int newSystemCount)
@@ -848,46 +729,20 @@ public class OraclesController : Controller
     private async Task<OracleIndexViewModel> BuildOracleIndex(
         string? name, int? gameSystemId, string? oracleType, int page)
     {
-        if (gameSystemId is <= 0) gameSystemId = null;
-        var term = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
-        var type = string.IsNullOrWhiteSpace(oracleType) ? null : oracleType.Trim();
-
-        var systems = await _context.GameSystems.OrderBy(g => g.Name).ToListAsync();
-        var filtered = OracleListQuery.ApplyFilters(_context.Oracles, term, gameSystemId, type);
-
-        return new OracleIndexViewModel
+        var vm = new OracleIndexViewModel
         {
-            Name = term,
-            GameSystemID = gameSystemId,
-            OracleType = type,
-            CatalogEmpty = !await _context.Oracles.AnyAsync(),
-            Results = await OracleListQuery.ToPagedListAsync(filtered, page),
-            GameSystems = FilterSelectLists.GameSystems(systems),
+            OracleType = string.IsNullOrWhiteSpace(oracleType) ? null : oracleType.Trim(),
             Subtypes = FilterSelectLists.OracleTypes(await OracleListQuery.DiceGeometriesAsync(_context.Oracles))
         };
+        await vm.FillAsync(name, gameSystemId, _context.GameSystems, _context.Oracles);
+        vm.Results = await OracleListQuery.ToPagedListAsync(
+            OracleListQuery.ApplyFilters(_context.Oracles, vm.Name, vm.GameSystemID, vm.OracleType), page);
+        return vm;
     }
 
     private Task<List<OracleListItem>> OracleListItems()
     {
         return OracleListQuery.ToListItemsAsync(_context.Oracles);
-    }
-
-    private bool WantsPartial()
-    {
-        return string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Keeps a copy in the account's export folder alongside the download; an export made while
-    // logged out is only downloaded. Full and partial exports go to separate folders so a subset
-    // is never mistaken for a backup of everything.
-    private async Task WriteExportArchive(byte[] bytes, string filename, bool isPartial)
-    {
-        if (_context.CurrentUserId == null) return;
-
-        var folder = Path.Combine(UserExportsRoot(), isPartial ? "Partial" : "Full");
-
-        Directory.CreateDirectory(folder);
-        await System.IO.File.WriteAllBytesAsync(Path.Combine(folder, filename), bytes);
     }
 
     private Task<Oracle?> LoadOracleWithEntries(int? id)
@@ -949,11 +804,4 @@ public class OraclesController : Controller
         return new SelectList(items, "Value", "Text", (selected ?? OracleSubtype.Dice).ToString());
     }
 
-    private async Task<SelectList> GameSystemSelectList(int? selected = null)
-    {
-        var systems = await _context.GameSystems
-            .OrderBy(g => g.Name)
-            .ToListAsync();
-        return new SelectList(systems, "ID", "Name", selected);
-    }
 }

@@ -47,6 +47,9 @@ public class SecurityQuestions(UserManager<IdentityUser> users, IPasswordHasher<
     private const int MaxFailures = 5;
     private static readonly TimeSpan LockTime = TimeSpan.FromMinutes(15);
 
+    // One reset at a time, so parallel guesses can't all read the same failure count before any is written.
+    private static readonly SemaphoreSlim ResetGate = new(1, 1);
+
     // A username with no account shows the same stand-in question until the app restarts.
     private static readonly byte[] StandInKey = RandomNumberGenerator.GetBytes(32);
 
@@ -87,6 +90,19 @@ public class SecurityQuestions(UserManager<IdentityUser> users, IPasswordHasher<
     /// or null.
     /// </summary>
     public async Task<string?> ResetAsync(string userName, string? answer, string newPassword)
+    {
+        await ResetGate.WaitAsync();
+        try
+        {
+            return await ResetInGateAsync(userName, answer, newPassword);
+        }
+        finally
+        {
+            ResetGate.Release();
+        }
+    }
+
+    private async Task<string?> ResetInGateAsync(string userName, string? answer, string newPassword)
     {
         var user = await users.FindByNameAsync(userName);
         var answerHash = user == null ? null : await users.GetAuthenticationTokenAsync(user, Store, "answer");

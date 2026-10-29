@@ -11,14 +11,158 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GM_Toolbox.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260907181847_CustomDice")]
-    partial class CustomDice
+    [Migration("20261029082015_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
+
+            modelBuilder.Entity("GM_Toolbox.Models.Flow", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameSystemID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("GameSystemID");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("Flows");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowBranch", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EndsFlow")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlowStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("OracleEntryID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("OracleID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TargetStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("OracleEntryID");
+
+                    b.HasIndex("OracleID");
+
+                    b.HasIndex("TargetStepID");
+
+                    b.HasIndex("FlowStepID", "OracleEntryID")
+                        .IsUnique();
+
+                    b.ToTable("FlowBranches");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowChoiceOption", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EndsFlow")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlowStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OracleID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TargetStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("FlowStepID");
+
+                    b.HasIndex("OracleID");
+
+                    b.HasIndex("TargetStepID");
+
+                    b.ToTable("FlowChoiceOptions");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlowID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OracleID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Question")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SourceStepID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("FlowID");
+
+                    b.HasIndex("OracleID");
+
+                    b.HasIndex("SourceStepID");
+
+                    b.ToTable("FlowSteps");
+                });
 
             modelBuilder.Entity("GM_Toolbox.Models.GameSystem", b =>
                 {
@@ -37,12 +181,13 @@ namespace GM_Toolbox.Data.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
-                    b.Property<string>("PrimaryOracleType")
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("ID");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("OwnerId", "Name")
                         .IsUnique();
 
                     b.ToTable("GameSystems");
@@ -72,9 +217,15 @@ namespace GM_Toolbox.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
                     b.HasIndex("GameSystemID");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Oracles");
                 });
@@ -113,6 +264,78 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasIndex("OracleID");
 
                     b.ToTable("OracleEntries");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.Sheet", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CurrentVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("DateUpdated")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DateUploaded")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("GameSystemID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("GameSystemID");
+
+                    b.HasIndex("OwnerId", "FileName");
+
+                    b.ToTable("Sheets");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.SheetVersion", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Checksum")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SheetID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("SheetID", "Version")
+                        .IsUnique();
+
+                    b.ToTable("SheetVersions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -311,12 +534,127 @@ namespace GM_Toolbox.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("GM_Toolbox.Models.Flow", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
+                        .WithMany()
+                        .HasForeignKey("GameSystemID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameSystem");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowBranch", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "FlowStep")
+                        .WithMany("Branches")
+                        .HasForeignKey("FlowStepID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.OracleEntry", "OracleEntry")
+                        .WithMany()
+                        .HasForeignKey("OracleEntryID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
+                        .WithMany()
+                        .HasForeignKey("OracleID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "TargetStep")
+                        .WithMany()
+                        .HasForeignKey("TargetStepID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("FlowStep");
+
+                    b.Navigation("Oracle");
+
+                    b.Navigation("OracleEntry");
+
+                    b.Navigation("TargetStep");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowChoiceOption", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "FlowStep")
+                        .WithMany("Options")
+                        .HasForeignKey("FlowStepID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
+                        .WithMany()
+                        .HasForeignKey("OracleID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "TargetStep")
+                        .WithMany()
+                        .HasForeignKey("TargetStepID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("FlowStep");
+
+                    b.Navigation("Oracle");
+
+                    b.Navigation("TargetStep");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.Flow", "Flow")
+                        .WithMany("Steps")
+                        .HasForeignKey("FlowID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
+                        .WithMany()
+                        .HasForeignKey("OracleID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("GM_Toolbox.Models.FlowStep", "SourceStep")
+                        .WithMany()
+                        .HasForeignKey("SourceStepID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Flow");
+
+                    b.Navigation("Oracle");
+
+                    b.Navigation("SourceStep");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.GameSystem", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>
                 {
                     b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
                         .WithMany()
                         .HasForeignKey("GameSystemID")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("GameSystem");
@@ -329,6 +667,33 @@ namespace GM_Toolbox.Data.Migrations
                         .HasForeignKey("OracleID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.Sheet", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
+                        .WithMany()
+                        .HasForeignKey("GameSystemID")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameSystem");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.SheetVersion", b =>
+                {
+                    b.HasOne("GM_Toolbox.Models.Sheet", "Sheet")
+                        .WithMany("Versions")
+                        .HasForeignKey("SheetID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sheet");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -382,9 +747,26 @@ namespace GM_Toolbox.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("GM_Toolbox.Models.Flow", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.FlowStep", b =>
+                {
+                    b.Navigation("Branches");
+
+                    b.Navigation("Options");
+                });
+
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>
                 {
                     b.Navigation("OracleEntries");
+                });
+
+            modelBuilder.Entity("GM_Toolbox.Models.Sheet", b =>
+                {
+                    b.Navigation("Versions");
                 });
 #pragma warning restore 612, 618
         }

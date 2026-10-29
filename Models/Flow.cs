@@ -1,4 +1,3 @@
-using GM_Toolbox.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models
@@ -24,8 +23,5 @@ namespace GM_Toolbox.Models
         public ICollection<FlowStep> Steps { get; set; } = new List<FlowStep>();
 
         public string? OwnerId { get; set; }
-
-        [Display(Name = "Who can see this")]
-        public Visibility Visibility { get; set; }
     }
 }

@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GM_Toolbox.Areas.Identity.Pages.Account;
 
+[AllowAnonymous]
 public class LoginModel(SignInManager<IdentityUser> signIn) : PageModel
 {
     [BindProperty]

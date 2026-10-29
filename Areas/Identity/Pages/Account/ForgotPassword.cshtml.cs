@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using GM_Toolbox.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace GM_Toolbox.Areas.Identity.Pages.Account;
 
 // Two steps: the username brings up its security question, then the answer and a new password change it.
+[AllowAnonymous]
 public class ForgotPasswordModel(SecurityQuestions questions) : PageModel
 {
     [BindProperty]

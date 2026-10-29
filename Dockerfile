@@ -1,11 +1,3 @@
-
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:de0ee358cdd672f7017a003bed21e9ac9ed48a27c922a59b18175b6e82fa7fee AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
-
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
@@ -29,14 +21,14 @@ COPY docker/git-sync.sh /usr/local/bin/git-sync
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-# The database file and the export archives both live here. Without a mount they would sit
+# The database file and the uploaded sheets both live here. Without a mount they would sit
 # in the container's writable layer and be destroyed along with the container.
 #
 # Created and chowned as root before dropping to the app user: a volume inherits the ownership
 # of the image directory behind it. Left owned by root, the app could not create gmtoolbox.db
 # and would fail on startup. /src is chowned too so the app user can pull and rebuild it, and
 # the partial .git that .dockerignore lets through is removed so git-sync starts a clean clone.
-RUN sed -i 's/\r$//' /usr/local/bin/git-sync && chmod +x /usr/local/bin/git-sync \
+RUN chmod +x /usr/local/bin/git-sync \
     && rm -rf /src/.git \
     && mkdir -p /app/App_Data && chown -R $APP_UID:$APP_UID /app /src
 USER $APP_UID

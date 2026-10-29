@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 using GM_Toolbox.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GM_Toolbox.Areas.Identity.Pages.Account;
 
+[AllowAnonymous]
 public class RegisterModel(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, SecurityQuestions questions) : PageModel
 {
     [BindProperty]

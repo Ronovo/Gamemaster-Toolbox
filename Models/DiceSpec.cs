@@ -60,11 +60,10 @@ namespace GM_Toolbox.Models
                 return null;
             }
 
-            var count = match.Groups["count"].Success
-                ? int.Parse(match.Groups["count"].Value)
-                : 1;
-            var faces = int.Parse(match.Groups["faces"].Value);
-            if (count < 1 || faces < 2)
+            var count = 1;
+            if (match.Groups["count"].Success && !int.TryParse(match.Groups["count"].Value, out count)
+                || !int.TryParse(match.Groups["faces"].Value, out var faces)
+                || count < 1 || faces < 2)
             {
                 return null;
             }

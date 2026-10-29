@@ -1,4 +1,5 @@
 ﻿using GM_Toolbox.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,9 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 // forgotten password is reset with the account's security question (SecurityQuestions).
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>();
+// Every page needs a login unless it is marked [AllowAnonymous]: About, the login pages and portfolio login.
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllersWithViews(options => options.Filters.Add<OwnershipExceptionFilter>());
 builder.Services.AddScoped<SecurityQuestions>();
@@ -96,7 +100,7 @@ app.UseAuthorization();
 
 app.UseSession();
 
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
 
 app.MapControllerRoute(
     name: "default",

@@ -1,12 +1,10 @@
 ﻿using GM_Toolbox.Data;
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GM_Toolbox.Services;
 using Microsoft.EntityFrameworkCore;
 
-// The list is open to everyone; anything that changes data needs an account.
-[Authorize]
 public class GameSystemsController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -16,48 +14,22 @@ public class GameSystemsController : Controller
         _context = context;
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Index(string? name, string? genre, int page = 1)
     {
         var nameTerm = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         var genreTerm = string.IsNullOrWhiteSpace(genre) ? null : genre.Trim();
 
-        var query = _context.GameSystems.AsQueryable();
-        if (nameTerm != null)
-        {
-            var needle = nameTerm.ToLower();
-            query = query.Where(g => g.Name.ToLower().Contains(needle));
-        }
-
-        if (genreTerm != null)
-        {
-            var needle = genreTerm.ToLower();
-            query = query.Where(g => g.Genre.ToLower().Contains(needle));
-        }
-
-        var totalCount = await query.CountAsync();
-        page = PagedList<GameSystem>.ClampPage(page, totalCount);
-        var items = await query
-            .OrderBy(g => g.Name)
-            .Skip((page - 1) * PagedList<GameSystem>.DefaultPageSize)
-            .Take(PagedList<GameSystem>.DefaultPageSize)
-            .ToListAsync();
+        var query = _context.GameSystems.Containing(g => g.Name, nameTerm).Containing(g => g.Genre, genreTerm);
 
         var vm = new GameSystemIndexViewModel
         {
             Name = nameTerm,
             Genre = genreTerm,
             CatalogEmpty = !await _context.GameSystems.AnyAsync(),
-            Results = new PagedList<GameSystem>
-            {
-                Items = items,
-                Page = page,
-                PageSize = PagedList<GameSystem>.DefaultPageSize,
-                TotalCount = totalCount
-            }
+            Results = await PagedList<GameSystem>.CreateAsync(query.OrderBy(g => g.Name), systems => systems, page)
         };
 
-        if (string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase))
+        if (Request.WantsPartial())
         {
             return PartialView("_GameSystemListResults", vm);
         }
@@ -73,7 +45,7 @@ public class GameSystemsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,Genre,Visibility")] GameSystem gameSystem)
+    public async Task<IActionResult> Create([Bind("Name,Genre")] GameSystem gameSystem)
     {
         if (await _context.GameSystems.AnyAsync(g => g.Name == gameSystem.Name))
         {
@@ -101,7 +73,7 @@ public class GameSystemsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Genre,Visibility")] GameSystem gameSystem)
+    public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Genre")] GameSystem gameSystem)
     {
         if (id != gameSystem.ID) return NotFound();
 
@@ -122,7 +94,6 @@ public class GameSystemsController : Controller
 
         existing.Name = gameSystem.Name;
         existing.Genre = gameSystem.Genre;
-        existing.Visibility = gameSystem.Visibility;
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -135,8 +106,8 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FirstOrDefaultAsync(g => g.ID == id);
         if (gameSystem == null) return NotFound();
 
-        ViewData["OracleCount"] = await _context.Oracles.IgnoreQueryFilters().CountAsync(o => o.GameSystemID == id);
-        ViewData["FlowCount"] = await _context.Flows.IgnoreQueryFilters().CountAsync(f => f.GameSystemID == id);
+        ViewData["OracleCount"] = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
+        ViewData["FlowCount"] = await _context.Flows.CountAsync(f => f.GameSystemID == id);
         return View(gameSystem);
     }
 
@@ -147,9 +118,8 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FindAsync(id);
         if (gameSystem == null) return RedirectToAction(nameof(Index));
 
-        // Counted across every account: someone else's private oracle still holds on to it.
-        var oracleCount = await _context.Oracles.IgnoreQueryFilters().CountAsync(o => o.GameSystemID == id);
-        var flowCount = await _context.Flows.IgnoreQueryFilters().CountAsync(f => f.GameSystemID == id);
+        var oracleCount = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
+        var flowCount = await _context.Flows.CountAsync(f => f.GameSystemID == id);
 
         if (oracleCount > 0 || flowCount > 0)
         {

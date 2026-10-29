@@ -1,5 +1,4 @@
 ﻿using GM_Toolbox.Models;
-using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +11,7 @@ namespace GM_Toolbox.Services
             string? name,
             int? gameSystemId)
         {
-            var term = name?.Trim();
-            if (!string.IsNullOrEmpty(term))
-            {
-                var needle = term.ToLower();
-                flows = flows.Where(f => f.Name.ToLower().Contains(needle));
-            }
+            flows = flows.Containing(f => f.Name, name);
 
             if (gameSystemId is > 0)
             {
@@ -27,116 +21,46 @@ namespace GM_Toolbox.Services
             return flows;
         }
 
-        public static async Task<List<FlowListItem>> ToListItemsAsync(IQueryable<Flow> flows)
+        /// <summary>
+        /// A flow with every step, option and branch, and the oracles they roll with their entries and game
+        /// systems: enough to run, edit or export it. Split, because the collections down each path would
+        /// otherwise multiply into one very wide result set.
+        /// </summary>
+        public static IQueryable<Flow> WithStepsAndOracles(this IQueryable<Flow> flows)
         {
-            var rows = await ProjectRows(flows.OrderBy(f => f.Name)).ToListAsync();
-            return Map(rows);
+            return flows
+                .Include(f => f.GameSystem)
+                .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.OracleEntries)
+                .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.GameSystem)
+                .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle).ThenInclude(o => o!.OracleEntries)
+                .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle).ThenInclude(o => o!.GameSystem)
+                .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle).ThenInclude(o => o!.OracleEntries)
+                .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle).ThenInclude(o => o!.GameSystem)
+                .AsSplitQuery();
         }
 
+        /// <summary>One page of flows, each loaded whole so its "needs setup" badge uses the same rules as a run.</summary>
         public static async Task<PagedList<FlowListItem>> ToPagedListAsync(
             IQueryable<Flow> flows,
             int page,
             int pageSize = PagedList<FlowListItem>.DefaultPageSize)
         {
-            var totalCount = await flows.CountAsync();
-            page = PagedList<FlowListItem>.ClampPage(page, totalCount, pageSize);
-
-            var rows = await ProjectRows(
-                    flows
-                        .OrderBy(f => f.Name)
-                        .Skip((page - 1) * pageSize)
-                        .Take(pageSize))
-                .ToListAsync();
-
-            return new PagedList<FlowListItem>
+            var loaded = await PagedList<Flow>.CreateAsync(flows.OrderBy(f => f.Name), WithStepsAndOracles, page, pageSize);
+            return loaded.WithItems(loaded.Items.Select(f => new FlowListItem
             {
-                Items = Map(rows),
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = totalCount
-            };
+                ID = f.ID,
+                Name = f.Name,
+                Description = f.Description,
+                GameSystemName = f.GameSystem?.Name ?? string.Empty,
+                StepCount = f.Steps.Count,
+                BranchCount = f.Steps.Sum(s => s.Branches.Count),
+                NeedsSetup = f.RunBlockedReason() != null
+            }).ToList());
         }
 
         public static Task<List<int>> MatchingIdsAsync(IQueryable<Flow> flows)
         {
             return flows.OrderBy(f => f.Name).Select(f => f.ID).ToListAsync();
-        }
-
-        private static IQueryable<FlowListRow> ProjectRows(IQueryable<Flow> flows)
-        {
-            return flows.Select(f => new FlowListRow
-            {
-                ID = f.ID,
-                Name = f.Name,
-                OwnerId = f.OwnerId,
-                Visibility = f.Visibility,
-                Description = f.Description,
-                GameSystemName = f.GameSystem!.Name,
-                StepCount = f.Steps.Count,
-                BranchCount = f.Steps.Sum(s => s.Branches.Count),
-
-                Steps = f.Steps.Select(s => new FlowListStepRow
-                {
-                    StepID = s.ID,
-                    Kind = s.Kind,
-                    HasQuestion = s.Question != null && s.Question != "",
-                    OptionCount = s.Options.Count,
-                    SourceStepID = s.SourceStepID,
-                    Subtype = (OracleSubtype?)s.Oracle!.OracleSubtype,
-                    EntryCount = s.Oracle == null ? 0 : s.Oracle.OracleEntries.Count,
-                    Unbanded = s.Oracle != null && s.Oracle.OracleEntries.Any(e => e.RangeStart == null)
-                })
-            });
-        }
-
-        private static List<FlowListItem> Map(List<FlowListRow> rows)
-        {
-            return rows.Select(f => new FlowListItem
-            {
-                ID = f.ID,
-                Name = f.Name,
-                OwnerId = f.OwnerId,
-                Visibility = f.Visibility,
-                Description = f.Description,
-                GameSystemName = f.GameSystemName,
-                StepCount = f.StepCount,
-                BranchCount = f.BranchCount,
-                HasUnfinishedOracle = f.Steps.Any(s => s.Kind switch
-                {
-                    FlowStepKind.Roll => s.Subtype == null
-                        || s.EntryCount == 0
-                        || (s.Subtype.Value.Category() == OracleCategory.Dice && s.Unbanded),
-                    FlowStepKind.Choice => !s.HasQuestion || s.OptionCount == 0,
-                    FlowStepKind.Text => !s.HasQuestion,
-                    FlowStepKind.RollChosen => s.SourceStepID == null,
-                    _ => false
-                })
-            }).ToList();
-        }
-
-        private sealed class FlowListRow
-        {
-            public int ID { get; set; }
-            public string Name { get; set; } = string.Empty;
-            public string? OwnerId { get; set; }
-            public Visibility Visibility { get; set; }
-            public string? Description { get; set; }
-            public string GameSystemName { get; set; } = string.Empty;
-            public int StepCount { get; set; }
-            public int BranchCount { get; set; }
-            public IEnumerable<FlowListStepRow> Steps { get; set; } = Array.Empty<FlowListStepRow>();
-        }
-
-        private sealed class FlowListStepRow
-        {
-            public int StepID { get; set; }
-            public FlowStepKind Kind { get; set; }
-            public bool HasQuestion { get; set; }
-            public int OptionCount { get; set; }
-            public int? SourceStepID { get; set; }
-            public OracleSubtype? Subtype { get; set; }
-            public int EntryCount { get; set; }
-            public bool Unbanded { get; set; }
         }
     }
 }

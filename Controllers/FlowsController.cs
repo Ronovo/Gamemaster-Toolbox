@@ -3,13 +3,10 @@ using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using GM_Toolbox.Models.ViewModels;
 using GM_Toolbox.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
-// Reading and running are open to everyone; anything that changes data needs an account.
-[Authorize]
 public class FlowsController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -21,11 +18,10 @@ public class FlowsController : Controller
         _configurator = configurator;
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Index(string? name, int? gameSystemId, int page = 1)
     {
         var vm = await BuildFlowIndex(name, gameSystemId, page);
-        if (string.Equals(Request.Query["partial"], "1", StringComparison.OrdinalIgnoreCase))
+        if (Request.WantsPartial())
         {
             return PartialView("_FlowListResults", vm);
         }
@@ -33,7 +29,6 @@ public class FlowsController : Controller
         return View(vm);
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null) return NotFound();
@@ -47,13 +42,13 @@ public class FlowsController : Controller
     public async Task<IActionResult> Create()
     {
         ViewData["OracleCount"] = await _context.Oracles.CountAsync();
-        ViewData["GameSystemID"] = await GameSystemSelectList();
+        ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems);
         return View(new Flow());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Name,Description,GameSystemID,Visibility")] Flow flow)
+    public async Task<IActionResult> Create([Bind("Name,Description,GameSystemID")] Flow flow)
     {
         if (ModelState.IsValid)
         {
@@ -63,7 +58,7 @@ public class FlowsController : Controller
         }
 
         ViewData["OracleCount"] = await _context.Oracles.CountAsync();
-        ViewData["GameSystemID"] = await GameSystemSelectList(flow.GameSystemID);
+        ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, flow.GameSystemID);
         return View(flow);
     }
 
@@ -74,19 +69,19 @@ public class FlowsController : Controller
         var flow = await _context.Flows.FirstOrDefaultAsync(f => f.ID == id);
         if (flow == null) return NotFound();
 
-        ViewData["GameSystemID"] = await GameSystemSelectList(flow.GameSystemID);
+        ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, flow.GameSystemID);
         return View(flow);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,Description,GameSystemID,Visibility")] Flow flow)
+    public async Task<IActionResult> Edit(int? id, [Bind("ID,Name,Description,GameSystemID")] Flow flow)
     {
         if (id != flow.ID) return NotFound();
 
         if (!ModelState.IsValid)
         {
-            ViewData["GameSystemID"] = await GameSystemSelectList(flow.GameSystemID);
+            ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, flow.GameSystemID);
             return View(flow);
         }
 
@@ -96,7 +91,6 @@ public class FlowsController : Controller
         existing.Name = flow.Name;
         existing.Description = flow.Description;
         existing.GameSystemID = flow.GameSystemID;
-        existing.Visibility = flow.Visibility;
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -392,7 +386,6 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Options), new { id });
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Run(int? id)
     {
         if (id == null) return NotFound();
@@ -414,7 +407,6 @@ public class FlowsController : Controller
 
     [HttpPost, ActionName("Run")]
     [ValidateAntiForgeryToken]
-    [AllowAnonymous]
     public async Task<IActionResult> RollStep(int id, string? answer)
     {
         var flow = await LoadFlow(id);
@@ -441,7 +433,6 @@ public class FlowsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [AllowAnonymous]
     public async Task<IActionResult> Restart(int id)
     {
         var flow = await LoadFlow(id);
@@ -449,7 +440,7 @@ public class FlowsController : Controller
 
         FlowRunner.Restart(flow.ID, HttpContext.Session);
 
-        if (IsAjaxRequest)
+        if (Request.IsAjax())
         {
             var fresh = FlowRunner.Load(flow, HttpContext.Session);
             return Json(new
@@ -462,12 +453,10 @@ public class FlowsController : Controller
         return RedirectToAction(nameof(Run), new { id });
     }
 
-    private bool IsAjaxRequest => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
-
     private IActionResult RunResponse(Flow flow, FlowRunStep? rolled, FlowStep? next,
         FlowRunState? state, string? error)
     {
-        if (IsAjaxRequest)
+        if (Request.IsAjax())
         {
             if (error != null)
             {
@@ -825,33 +814,15 @@ public class FlowsController : Controller
 
     private async Task<FlowIndexViewModel> BuildFlowIndex(string? name, int? gameSystemId, int page)
     {
-        if (gameSystemId is <= 0) gameSystemId = null;
-        var term = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
-
-        var systems = await _context.GameSystems.OrderBy(g => g.Name).ToListAsync();
-        var filtered = FlowListQuery.ApplyFilters(_context.Flows, term, gameSystemId);
-
-        return new FlowIndexViewModel
-        {
-            Name = term,
-            GameSystemID = gameSystemId,
-            CatalogEmpty = !await _context.Flows.AnyAsync(),
-            Results = await FlowListQuery.ToPagedListAsync(filtered, page),
-            GameSystems = FilterSelectLists.GameSystems(systems)
-        };
+        var vm = new FlowIndexViewModel();
+        await vm.FillAsync(name, gameSystemId, _context.GameSystems, _context.Flows);
+        vm.Results = await FlowListQuery.ToPagedListAsync(FlowListQuery.ApplyFilters(_context.Flows, vm.Name, vm.GameSystemID), page);
+        return vm;
     }
 
     private Task<Flow?> LoadFlow(int? id)
     {
-        return _context.Flows
-            .Include(f => f.GameSystem)
-            .Include(f => f.Steps).ThenInclude(s => s.Branches).ThenInclude(b => b.Oracle)
-                .ThenInclude(o => o!.OracleEntries)
-            .Include(f => f.Steps).ThenInclude(s => s.Oracle).ThenInclude(o => o!.OracleEntries)
-            .Include(f => f.Steps).ThenInclude(s => s.Options).ThenInclude(o => o.Oracle)
-                .ThenInclude(o => o!.OracleEntries)
-            .AsSplitQuery()
-            .FirstOrDefaultAsync(f => f.ID == id);
+        return _context.Flows.WithStepsAndOracles().FirstOrDefaultAsync(f => f.ID == id);
     }
 
     private async Task<(Flow flow, FlowStep step)?> LocateStep(int? stepId)
@@ -908,11 +879,4 @@ public class FlowsController : Controller
         return OracleListQuery.ToListItemsAsync(_context.Oracles);
     }
 
-    private async Task<SelectList> GameSystemSelectList(int? selected = null)
-    {
-        var systems = await _context.GameSystems
-            .OrderBy(g => g.Name)
-            .ToListAsync();
-        return new SelectList(systems, "ID", "Name", selected);
-    }
 }

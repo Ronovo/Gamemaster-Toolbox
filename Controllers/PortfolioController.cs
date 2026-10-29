@@ -1,10 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
 using GM_Toolbox.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("sso")]
+[AllowAnonymous]
 public class PortfolioController : Controller
 {
     private const string StateCookie = "gm_toolbox_sso_state";

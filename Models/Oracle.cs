@@ -33,9 +33,6 @@ namespace GM_Toolbox.Models
 
         public string? OwnerId { get; set; }
 
-        [Display(Name = "Who can see this")]
-        public Visibility Visibility { get; set; }
-
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             if (OracleSubtype.Category() != OracleCategory.Dice)

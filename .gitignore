@@ -86,10 +86,6 @@ secrets.json
 *.db-shm
 *.db-wal
 
-# Server-side export archive (runtime data, not source).
-App_Data/Exports/
-App_Data/**/*.json
-
 # Uploaded character sheet PDFs (runtime data, not source)
 App_Data/Sheets/
 

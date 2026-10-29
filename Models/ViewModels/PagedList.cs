@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace GM_Toolbox.Models.ViewModels
 {
     /// <summary>
@@ -21,6 +23,21 @@ namespace GM_Toolbox.Models.ViewModels
 
         public bool HasPrevious => Page > 1;
         public bool HasNext => TotalPages > 0 && Page < TotalPages;
+
+        /// <summary>
+        /// One page of an ordered query, run through project so only that page's rows are read.
+        /// </summary>
+        public static async Task<PagedList<T>> CreateAsync<TSource>(IOrderedQueryable<TSource> ordered,
+            Func<IQueryable<TSource>, IQueryable<T>> project, int page, int pageSize = DefaultPageSize)
+        {
+            var totalCount = await ordered.CountAsync();
+            page = ClampPage(page, totalCount, pageSize);
+            var items = await project(ordered.Skip((page - 1) * pageSize).Take(pageSize)).ToListAsync();
+            return new PagedList<T> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
+        public PagedList<TOut> WithItems<TOut>(List<TOut> items) =>
+            new() { Items = items, Page = Page, PageSize = PageSize, TotalCount = TotalCount };
 
         public static int ClampPage(int page, int totalCount, int pageSize = DefaultPageSize)
         {

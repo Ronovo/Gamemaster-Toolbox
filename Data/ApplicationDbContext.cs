@@ -1,8 +1,8 @@
 ﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using GM_Toolbox.Models;
-using GM_Toolbox.Models.Enums;
 
 namespace GM_Toolbox.Data
 {
@@ -22,18 +22,16 @@ namespace GM_Toolbox.Data
         {
             base.OnModelCreating(builder);
 
-            // Every query sees only what everyone can see plus the signed-in account's own items.
-            // IgnoreQueryFilters() is for checks that must count everything, like "is this still in use".
-            builder.Entity<Oracle>()
-                .HasQueryFilter(o => o.Visibility == Visibility.Everyone || (CurrentUserId != null && o.OwnerId == CurrentUserId));
-            builder.Entity<Flow>()
-                .HasQueryFilter(f => f.Visibility == Visibility.Everyone || (CurrentUserId != null && f.OwnerId == CurrentUserId));
-            builder.Entity<GameSystem>()
-                .HasQueryFilter(g => g.Visibility == Visibility.Everyone || (CurrentUserId != null && g.OwnerId == CurrentUserId));
+            // Every query sees only the signed-in account's own items.
+            builder.Entity<GameSystem>().HasQueryFilter(g => g.OwnerId == CurrentUserId);
+            builder.Entity<Oracle>().HasQueryFilter(o => o.OwnerId == CurrentUserId);
+            builder.Entity<Flow>().HasQueryFilter(f => f.OwnerId == CurrentUserId);
+            builder.Entity<Sheet>().HasQueryFilter(s => s.OwnerId == CurrentUserId);
 
-            builder.Entity<Oracle>().Property(o => o.Visibility).HasConversion<string>();
-            builder.Entity<Flow>().Property(f => f.Visibility).HasConversion<string>();
-            builder.Entity<GameSystem>().Property(g => g.Visibility).HasConversion<string>();
+            OwnedByAccount<GameSystem>(builder);
+            OwnedByAccount<Oracle>(builder);
+            OwnedByAccount<Flow>(builder);
+            OwnedByAccount<Sheet>(builder);
 
             builder.Entity<Oracle>()
                 .Property(o => o.OracleSubtype)
@@ -43,13 +41,13 @@ namespace GM_Toolbox.Data
                 .HasOne(o => o.GameSystem)
                 .WithMany()
                 .HasForeignKey(o => o.GameSystemID)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<GameSystem>()
                 .Property(g => g.Name)
                 .UseCollation("NOCASE");
 
-            // Unique per owner, so a private game system never blocks someone else's name.
+            // Unique per owner, so two accounts can each have a system with the same name.
             builder.Entity<GameSystem>()
                 .HasIndex(g => new { g.OwnerId, g.Name })
                 .IsUnique();
@@ -58,7 +56,7 @@ namespace GM_Toolbox.Data
                 .HasOne(f => f.GameSystem)
                 .WithMany()
                 .HasForeignKey(f => f.GameSystemID)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<FlowStep>()
                 .HasOne(s => s.Flow)
@@ -70,7 +68,7 @@ namespace GM_Toolbox.Data
                 .HasOne(s => s.Oracle)
                 .WithMany()
                 .HasForeignKey(s => s.OracleID)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             // A RollChosen step names an earlier step. NoAction: FlowConfigurator.RemoveStep
             // clears every reference to a step before it is deleted, so the FK is only here
@@ -95,7 +93,7 @@ namespace GM_Toolbox.Data
                 .HasOne(o => o.Oracle)
                 .WithMany()
                 .HasForeignKey(o => o.OracleID)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<FlowChoiceOption>()
                 .HasOne(o => o.TargetStep)
@@ -119,7 +117,7 @@ namespace GM_Toolbox.Data
                 .HasOne(b => b.Oracle)
                 .WithMany()
                 .HasForeignKey(b => b.OracleID)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<FlowBranch>()
                 .HasOne(b => b.TargetStep)
@@ -135,7 +133,7 @@ namespace GM_Toolbox.Data
                 .HasOne(s => s.GameSystem)
                 .WithMany()
                 .HasForeignKey(s => s.GameSystemID)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<Sheet>()
                 .HasIndex(s => new { s.OwnerId, s.FileName });
@@ -149,6 +147,18 @@ namespace GM_Toolbox.Data
             builder.Entity<SheetVersion>()
                 .HasIndex(v => new { v.SheetID, v.Version })
                 .IsUnique();
+        }
+
+        // Deleting the account deletes everything it owns. Links between owned items are NO ACTION rather than
+        // RESTRICT, because SQLite checks RESTRICT row by row partway through that cascade.
+        private static void OwnedByAccount<T>(ModelBuilder builder) where T : class, IOwned
+        {
+            builder.Entity<T>()
+                .HasOne<IdentityUser>()
+                .WithMany()
+                .HasForeignKey(nameof(IOwned.OwnerId))
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public DbSet<Oracle> Oracles { get; set; }

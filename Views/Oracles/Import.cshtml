@@ -7,52 +7,26 @@
 <h1>Import</h1>
 
 <p class="text-muted">
-    Adds what is in the file to what you already have — it never merges or replaces oracles
-    or flows. Importing the same file twice gives you two copies of those. A game system
+    Adds what is in the file to what you already have. It never merges or replaces oracles
+    or flows, so importing the same file twice gives you two copies of those. A game system
     whose name you already have is reused as-is, including its genre; a new name is created
     from the file. Use Clear All first if you want a clean slate for oracles and flows.
 </p>
 
 <p class="text-muted">
-    These are your own saved exports, plus an example to try. Only you can see them. To import
-    another file, copy it into your folder under <code>App_Data/Exports</code> first.
+    Pick an export file from your computer: one you downloaded with Export, or one another
+    gamemaster sent you. Not sure what one looks like?
+    <a asp-action="ExampleFile">Download an example file</a> and import that.
 </p>
 
 <div asp-validation-summary="All" class="text-danger"></div>
 
-@if (Model.Files.Count == 0)
-{
-    <p>No export files found in your folder under <code>App_Data/Exports</code>.</p>
-}
-else
-{
-    <table class="table table-sm align-middle">
-        <thead>
-            <tr>
-                <th scope="col">Folder</th>
-                <th scope="col">File</th>
-                <th scope="col">Modified</th>
-                <th scope="col"></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var file in Model.Files)
-            {
-                <tr>
-                    <td>@file.Folder</td>
-                    <td>@file.Name</td>
-                    <td class="small text-muted">@file.Modified.ToString("yyyy-MM-dd HH:mm")</td>
-                    <td class="text-end">
-                        <form asp-action="Import" method="post" class="d-inline">
-                            <input type="hidden" name="returnTo" value="@Model.ReturnTo" />
-                            <input type="hidden" name="path" value="@file.Path" />
-                            <button type="submit" class="btn btn-sm btn-primary">Import</button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
-<a asp-controller="@backController" asp-action="Index">Cancel</a>
+<form asp-action="Import" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="returnTo" value="@Model.ReturnTo" />
+    <div class="mb-3">
+        <input type="file" name="file" accept=".json,application/json" class="form-control" required />
+        <div class="form-text">A .json export file, up to 5 MB.</div>
+    </div>
+    <button type="submit" class="btn btn-primary">Import</button>
+    <a asp-controller="@backController" asp-action="Index" class="ms-2">Cancel</a>
+</form>

@@ -59,7 +59,7 @@ namespace GM_Toolbox.Services
             }
 
             var checksum = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-            var fileName = file.FileName.Trim();
+            var fileName = SafeFileName(file.FileName);
             var now = DateTime.UtcNow;
 
             // Case-insensitive exact filename match among the uploader's own sheets, no other
@@ -123,6 +123,13 @@ namespace GM_Toolbox.Services
             await WriteFileAsync(existing.ID, newVersionNumber, bytes);
 
             return (null, new SheetUploadResult { Sheet = existing, Outcome = SheetUploadOutcome.NewVersion, Version = newVersionNumber });
+        }
+
+        /// <summary>The name without any folder part, so it is safe to use as a zip entry or download name.</summary>
+        public static string SafeFileName(string name)
+        {
+            var bare = Path.GetFileName(name.Replace('\\', '/')).Trim();
+            return bare is "" or "." or ".." ? "sheet.pdf" : bare;
         }
 
         public string GetFilePath(int sheetId, int version)

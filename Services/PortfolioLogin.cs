@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -13,11 +14,15 @@ public class PortfolioLogin
     public const string Provider = "Portfolio";
     private const string AppId = "gm-toolbox";
     private const string Issuer = "portfolio";
+    private static readonly TimeSpan ClockSkew = TimeSpan.FromSeconds(30);
 
     private readonly string? _url;
     private readonly RsaSecurityKey? _key;
 
-    public PortfolioLogin(IConfiguration configuration)
+    // Tokens already used, until they expire, so a captured token can't log in a second time.
+    private readonly ConcurrentDictionary<string, DateTime> _used = new();
+
+    public PortfolioLogin(IConfiguration configuration, ILogger<PortfolioLogin> logger)
     {
         _url = configuration["PORTFOLIO_SSO_URL"]?.Trim().TrimEnd('/');
         var publicKey = configuration["PORTFOLIO_SSO_PUBLIC_KEY"]?.Trim();
@@ -25,9 +30,16 @@ public class PortfolioLogin
         {
             return;
         }
-        var rsa = RSA.Create();
-        rsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(publicKey), out _);
-        _key = new RsaSecurityKey(rsa);
+        try
+        {
+            var rsa = RSA.Create();
+            rsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(publicKey), out _);
+            _key = new RsaSecurityKey(rsa);
+        }
+        catch (Exception ex) when (ex is FormatException or CryptographicException)
+        {
+            logger.LogError(ex, "PORTFOLIO_SSO_PUBLIC_KEY is not a valid RSA public key, so portfolio login is off.");
+        }
     }
 
     public bool Enabled => _key != null;
@@ -53,9 +65,20 @@ public class PortfolioLogin
             IssuerSigningKey = _key,
             ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
             RequireExpirationTime = true,
-            ClockSkew = TimeSpan.Zero,
+            ClockSkew = ClockSkew,
         });
         if (!result.IsValid || !result.Claims.TryGetValue("sub", out var subClaim) || subClaim is not string sub || sub.Length == 0)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var expired in _used.Where(pair => pair.Value < now))
+        {
+            _used.TryRemove(expired);
+        }
+        var issued = result.SecurityToken is JsonWebToken jwt ? jwt.IssuedAt.Ticks : 0;
+        if (!_used.TryAdd($"{sub}:{issued}", result.SecurityToken.ValidTo + ClockSkew))
         {
             return null;
         }

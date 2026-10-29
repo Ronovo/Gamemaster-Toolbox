@@ -11,16 +11,13 @@ namespace GM_Toolbox.Services
     /// OracleConfigurator.Reconcile uses, so the controller owns ModelState.
     ///
     /// All-or-nothing: any validation failure returns an error and leaves oracles empty, so one
-    /// bad oracle means nothing is imported. Who can see each item isn't in the file, so imports
-    /// come back as "Only me".
+    /// bad oracle means nothing is imported.
     /// </summary>
     public static class OracleImporter
     {
-        public const int SupportedFormatVersion = 10;
-
         public static Dictionary<string, GameSystem> BuildSystemLookup(IEnumerable<GameSystem> existingSystems)
         {
-            return existingSystems.ToDictionary(g => g.Name, g => g, StringComparer.OrdinalIgnoreCase);
+            return existingSystems.ToDictionary(g => g.Name, StringComparer.OrdinalIgnoreCase);
         }
 
         public static GameSystem EnsureSystem(Dictionary<string, GameSystem> systemsByName, string name, string? genre = null)
@@ -48,8 +45,8 @@ namespace GM_Toolbox.Services
             if (file == null)
                 return "That file could not be read as an oracle export.";
 
-            if (file.FormatVersion > SupportedFormatVersion)
-                return $"This file is format version {file.FormatVersion}; this app understands version {SupportedFormatVersion}.";
+            if (file.FormatVersion > OracleExportFile.CurrentFormatVersion)
+                return $"This file is format version {file.FormatVersion}; this app understands version {OracleExportFile.CurrentFormatVersion}.";
 
             var systemsError = ApplyGameSystems(file.GameSystems, systemsByName);
             if (systemsError != null)
@@ -64,6 +61,8 @@ namespace GM_Toolbox.Services
                 var dto = file.Oracles[i];
                 var label = $"Oracle {i + 1}";
 
+                if (dto == null)
+                    return $"{label}: is empty.";
                 if (string.IsNullOrWhiteSpace(dto.Name))
                     return $"{label}: name is missing.";
 
@@ -121,6 +120,8 @@ namespace GM_Toolbox.Services
                 var dto = dtos[i];
                 var label = $"Game system {i + 1}";
 
+                if (dto == null)
+                    return $"{label}: is empty.";
                 if (string.IsNullOrWhiteSpace(dto.Name))
                     return $"{label}: name is missing.";
 
@@ -166,8 +167,14 @@ namespace GM_Toolbox.Services
 
             foreach (var e in entries)
             {
+                if (e == null)
+                    return $"{label} (\"{name}\"): an outcome is empty.";
                 if (e.Result != null && e.Result.Length > 500)
                     return $"{label} (\"{name}\"): an outcome is longer than 500 characters.";
+                if (spec != null && (e.RangeStart is int start && (start < spec.Min || start > spec.Max)
+                                     || e.RangeEnd is int end && (end < spec.Min || end > spec.Max)
+                                     || e.RangeStart > e.RangeEnd))
+                    return $"{label} (\"{name}\"): an outcome's range is outside {spec.Min}-{spec.Max} or runs backwards.";
             }
 
             if (subtype.Category() == OracleCategory.Dice)

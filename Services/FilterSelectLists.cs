@@ -1,11 +1,18 @@
 using GM_Toolbox.Models;
 using GM_Toolbox.Models.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace GM_Toolbox.Services
 {
     public static class FilterSelectLists
     {
+        /// <summary>The game system picker on the oracle and flow forms.</summary>
+        public static async Task<SelectList> GameSystemPickerAsync(IQueryable<GameSystem> systems, int? selected = null)
+        {
+            return new SelectList(await systems.OrderBy(g => g.Name).ToListAsync(), "ID", "Name", selected);
+        }
+
         public static List<SelectListItem> GameSystems(IEnumerable<GameSystem> systems)
         {
             var items = new List<SelectListItem>

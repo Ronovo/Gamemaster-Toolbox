@@ -36,15 +36,14 @@ namespace GM_Toolbox.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OwnerId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Visibility")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("ID");
 
                     b.HasIndex("GameSystemID");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Flows");
                 });
@@ -180,9 +179,6 @@ namespace GM_Toolbox.Data.Migrations
                         .UseCollation("NOCASE");
 
                     b.Property<string>("OwnerId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Visibility")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -219,15 +215,14 @@ namespace GM_Toolbox.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OwnerId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Visibility")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("ID");
 
                     b.HasIndex("GameSystemID");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Oracles");
                 });
@@ -541,7 +536,13 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
                         .WithMany()
                         .HasForeignKey("GameSystemID")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("GameSystem");
@@ -564,7 +565,7 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
                         .WithMany()
                         .HasForeignKey("OracleID")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("GM_Toolbox.Models.FlowStep", "TargetStep")
                         .WithMany()
@@ -591,7 +592,7 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
                         .WithMany()
                         .HasForeignKey("OracleID")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("GM_Toolbox.Models.FlowStep", "TargetStep")
                         .WithMany()
@@ -616,7 +617,7 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasOne("GM_Toolbox.Models.Oracle", "Oracle")
                         .WithMany()
                         .HasForeignKey("OracleID")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("GM_Toolbox.Models.FlowStep", "SourceStep")
                         .WithMany()
@@ -630,12 +631,27 @@ namespace GM_Toolbox.Data.Migrations
                     b.Navigation("SourceStep");
                 });
 
+            modelBuilder.Entity("GM_Toolbox.Models.GameSystem", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("GM_Toolbox.Models.Oracle", b =>
                 {
                     b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
                         .WithMany()
                         .HasForeignKey("GameSystemID")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("GameSystem");
@@ -655,7 +671,13 @@ namespace GM_Toolbox.Data.Migrations
                     b.HasOne("GM_Toolbox.Models.GameSystem", "GameSystem")
                         .WithMany()
                         .HasForeignKey("GameSystemID")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("GameSystem");
                 });
