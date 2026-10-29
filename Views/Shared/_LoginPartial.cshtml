@@ -1,7 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Identity
 @inject SignInManager<IdentityUser> SignInManager
 @inject UserManager<IdentityUser> UserManager
-@inject GM_Toolbox.Services.RonovoLogin Ronovo
+@inject GM_Toolbox.Services.PortfolioLogin Portfolio
 
 <ul class="navbar-nav">
 @if (SignInManager.IsSignedIn(User))
@@ -23,10 +23,10 @@ else
     <li class="nav-item">
         <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
     </li>
-    @if (Ronovo.Enabled)
+    @if (Portfolio.Enabled)
     {
         <li class="nav-item">
-            <a class="nav-link" href="/sso/login">Log in with Ronovo</a>
+            <a class="nav-link portfolio-button" href="/sso/login" data-portfolio-url="@Portfolio.Url">Log in with portfolio account</a>
         </li>
     }
 }

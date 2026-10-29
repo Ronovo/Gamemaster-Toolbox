@@ -29,10 +29,12 @@ Only the account that made one can change it, and items from before accounts are
 any signed-in account. Something everyone can see can only use things everyone can see: its
 game system, and for a flow every oracle it rolls or picks. To share a private item with one
 person, export it and send them the file.
-- **Log in with Ronovo** — with `RONOVO_SSO_URL` (the portfolio's address) and
-`RONOVO_SSO_PUBLIC_KEY` (from the portfolio's `python sso.py`) set, the login page offers a
-Ronovo login. The first one creates an account named after the Ronovo username. Without them
-the app runs on its own accounts.
+- **Log in with a portfolio account** — with `PORTFOLIO_SSO_URL` (the portfolio's address) and
+`PORTFOLIO_SSO_PUBLIC_KEY` (from the portfolio's `python sso.py`) set, the login page offers to log in
+with a portfolio account. It reads **Log in as** and the portfolio username when this browser is logged in
+to the portfolio. The first portfolio login here asks whether to link an account the player already has,
+by logging in to it once, or to make a new one named after the portfolio username. Every later portfolio
+login opens the linked account. Without them the app runs on its own accounts.
 
 
 

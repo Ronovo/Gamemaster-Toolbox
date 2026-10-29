@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace GM_Toolbox.Services;
 
-// Security questions for password resets. The same 30 questions are in every Ronovo portfolio app.
+// Security questions for password resets. The same 30 questions are in every portfolio app.
 // They are kept as Identity user tokens rather than claims, because claims are copied into the
 // login cookie and the answer hash has no business there.
 public class SecurityQuestions(UserManager<IdentityUser> users, IPasswordHasher<IdentityUser> hasher)

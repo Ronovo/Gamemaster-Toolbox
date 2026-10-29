@@ -24,7 +24,7 @@ builder.Services.AddScoped<SecurityQuestions>();
 builder.Services.AddScoped<OracleConfigurator>();
 builder.Services.AddScoped<FlowConfigurator>();
 builder.Services.AddScoped<SheetStorageService>();
-builder.Services.AddSingleton<RonovoLogin>();
+builder.Services.AddSingleton<PortfolioLogin>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

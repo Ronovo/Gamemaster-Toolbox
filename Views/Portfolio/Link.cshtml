@@ -1,0 +1,29 @@
+@model PortfolioLinkModel
+@{
+    ViewData["Title"] = "Link your account";
+}
+
+<h1>@ViewData["Title"]</h1>
+<div class="row">
+    <div class="col-md-4">
+        <p>This is the first time <strong>@Model.Name</strong> has logged in here. If you already have a GM Toolbox
+            account, log in to it once to link it. After that, your portfolio account opens it on any device.</p>
+        <form method="post" asp-action="Link">
+            @if (Model.Error != null)
+            {
+                <div class="text-danger mb-3" role="alert">@Model.Error</div>
+            }
+            <div class="form-floating mb-3">
+                <input name="userName" value="@Model.UserName" class="form-control" autocomplete="username" placeholder="Username" id="link-username" />
+                <label for="link-username">Username</label>
+            </div>
+            <div class="form-floating mb-3">
+                <input name="password" type="password" class="form-control" autocomplete="current-password" placeholder="Password" id="link-password" autofocus />
+                <label for="link-password">Password</label>
+            </div>
+            <button type="submit" name="choice" value="link" class="w-100 btn btn-lg btn-primary mb-2">Link this account</button>
+            <button type="submit" name="choice" value="new" class="w-100 btn btn-lg btn-outline-primary mb-2">Make a new account</button>
+            <button type="submit" name="choice" value="cancel" class="w-100 btn btn-link">Cancel</button>
+        </form>
+    </div>
+</div>

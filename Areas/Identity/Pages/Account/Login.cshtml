@@ -1,6 +1,6 @@
 @page
 @model LoginModel
-@inject GM_Toolbox.Services.RonovoLogin Ronovo
+@inject GM_Toolbox.Services.PortfolioLogin Portfolio
 @{
     ViewData["Title"] = "Log in";
 }
@@ -8,9 +8,9 @@
 <h1>@ViewData["Title"]</h1>
 <div class="row">
     <div class="col-md-4">
-        @if (Ronovo.Enabled)
+        @if (Portfolio.Enabled)
         {
-            <p><a class="w-100 btn btn-lg btn-primary" href="/sso/login">Log in with Ronovo</a></p>
+            <p><a class="w-100 btn btn-lg btn-primary portfolio-button" href="/sso/login" data-portfolio-url="@Portfolio.Url">Log in with portfolio account</a></p>
         }
         <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
@@ -32,7 +32,7 @@
                     @Html.DisplayNameFor(m => m.Input.RememberMe)
                 </label>
             </div>
-            <button type="submit" class="w-100 btn btn-lg @(Ronovo.Enabled ? "btn-outline-primary" : "btn-primary")">Log in</button>
+            <button type="submit" class="w-100 btn btn-lg @(Portfolio.Enabled ? "btn-outline-primary" : "btn-primary")">Log in</button>
             <p class="mt-3">
                 <a asp-page="./ForgotPassword">Forgot your password?</a><br />
                 <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Register as a new user</a>
