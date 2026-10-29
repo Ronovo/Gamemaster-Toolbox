@@ -303,3 +303,6 @@ wwwroot/        Static assets (Bootstrap, jQuery, site CSS/JS, roll-panel.js)
 - Entity Framework Core 10 (SQLite provider)
 - Bootstrap 5 + jQuery
 
+## License
+
+BSD 2-Clause. See [LICENSE](LICENSE).
