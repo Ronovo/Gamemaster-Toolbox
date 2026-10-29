@@ -10,14 +10,14 @@ namespace GM_Toolbox.Data
     public class OwnershipException(string message) : Exception(message);
 
     /// <summary>
-    /// Checked on every save so no action can skip it: anything added, changed or deleted must belong to the
-    /// signed-in account, and so must anything it points at (a game system, or the oracles a flow uses).
-    /// New items belong to the account that made them.
+    /// Checked on every SaveChanges: anything added, changed or deleted must belong to the signed-in account, and
+    /// so must everything it points at, before and after the change. New items belong to the account that made
+    /// them. Bulk ExecuteDelete calls skip SaveChanges, so they only run on the account's filtered sets.
     /// </summary>
     internal class OwnershipRules(ApplicationDbContext context)
     {
         private const string NotYours = "Only the account that made this can change it.";
-        private const string NotYourReference = "You can only use your own game systems and oracles.";
+        private const string NotYourReference = "You can only use your own game systems, oracles and steps.";
 
         private static readonly HashSet<Type> Guarded =
         [
@@ -59,16 +59,19 @@ namespace GM_Toolbox.Data
                 switch (entry.Entity)
                 {
                     case OracleEntry:
-                        await RequireMineAsync<Oracle>(Key(entry, nameof(OracleEntry.OracleID)), userId, NotYours, ct);
+                        await RequireParentAsync<Oracle>(entry, nameof(OracleEntry.OracleID), userId, ct);
                         break;
                     case SheetVersion:
-                        await RequireMineAsync<Sheet>(Key(entry, nameof(SheetVersion.SheetID)), userId, NotYours, ct);
+                        await RequireParentAsync<Sheet>(entry, nameof(SheetVersion.SheetID), userId, ct);
                         break;
                     case FlowStep:
-                        await RequireMineAsync<Flow>(Key(entry, nameof(FlowStep.FlowID)), userId, NotYours, ct);
+                        await RequireParentAsync<Flow>(entry, nameof(FlowStep.FlowID), userId, ct);
                         break;
-                    case FlowChoiceOption or FlowBranch:
-                        await RequireMineAsync<Flow>(await FlowOfStepAsync(Key(entry, nameof(FlowBranch.FlowStepID)), ct), userId, NotYours, ct);
+                    case FlowChoiceOption:
+                        await RequireStepsAsync(Keys(entry, nameof(FlowChoiceOption.FlowStepID)), userId, NotYours, ct);
+                        break;
+                    case FlowBranch:
+                        await RequireStepsAsync(Keys(entry, nameof(FlowBranch.FlowStepID)), userId, NotYours, ct);
                         break;
                 }
 
@@ -78,11 +81,29 @@ namespace GM_Toolbox.Data
                 }
                 switch (entry.Entity)
                 {
-                    case Oracle or Flow or Sheet:
+                    case Oracle:
                         await RequireMineAsync<GameSystem>(Key(entry, nameof(Oracle.GameSystemID)), userId, NotYourReference, ct);
                         break;
-                    case FlowStep or FlowChoiceOption or FlowBranch:
+                    case Flow:
+                        await RequireMineAsync<GameSystem>(Key(entry, nameof(Flow.GameSystemID)), userId, NotYourReference, ct);
+                        break;
+                    case Sheet:
+                        await RequireMineAsync<GameSystem>(Key(entry, nameof(Sheet.GameSystemID)), userId, NotYourReference, ct);
+                        break;
+                    case FlowStep:
                         await RequireMineAsync<Oracle>(Key(entry, nameof(FlowStep.OracleID)), userId, NotYourReference, ct);
+                        await RequireStepsAsync([Key(entry, nameof(FlowStep.SourceStepID))], userId, NotYourReference, ct);
+                        break;
+                    case FlowChoiceOption:
+                        await RequireMineAsync<Oracle>(Key(entry, nameof(FlowChoiceOption.OracleID)), userId, NotYourReference, ct);
+                        await RequireStepsAsync([Key(entry, nameof(FlowChoiceOption.TargetStepID))], userId, NotYourReference, ct);
+                        break;
+                    case FlowBranch:
+                        await RequireMineAsync<Oracle>(Key(entry, nameof(FlowBranch.OracleID)), userId, NotYourReference, ct);
+                        await RequireStepsAsync([Key(entry, nameof(FlowBranch.TargetStepID))], userId, NotYourReference, ct);
+                        await RequireMineAsync<Oracle>(
+                            await ParentKeyAsync<OracleEntry>(Key(entry, nameof(FlowBranch.OracleEntryID)), nameof(OracleEntry.OracleID), ct),
+                            userId, NotYourReference, ct);
                         break;
                 }
             }
@@ -99,6 +120,29 @@ namespace GM_Toolbox.Data
         // Keys are read through the change tracker: something added in this same save (an import) only has a
         // temporary key, which EF keeps there rather than on the object.
         private static object? Key(EntityEntry entry, string property) => entry.Property(property).CurrentValue;
+
+        // A changed child is checked against the parent it had and the one it moves to.
+        private static object?[] Keys(EntityEntry entry, string property) =>
+            entry.State == EntityState.Modified
+                ? [entry.Property(property).OriginalValue, Key(entry, property)]
+                : [Key(entry, property)];
+
+        private async Task RequireParentAsync<T>(EntityEntry entry, string property, string userId, CancellationToken ct)
+            where T : class, IOwned
+        {
+            foreach (var id in Keys(entry, property))
+            {
+                await RequireMineAsync<T>(id, userId, NotYours, ct);
+            }
+        }
+
+        private async Task RequireStepsAsync(object?[] stepIds, string userId, string message, CancellationToken ct)
+        {
+            foreach (var stepId in stepIds)
+            {
+                await RequireMineAsync<Flow>(await ParentKeyAsync<FlowStep>(stepId, nameof(FlowStep.FlowID), ct), userId, message, ct);
+            }
+        }
 
         private EntityEntry<T>? TrackedById<T>(object id) where T : class =>
             context.ChangeTracker.Entries<T>().FirstOrDefault(e => Equals(e.Property("ID").CurrentValue, id));
@@ -118,18 +162,19 @@ namespace GM_Toolbox.Data
             CheckOwner(owner, userId, message);
         }
 
-        private async Task<object?> FlowOfStepAsync(object? stepId, CancellationToken ct)
+        // The key a child row points its parent with. A child that doesn't exist gives 0, which nobody owns.
+        private async Task<object?> ParentKeyAsync<T>(object? id, string property, CancellationToken ct) where T : class
         {
-            if (stepId == null)
+            if (id == null)
             {
                 return null;
             }
-            var tracked = TrackedById<FlowStep>(stepId);
+            var tracked = TrackedById<T>(id);
             return tracked != null
-                ? Key(tracked, nameof(FlowStep.FlowID))
-                : await context.FlowSteps.IgnoreQueryFilters()
-                    .Where(s => s.ID == (int)stepId)
-                    .Select(s => s.FlowID)
+                ? Key(tracked, property)
+                : await context.Set<T>().IgnoreQueryFilters()
+                    .Where(e => EF.Property<int>(e, "ID") == (int)id)
+                    .Select(e => EF.Property<int>(e, property))
                     .FirstOrDefaultAsync(ct);
         }
     }

@@ -1,8 +1,5 @@
 namespace GM_Toolbox.Models.ViewModels
 {
-    /// <summary>
-    /// One row of the flow list.
-    /// </summary>
     public class FlowListItem
     {
         public int ID { get; set; }

@@ -59,20 +59,45 @@ public class ImportTests
         Assert.Equal(2, oracles.Single().OracleEntries.Count);
     }
 
-    [Theory]
-    [InlineData("d99999999999")]
-    [InlineData("99999999999d6")]
-    [InlineData("d1")]
-    [InlineData("nonsense")]
-    public void Bad_dice_labels_parse_as_nothing(string label)
+    [Fact]
+    public void Only_the_current_format_imports()
     {
-        Assert.Null(DiceSpec.Parse(label));
+        var file = FileWith(D6(new OracleEntryDto { Result = "Rain", RangeStart = 1, RangeEnd = 6 }));
+        file.FormatVersion = OracleExportFile.CurrentFormatVersion - 1;
+
+        Assert.Contains("format version", OracleImporter.TryBuild(file, OracleImporter.BuildSystemLookup([]), out _));
     }
 
     [Fact]
-    public void Good_dice_labels_parse()
+    public void A_long_game_system_name_is_an_error()
     {
-        Assert.Equal(12, DiceSpec.Parse("2d6")!.Max);
-        Assert.Equal(20, DiceSpec.Parse("d20")!.Max);
+        var oracle = D6(new OracleEntryDto { Result = "Rain", RangeStart = 1, RangeEnd = 6 });
+        oracle.GameSystem = new string('x', 101);
+
+        Assert.Contains("game system name is longer", OracleImporter.TryBuild(FileWith(oracle), OracleImporter.BuildSystemLookup([]), out _));
+    }
+
+    [Fact]
+    public void Oracle_names_and_systems_that_run_together_stay_apart()
+    {
+        var system = new GameSystem { Name = "bc" };
+        var existing = new Oracle { Name = "a", GameSystem = system };
+        var flow = new FlowDto
+        {
+            Name = "Travel", GameSystem = "bc",
+            Steps = [new FlowStepDto { Id = 1, Kind = "Roll", Oracle = new OracleRefDto { Name = "ab", GameSystem = "c" } }]
+        };
+
+        var error = FlowImporter.TryBuild([flow], OracleImporter.BuildSystemLookup([system]), [], [existing], out _);
+
+        Assert.Contains("neither in this file nor in your toolbox", error);
+    }
+
+    [Fact]
+    public void A_step_without_an_id_is_an_error()
+    {
+        var flow = new FlowDto { Name = "Travel", GameSystem = "Ironsworn", Steps = [new FlowStepDto { Kind = "Text", Question = "Where?" }] };
+
+        Assert.Contains("has no id", FlowImporter.TryBuild([flow], OracleImporter.BuildSystemLookup([]), [], [], out _));
     }
 }

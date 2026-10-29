@@ -105,12 +105,7 @@ namespace GM_Toolbox.Services
             int entryId = deck[0];
             deck.RemoveAt(0);
 
-            var entry = oracle.OracleEntries.FirstOrDefault(e => e.ID == entryId);
-            if (entry == null)
-            {
-                Reshuffle(oracle, session);
-                return "That card is no longer part of this oracle. The deck has been reshuffled, so try again.";
-            }
+            var entry = oracle.OracleEntries.First(e => e.ID == entryId);
 
             SaveDeck(oracle, session, deck);
 

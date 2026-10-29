@@ -18,6 +18,12 @@ namespace GM_Toolbox.Data
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            new OwnershipRules(this).CheckAsync(CancellationToken.None).GetAwaiter().GetResult();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -27,6 +33,11 @@ namespace GM_Toolbox.Data
             builder.Entity<Oracle>().HasQueryFilter(o => o.OwnerId == CurrentUserId);
             builder.Entity<Flow>().HasQueryFilter(f => f.OwnerId == CurrentUserId);
             builder.Entity<Sheet>().HasQueryFilter(s => s.OwnerId == CurrentUserId);
+            builder.Entity<OracleEntry>().HasQueryFilter(e => e.Oracle!.OwnerId == CurrentUserId);
+            builder.Entity<SheetVersion>().HasQueryFilter(v => v.Sheet!.OwnerId == CurrentUserId);
+            builder.Entity<FlowStep>().HasQueryFilter(s => s.Flow!.OwnerId == CurrentUserId);
+            builder.Entity<FlowChoiceOption>().HasQueryFilter(o => o.FlowStep!.Flow!.OwnerId == CurrentUserId);
+            builder.Entity<FlowBranch>().HasQueryFilter(b => b.FlowStep!.Flow!.OwnerId == CurrentUserId);
 
             OwnedByAccount<GameSystem>(builder);
             OwnedByAccount<Oracle>(builder);

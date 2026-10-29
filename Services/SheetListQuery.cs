@@ -23,10 +23,9 @@ namespace GM_Toolbox.Services
 
         public static Task<PagedList<SheetListItem>> ToPagedListAsync(
             IQueryable<Sheet> sheets,
-            int page,
-            int pageSize = PagedList<SheetListItem>.DefaultPageSize)
+            int page)
         {
-            return PagedList<SheetListItem>.CreateAsync(sheets.OrderBy(s => s.FileName), Project, page, pageSize);
+            return PagedList<SheetListItem>.CreateAsync(sheets.OrderBy(s => s.FileName), Project, page);
         }
 
         private static IQueryable<SheetListItem> Project(IQueryable<Sheet> sheets)

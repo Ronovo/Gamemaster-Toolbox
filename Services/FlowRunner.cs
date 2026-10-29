@@ -367,6 +367,6 @@ namespace GM_Toolbox.Services
             };
         }
 
-        private static string RunKey(int flowId) => $"flow-run-v3-{flowId}";
+        private static string RunKey(int flowId) => $"flow-run-{flowId}";
     }
 }

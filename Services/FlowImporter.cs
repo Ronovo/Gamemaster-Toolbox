@@ -9,12 +9,6 @@ namespace GM_Toolbox.Services
     ///
     /// Pure -- no DbContext, like OracleImporter, and all-or-nothing: one bad flow means nothing
     /// at all is imported.
-    ///
-    /// A flow is a flat list of steps. Older files still import:
-    /// - a <c>Loop</c> step is dropped and its body steps kept in place;
-    /// - a <c>Fields</c> step becomes a <c>Text</c> question whose text is its labels;
-    /// - <c>Number</c> is <c>Text</c>; <c>times</c> / <c>countMode</c> / <c>countDice</c> are ignored;
-    /// - version 6/7 files (flat, <c>blockEnd</c> spans) import with the spans discarded.
     /// </summary>
     public static class FlowImporter
     {
@@ -51,7 +45,9 @@ namespace GM_Toolbox.Services
                 if (string.IsNullOrWhiteSpace(dto.GameSystem))
                     return $"{label} (\"{dto.Name}\"): game system is missing.";
 
-                var system = OracleImporter.EnsureSystem(systemsByName, dto.GameSystem);
+                var systemError = OracleImporter.EnsureSystem(systemsByName, dto.GameSystem, $"{label} (\"{dto.Name}\")", out var system);
+                if (systemError != null)
+                    return systemError;
 
                 var flow = new Flow
                 {
@@ -76,20 +72,15 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        /// <summary>
-        /// Turns one flow's step DTOs into a flat, wired-up list of FlowStep entities. Nested
-        /// <c>Steps</c> (v8-9) and flat <c>blockEnd</c> spans (v6/7) both funnel through here;
-        /// either way, loops disappear and their bodies stay.
-        /// </summary>
+        /// <summary>Turns one flow's step DTOs into a wired-up list of FlowStep entities.</summary>
         private sealed class FlowBuilder
         {
             private readonly string _where;
             private readonly OracleResolver _lookup;
             private readonly Flow _flow;
 
-            // file key (Id from v8 on, SortOrder in v6/7) -> the step it maps to, or null when the
-            // step it named was dropped (an empty loop) so a reference to it just carries on
-            private readonly Dictionary<int, FlowStep?> _byKey = new();
+            // the file's step Id -> the step built from it
+            private readonly Dictionary<int, FlowStep> _byKey = new();
 
             // deferred step-to-step references, resolved once every step exists
             private readonly List<(string what, int key, Action<FlowStep?> apply)> _refs = new();
@@ -105,32 +96,14 @@ namespace GM_Toolbox.Services
 
             public string? Build(List<FlowStepDto> steps)
             {
-                return Walk(steps);
-            }
-
-            private string? Walk(List<FlowStepDto> siblings)
-            {
-                for (int i = 0; i < siblings.Count; i++)
+                for (int i = 0; i < steps.Count; i++)
                 {
-                    var dto = siblings[i];
+                    var dto = steps[i];
                     if (dto == null)
                         return $"{_where}: step #{i + 1} is empty.";
-                    var where = $"{_where}: step {(dto.Id?.ToString() ?? "#" + (i + 1))}";
-                    var key = dto.Id ?? dto.SortOrder;
-                    if (key <= 0) key = _byKey.Count + 1;
-
-                    // The old nested loop is gone: keep its body steps in place, and point any
-                    // reference to it at its first surviving step (filled once children are walked).
-                    // A "Loop" with no body is the current Loop step and imports as one.
-                    if (string.Equals(dto.Kind, "Loop", StringComparison.OrdinalIgnoreCase)
-                        && dto.Steps is { Count: > 0 })
-                    {
-                        var before = _flow.Steps.Count;
-                        var childError = Walk(dto.Steps);
-                        if (childError != null) return childError;
-                        _byKey[key] = _flow.Steps.Skip(before).FirstOrDefault();
-                        continue;
-                    }
+                    if (dto.Id is not int key)
+                        return $"{_where}: step #{i + 1} has no id.";
+                    var where = $"{_where}: step {key}";
 
                     var kindError = ResolveKind(dto.Kind, where, out var kind);
                     if (kindError != null) return kindError;
@@ -149,14 +122,6 @@ namespace GM_Toolbox.Services
                     if (fillError != null) return fillError;
 
                     _flow.Steps.Add(step);
-
-                    // Nesting on a non-loop step was never valid; keep any stray children in
-                    // sequence rather than reject the file.
-                    if (dto.Steps is { Count: > 0 })
-                    {
-                        var childError = Walk(dto.Steps);
-                        if (childError != null) return childError;
-                    }
                 }
 
                 return null;
@@ -200,15 +165,6 @@ namespace GM_Toolbox.Services
                         return BuildOptions(where, dto.Options, step);
 
                     case FlowStepKind.Text:
-                        // A former Fields step arrives as Text with its labels for a question.
-                        if ((dto.Fields is { Count: > 0 }) && string.IsNullOrWhiteSpace(dto.Question))
-                        {
-                            var joined = string.Join(", ", dto.Fields.Where(f => !string.IsNullOrWhiteSpace(f)));
-                            step.Question = joined.Length > 200 ? joined.Substring(0, 200) : joined;
-                            return string.IsNullOrWhiteSpace(step.Question)
-                                ? $"{where} is a question step but has no question."
-                                : null;
-                        }
                         return Question(where, dto.Question, step);
 
                     case FlowStepKind.RollChosen:
@@ -234,8 +190,8 @@ namespace GM_Toolbox.Services
                         return $"{where} has an empty option.";
                     if (string.IsNullOrWhiteSpace(option.Label))
                         return $"{where} has an option with no label.";
-                    if (option.Label.Length > 100)
-                        return $"{where} has an option label longer than 100 characters.";
+                    if (FlowText.LabelProblem(option.Label, "An option label") is string labelProblem)
+                        return $"{where}: {labelProblem}";
 
                     var error = _lookup.Resolve($"{where}, option \"{option.Label}\",",
                         option.Oracle, required: false, out var oracle);
@@ -310,11 +266,6 @@ namespace GM_Toolbox.Services
 
                 var name = string.IsNullOrWhiteSpace(kindName) ? nameof(FlowStepKind.Roll) : kindName;
 
-                // Retired kinds "Number" and "Fields" fold into Text.
-                if (string.Equals(name, "Number", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(name, "Fields", StringComparison.OrdinalIgnoreCase))
-                    name = nameof(FlowStepKind.Text);
-
                 if (!Enum.TryParse(name, out kind) || !Enum.IsDefined(kind))
                     return $"{where}: \"{kindName}\" is not a known kind of step.";
 
@@ -323,11 +274,9 @@ namespace GM_Toolbox.Services
 
             private static string? Question(string where, string? question, FlowStep step)
             {
-                if (string.IsNullOrWhiteSpace(question))
-                    return $"{where} is a question step but has no question.";
-                if (question.Length > 200)
-                    return $"{where} has a question longer than 200 characters.";
-                step.Question = question.Trim();
+                if (FlowText.QuestionProblem(question) is string problem)
+                    return $"{where}: {problem}";
+                step.Question = question!.Trim();
                 return null;
             }
         }
@@ -393,7 +342,7 @@ namespace GM_Toolbox.Services
 
             private static string Key(string name, string gameSystem)
             {
-                return $"{name.Trim().ToLowerInvariant()}{gameSystem.Trim().ToLowerInvariant()}";
+                return $"{name.Trim().ToLowerInvariant()}\n{gameSystem.Trim().ToLowerInvariant()}";
             }
         }
     }

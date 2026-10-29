@@ -74,7 +74,7 @@
                                 @foreach (var oracle in Model.Oracles)
                                 {
                                     <option value="@oracle.ID">
-                                        @oracle.Name &mdash; @oracle.GameSystemName@(oracle.NeedsSetup ? " (needs setup)" : "")
+                                        @oracle.Name - @oracle.GameSystemName@(oracle.NeedsSetup ? " (needs setup)" : "")
                                     </option>
                                 }
                             </select>
@@ -83,7 +83,7 @@
                             <details>
                                 <summary class="small text-muted">Go to a step / end the flow</summary>
                                 <select asp-for="Rows[i].Target" class="form-control form-control-sm mt-1">
-                                    <option value="">Carry on &mdash; @Model.FallThroughLabel</option>
+                                    <option value="">Carry on - @Model.FallThroughLabel</option>
                                     <option value="@GM_Toolbox.Models.ViewModels.BranchRow.EndTarget">End the flow here</option>
                                     @foreach (var target in Model.Targets)
                                     {

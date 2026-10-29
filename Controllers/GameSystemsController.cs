@@ -106,8 +106,7 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FirstOrDefaultAsync(g => g.ID == id);
         if (gameSystem == null) return NotFound();
 
-        ViewData["OracleCount"] = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
-        ViewData["FlowCount"] = await _context.Flows.CountAsync(f => f.GameSystemID == id);
+        await CountUsesAsync(gameSystem.ID);
         return View(gameSystem);
     }
 
@@ -118,23 +117,25 @@ public class GameSystemsController : Controller
         var gameSystem = await _context.GameSystems.FindAsync(id);
         if (gameSystem == null) return RedirectToAction(nameof(Index));
 
-        var oracleCount = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
-        var flowCount = await _context.Flows.CountAsync(f => f.GameSystemID == id);
-
-        if (oracleCount > 0 || flowCount > 0)
+        if (await CountUsesAsync(id) > 0)
         {
-            ViewData["OracleCount"] = oracleCount;
-            ViewData["FlowCount"] = flowCount;
-            ModelState.AddModelError("", oracleCount > 0 && flowCount > 0
-                ? "That game system is still used by one or more oracles and flows, and cannot be deleted."
-                : oracleCount > 0
-                    ? "That game system is still used by one or more oracles and cannot be deleted."
-                    : "That game system is still used by one or more flows and cannot be deleted.");
             return View(gameSystem);
         }
 
         _context.GameSystems.Remove(gameSystem);
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
+    }
+
+    // The oracles, flows and sheets still using a system, for the Delete page. A system in use can't be deleted.
+    private async Task<int> CountUsesAsync(int id)
+    {
+        var oracles = await _context.Oracles.CountAsync(o => o.GameSystemID == id);
+        var flows = await _context.Flows.CountAsync(f => f.GameSystemID == id);
+        var sheets = await _context.Sheets.CountAsync(s => s.GameSystemID == id);
+        ViewData["OracleCount"] = oracles;
+        ViewData["FlowCount"] = flows;
+        ViewData["SheetCount"] = sheets;
+        return oracles + flows + sheets;
     }
 }

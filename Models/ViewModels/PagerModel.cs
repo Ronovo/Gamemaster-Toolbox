@@ -49,7 +49,6 @@ namespace GM_Toolbox.Models.ViewModels
                 copy[PageParam] = page.ToString();
             }
 
-            // Drop empty filter values so the URL stays tidy.
             foreach (var key in copy.Keys.ToList())
             {
                 if (string.IsNullOrWhiteSpace(copy[key]))

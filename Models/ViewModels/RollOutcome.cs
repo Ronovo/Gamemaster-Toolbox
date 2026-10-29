@@ -4,9 +4,6 @@
     {
         public bool IsDice { get; set; }
 
-        /// <summary>
-        /// Which OracleEntry the roll landed on. 
-        /// </summary>
         public int? EntryID { get; set; }
 
         public int? Value { get; set; }

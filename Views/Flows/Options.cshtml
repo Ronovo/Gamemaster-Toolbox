@@ -66,12 +66,12 @@ else
                         <td>
                             <select asp-for="Rows[i].OracleID" class="form-control form-control-sm"
                                     asp-items="ViewBag.OracleID">
-                                <option value="">Nothing &mdash; just record the answer</option>
+                                <option value="">Nothing - just record the answer</option>
                             </select>
                         </td>
                         <td>
                             <select asp-for="Rows[i].Target" class="form-control form-control-sm">
-                                <option value="">Carry on &mdash; @Model.FallThroughLabel</option>
+                                <option value="">Carry on - @Model.FallThroughLabel</option>
                                 <option value="@GM_Toolbox.Models.ViewModels.BranchRow.EndTarget">End the flow here</option>
                                 @foreach (var target in Model.Targets)
                                 {
@@ -108,7 +108,7 @@ else
 
 <p class="text-muted">
     One option per ticked oracle, named after the oracle. This is the quick way to build a
-    dropdown out of a family of tables &mdash; ten hustle tables, one per role. Oracles already
+    dropdown out of a family of tables - ten hustle tables, one per role. Oracles already
     on the list are skipped, so you can tick the lot again after adding an eleventh.
 </p>
 
@@ -173,7 +173,7 @@ else
         <div class="col-md-5">
             <label asp-for="AddOracleID" class="control-label">Rolls on</label>
             <select asp-for="AddOracleID" class="form-control" asp-items="ViewBag.OracleID">
-                <option value="">Nothing &mdash; just record the answer</option>
+                <option value="">Nothing - just record the answer</option>
             </select>
         </div>
         <div class="col-md-3">

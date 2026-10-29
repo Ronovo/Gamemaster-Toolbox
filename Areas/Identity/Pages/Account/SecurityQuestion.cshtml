@@ -5,6 +5,12 @@
 }
 
 <h1>@ViewData["Title"]</h1>
+@if (!Model.HasPassword)
+{
+    <p>This account logs in with the portfolio and has no password here, so it has no security question.
+        A forgotten portfolio password is reset on the portfolio.</p>
+    return;
+}
 <div class="row">
     <div class="col-md-4">
         <form method="post" asp-route-returnUrl="@Model.ReturnUrl">

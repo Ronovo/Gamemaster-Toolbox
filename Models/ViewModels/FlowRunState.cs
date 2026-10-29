@@ -1,7 +1,7 @@
 namespace GM_Toolbox.Models.ViewModels
 {
     /// <summary>
-    /// A run of one flow, held in the browser session under "flow-run-v3-{flowId}".
+    /// A run of one flow, held in the server's session store (memory, so a restart ends it).
     ///
     /// Never saved to the database and never exported.
     /// </summary>

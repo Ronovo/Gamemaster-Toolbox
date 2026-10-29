@@ -3,9 +3,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models.ViewModels
 {
-    /// <summary>
-    /// One row of the oracle list.
-    /// </summary>
     public class OracleListItem
     {
         public int ID { get; set; }

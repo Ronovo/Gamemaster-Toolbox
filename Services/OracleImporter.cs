@@ -7,7 +7,7 @@ namespace GM_Toolbox.Services
     /// <summary>
     /// Validates a parsed export file and turns it into Oracle entities ready to add.
     ///
-    /// Pure — no DbContext. Returns an error message or null, the same contract
+    /// Pure - no DbContext. Returns an error message or null, the same contract
     /// OracleConfigurator.Reconcile uses, so the controller owns ModelState.
     ///
     /// All-or-nothing: any validation failure returns an error and leaves oracles empty, so one
@@ -20,19 +20,18 @@ namespace GM_Toolbox.Services
             return existingSystems.ToDictionary(g => g.Name, StringComparer.OrdinalIgnoreCase);
         }
 
-        public static GameSystem EnsureSystem(Dictionary<string, GameSystem> systemsByName, string name, string? genre = null)
+        public static string? EnsureSystem(Dictionary<string, GameSystem> systemsByName, string name, string where,
+            out GameSystem system)
         {
             name = name.Trim();
-            if (systemsByName.TryGetValue(name, out var system))
-                return system;
+            if (systemsByName.TryGetValue(name, out system!))
+                return null;
+            if (name.Length > 100)
+                return $"{where}: game system name is longer than 100 characters.";
 
-            system = new GameSystem
-            {
-                Name = name,
-                Genre = string.IsNullOrWhiteSpace(genre) ? "Unknown" : genre.Trim()
-            };
+            system = new GameSystem { Name = name, Genre = "Unknown" };
             systemsByName[name] = system;
-            return system;
+            return null;
         }
 
         public static string? TryBuild(OracleExportFile? file, Dictionary<string, GameSystem> systemsByName, out List<Oracle> oracles)
@@ -45,8 +44,8 @@ namespace GM_Toolbox.Services
             if (file == null)
                 return "That file could not be read as an oracle export.";
 
-            if (file.FormatVersion > OracleExportFile.CurrentFormatVersion)
-                return $"This file is format version {file.FormatVersion}; this app understands version {OracleExportFile.CurrentFormatVersion}.";
+            if (file.FormatVersion != OracleExportFile.CurrentFormatVersion)
+                return $"This file is format version {file.FormatVersion}; this app reads version {OracleExportFile.CurrentFormatVersion}.";
 
             var systemsError = ApplyGameSystems(file.GameSystems, systemsByName);
             if (systemsError != null)
@@ -75,7 +74,9 @@ namespace GM_Toolbox.Services
                 if (string.IsNullOrWhiteSpace(dto.GameSystem))
                     return $"{label} (\"{dto.Name}\"): game system is missing.";
 
-                var system = EnsureSystem(systemsByName, dto.GameSystem);
+                var systemError = EnsureSystem(systemsByName, dto.GameSystem, $"{label} (\"{dto.Name}\")", out var system);
+                if (systemError != null)
+                    return systemError;
 
                 bool isDice = subtype.Category() == OracleCategory.Dice;
                 int? diceCount = isDice ? dto.DiceCount : null;

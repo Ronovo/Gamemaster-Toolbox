@@ -166,6 +166,7 @@ public class OraclesController : Controller
 
         ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, oracle.GameSystemID);
         ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
+        ViewData["BranchCount"] = await _context.FlowBranches.CountAsync(b => b.OracleEntry!.OracleID == oracle.ID);
         return View(oracle);
     }
 
@@ -183,38 +184,38 @@ public class OraclesController : Controller
 
         ClearDiceForCards(oracle);
 
-		if (!ModelState.IsValid)
-		{
+        if (!ModelState.IsValid)
+        {
             ViewData["GameSystemID"] = await FilterSelectLists.GameSystemPickerAsync(_context.GameSystems, oracle.GameSystemID);
             ViewData["OracleSubtype"] = SubtypeSelectList(oracle.OracleSubtype);
             return View(oracle);
-		}
+        }
 
-		var existing = await LoadOracleWithEntries(id);
-		if (existing == null)
-		{
-			return NotFound();
-		}
+        var existing = await LoadOracleWithEntries(id);
+        if (existing == null)
+        {
+            return NotFound();
+        }
 
-		bool rollChanged = existing.OracleSubtype != oracle.OracleSubtype
-			|| existing.DiceCount != oracle.DiceCount
-			|| existing.DiceFaces != oracle.DiceFaces;
+        bool rollChanged = existing.OracleSubtype != oracle.OracleSubtype
+            || existing.DiceCount != oracle.DiceCount
+            || existing.DiceFaces != oracle.DiceFaces;
 
-		existing.Name = oracle.Name;
-		existing.GameSystemID = oracle.GameSystemID;
-		existing.OracleSubtype = oracle.OracleSubtype;
-		existing.DiceCount = oracle.DiceCount;
-		existing.DiceFaces = oracle.DiceFaces;
+        existing.Name = oracle.Name;
+        existing.GameSystemID = oracle.GameSystemID;
+        existing.OracleSubtype = oracle.OracleSubtype;
+        existing.DiceCount = oracle.DiceCount;
+        existing.DiceFaces = oracle.DiceFaces;
 
-		if (rollChanged)
-		{
-			_context.OracleEntries.RemoveRange(existing.OracleEntries.ToList());
-		}
+        if (rollChanged)
+        {
+            _context.OracleEntries.RemoveRange(existing.OracleEntries.ToList());
+        }
 
-		await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
-		if (rollChanged)
-		{
+        if (rollChanged)
+        {
             if (existing.OracleSubtype.Category() == OracleCategory.Cards)
             {
                 existing = await LoadOracleWithEntries(existing.ID);
@@ -224,10 +225,10 @@ public class OraclesController : Controller
                 return RedirectToAction(nameof(EditEntries), new { id = existing.ID });
             }
 
-			return RedirectToAction(nameof(Configure), new { id = existing.ID });
-		}
-		
-		return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Configure), new { id = existing.ID });
+        }
+        
+        return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Delete(int? id)
@@ -405,7 +406,6 @@ public class OraclesController : Controller
         return RedirectToAction(nameof(Details), new { id = vm.OracleID });
     }
 
-    // Asks what to export before exporting it. The download itself is the POST below.
     [HttpGet]
     public async Task<IActionResult> Export(ExportViewModel vm)
     {
@@ -541,13 +541,12 @@ public class OraclesController : Controller
     // Shows what Clear All is about to destroy: the signed-in account's own oracles and flows.
     public async Task<IActionResult> ClearAll()
     {
-        var me = _context.CurrentUserId;
         var vm = new ClearAllViewModel
         {
-            OracleCount = await _context.Oracles.CountAsync(o => o.OwnerId == me),
-            EntryCount = await _context.OracleEntries.CountAsync(e => _context.Oracles.Any(o => o.ID == e.OracleID && o.OwnerId == me)),
-            FlowCount = await _context.Flows.CountAsync(f => f.OwnerId == me),
-            FlowStepCount = await _context.FlowSteps.CountAsync(s => s.Flow!.OwnerId == me)
+            OracleCount = await _context.Oracles.CountAsync(),
+            EntryCount = await _context.OracleEntries.CountAsync(),
+            FlowCount = await _context.Flows.CountAsync(),
+            FlowStepCount = await _context.FlowSteps.CountAsync()
         };
 
         return View(vm);
@@ -613,7 +612,7 @@ public class OraclesController : Controller
             return ImportFailed(error, returnTo);
         }
 
-        var existingOracles = await _context.Oracles.Include(o => o.GameSystem).ToListAsync();
+        var existingOracles = await _context.Oracles.Include(o => o.GameSystem).Include(o => o.OracleEntries).ToListAsync();
 
         error = FlowImporter.TryBuild(parsed!.Flows, systemsByName, oracles, existingOracles, out var flows);
         if (error != null)
@@ -628,12 +627,7 @@ public class OraclesController : Controller
             return ImportFailed("The file contains no game systems, oracles or flows to add.", returnTo);
         }
 
-        foreach (var system in newSystems)
-        {
-            if (_context.Entry(system).State == EntityState.Detached)
-                _context.GameSystems.Add(system);
-        }
-
+        _context.GameSystems.AddRange(newSystems);
         _context.Oracles.AddRange(oracles);
         _context.Flows.AddRange(flows);
         await _context.SaveChangesAsync();
@@ -740,11 +734,6 @@ public class OraclesController : Controller
         return vm;
     }
 
-    private Task<List<OracleListItem>> OracleListItems()
-    {
-        return OracleListQuery.ToListItemsAsync(_context.Oracles);
-    }
-
     private Task<Oracle?> LoadOracleWithEntries(int? id)
     {
         return _context.Oracles
@@ -774,9 +763,6 @@ public class OraclesController : Controller
         row.RankKind = classified?.RankKind;
     }
 
-    // A card oracle has no dice geometry: null the columns whatever the form posted. A dice
-    // oracle keeps whatever came in (the die preset on the form fills them; Validate() then
-    // guarantees both are set).
     private static void ClearDiceForCards(Oracle oracle)
     {
         if (oracle.OracleSubtype.Category() != OracleCategory.Cards)

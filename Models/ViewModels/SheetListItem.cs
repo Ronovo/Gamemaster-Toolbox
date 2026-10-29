@@ -2,9 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models.ViewModels
 {
-    /// <summary>
-    /// One row of the sheet list.
-    /// </summary>
     public class SheetListItem
     {
         public int ID { get; set; }

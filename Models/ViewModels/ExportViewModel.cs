@@ -11,9 +11,6 @@ namespace GM_Toolbox.Models.ViewModels
         SelectedFlows = 3
     }
 
-    /// <summary>
-    /// The Export page: what to export, and the list to pick from.
-    /// </summary>
     public class ExportViewModel
     {
         public ExportScope Scope { get; set; } = ExportScope.Everything;

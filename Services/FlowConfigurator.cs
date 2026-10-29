@@ -29,9 +29,9 @@ namespace GM_Toolbox.Services
                 return "That is not a kind of step.";
             }
 
-            if (label != null && label.Length > 100)
+            if (FlowText.LabelProblem(label, "A step label") is string labelProblem)
             {
-                return "A step label cannot be longer than 100 characters.";
+                return labelProblem;
             }
 
             var step = new FlowStep
@@ -45,28 +45,21 @@ namespace GM_Toolbox.Services
             switch (kind)
             {
                 case FlowStepKind.Roll:
-                    if (oracleId <= 0)
+                    var oracleError = RequireOracle(oracleId);
+                    if (oracleError != null)
                     {
-                        return "Pick an oracle to roll.";
-                    }
-                    if (!_context.Oracles.Any(o => o.ID == oracleId))
-                    {
-                        return "That oracle no longer exists.";
+                        return oracleError;
                     }
                     step.OracleID = oracleId;
                     break;
 
                 case FlowStepKind.Choice:
                 case FlowStepKind.Text:
-                    if (string.IsNullOrWhiteSpace(question))
+                    if (FlowText.QuestionProblem(question) is string questionProblem)
                     {
-                        return "Type the question this step asks.";
+                        return questionProblem;
                     }
-                    if (question.Length > 200)
-                    {
-                        return "A question cannot be longer than 200 characters.";
-                    }
-                    step.Question = question.Trim();
+                    step.Question = question!.Trim();
                     break;
 
                 case FlowStepKind.RollChosen:
@@ -86,9 +79,9 @@ namespace GM_Toolbox.Services
         public string? EditStep(Flow flow, FlowStep step, string? label, string? question,
             int? oracleId, int? sourceStepId)
         {
-            if (label != null && label.Length > 100)
+            if (FlowText.LabelProblem(label, "A step label") is string labelProblem)
             {
-                return "A step label cannot be longer than 100 characters.";
+                return labelProblem;
             }
 
             step.Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim();
@@ -96,13 +89,10 @@ namespace GM_Toolbox.Services
             switch (step.Kind)
             {
                 case FlowStepKind.Roll:
-                    if (oracleId == null || oracleId <= 0)
+                    var oracleError = RequireOracle(oracleId);
+                    if (oracleError != null)
                     {
-                        return "Pick an oracle to roll.";
-                    }
-                    if (!_context.Oracles.Any(o => o.ID == oracleId))
-                    {
-                        return "That oracle no longer exists.";
+                        return oracleError;
                     }
                     if (step.OracleID != oracleId && step.Branches.Count > 0)
                     {
@@ -114,15 +104,11 @@ namespace GM_Toolbox.Services
 
                 case FlowStepKind.Choice:
                 case FlowStepKind.Text:
-                    if (string.IsNullOrWhiteSpace(question))
+                    if (FlowText.QuestionProblem(question) is string questionProblem)
                     {
-                        return "Type the question this step asks.";
+                        return questionProblem;
                     }
-                    if (question.Length > 200)
-                    {
-                        return "A question cannot be longer than 200 characters.";
-                    }
-                    step.Question = question.Trim();
+                    step.Question = question!.Trim();
                     break;
 
                 case FlowStepKind.RollChosen:
@@ -285,9 +271,9 @@ namespace GM_Toolbox.Services
                 {
                     return "Every option needs something to call it.";
                 }
-                if (row.Label.Length > 100)
+                if (FlowText.LabelProblem(row.Label, "An option label") is string rowProblem)
                 {
-                    return "An option label cannot be longer than 100 characters.";
+                    return rowProblem;
                 }
 
                 var oracleError = ResolveOracle(row.OracleID, out var oracleId);
@@ -322,9 +308,9 @@ namespace GM_Toolbox.Services
             {
                 return "Give the option something to call it.";
             }
-            if (label.Length > 100)
+            if (FlowText.LabelProblem(label, "An option label") is string labelProblem)
             {
-                return "An option label cannot be longer than 100 characters.";
+                return labelProblem;
             }
 
             var error = ResolveOracle(oracleId, out var resolved);
@@ -438,6 +424,9 @@ namespace GM_Toolbox.Services
 
             step.Options.Add(option);
         }
+
+        private string? RequireOracle(int? oracleId) =>
+            oracleId is null or <= 0 ? "Pick an oracle to roll." : ResolveOracle(oracleId, out _);
 
         private string? ResolveOracle(int? oracleId, out int? resolved)
         {

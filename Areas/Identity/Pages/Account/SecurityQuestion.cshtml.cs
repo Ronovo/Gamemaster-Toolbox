@@ -18,6 +18,10 @@ public class SecurityQuestionModel(UserManager<IdentityUser> users, SecurityQues
     // can't swap the answer and then reset the password with it.
     public bool HasQuestion { get; set; }
 
+    // An account made through portfolio login has no password, so it can't have a question: setting one would
+    // let whoever has the session give it a password through Forgot password.
+    public bool HasPassword { get; set; }
+
     public class InputModel
     {
         public string? Question { get; set; }
@@ -34,6 +38,7 @@ public class SecurityQuestionModel(UserManager<IdentityUser> users, SecurityQues
             return Challenge();
         }
         HasQuestion = await questions.HasAsync(user);
+        HasPassword = await users.HasPasswordAsync(user);
         return Page();
     }
 
@@ -46,11 +51,14 @@ public class SecurityQuestionModel(UserManager<IdentityUser> users, SecurityQues
             return Challenge();
         }
         HasQuestion = await questions.HasAsync(user);
+        HasPassword = await users.HasPasswordAsync(user);
+        if (!HasPassword)
+        {
+            return Page();
+        }
         if (HasQuestion && !await users.CheckPasswordAsync(user, Input.CurrentPassword ?? ""))
         {
-            ModelState.AddModelError(string.Empty, await users.HasPasswordAsync(user)
-                ? "Your current password is wrong."
-                : "This account logs in with the portfolio and has no password, so its security question can't be changed.");
+            ModelState.AddModelError(string.Empty, "Your current password is wrong.");
             return Page();
         }
         if (SecurityQuestions.Problem(Input.Question, Input.Answer) is string problem)

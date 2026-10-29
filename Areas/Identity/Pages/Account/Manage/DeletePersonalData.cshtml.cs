@@ -18,6 +18,9 @@ public class DeletePersonalDataModel(UserManager<IdentityUser> users, SignInMana
 
     public bool RequirePassword { get; set; }
 
+    [BindProperty]
+    public bool Confirm { get; set; }
+
     public async Task<IActionResult> OnGetAsync()
     {
         var user = await users.GetUserAsync(User);
@@ -40,6 +43,11 @@ public class DeletePersonalDataModel(UserManager<IdentityUser> users, SignInMana
         if (RequirePassword && !await users.CheckPasswordAsync(user, Password ?? ""))
         {
             ModelState.AddModelError(nameof(Password), "Wrong password.");
+            return Page();
+        }
+        if (!RequirePassword && !Confirm)
+        {
+            ModelState.AddModelError(string.Empty, "Tick the box to confirm.");
             return Page();
         }
 

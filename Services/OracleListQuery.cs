@@ -68,10 +68,9 @@ namespace GM_Toolbox.Services
 
         public static Task<PagedList<OracleListItem>> ToPagedListAsync(
             IQueryable<Oracle> oracles,
-            int page,
-            int pageSize = PagedList<OracleListItem>.DefaultPageSize)
+            int page)
         {
-            return PagedList<OracleListItem>.CreateAsync(oracles.OrderBy(o => o.Name), Project, page, pageSize);
+            return PagedList<OracleListItem>.CreateAsync(oracles.OrderBy(o => o.Name), Project, page);
         }
 
         public static Task<List<int>> MatchingIdsAsync(IQueryable<Oracle> oracles)

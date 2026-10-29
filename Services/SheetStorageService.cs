@@ -22,17 +22,15 @@ namespace GM_Toolbox.Services
     public class SheetStorageService
     {
         private readonly ApplicationDbContext _context;
-        private readonly IWebHostEnvironment _env;
+        private readonly string _sheetsRoot;
 
-        public SheetStorageService(ApplicationDbContext context, IWebHostEnvironment env)
+        public SheetStorageService(ApplicationDbContext context, IWebHostEnvironment env, IConfiguration config)
         {
             _context = context;
-            _env = env;
+            _sheetsRoot = config["SheetsRoot"] ?? Path.Combine(env.ContentRootPath, "App_Data", "Sheets");
         }
 
-        private string SheetsRoot => Path.Combine(_env.ContentRootPath, "App_Data", "Sheets");
-
-        public async Task<(string? Error, SheetUploadResult? Result)> SaveUploadAsync(IFormFile? file, int? gameSystemId, string ownerId)
+        public async Task<(string? Error, SheetUploadResult? Result)> SaveUploadAsync(IFormFile? file, int? gameSystemId)
         {
             if (file == null || file.Length == 0)
             {
@@ -67,13 +65,12 @@ namespace GM_Toolbox.Services
             var needle = fileName.ToLower();
             var existing = await _context.Sheets
                 .Include(s => s.Versions)
-                .FirstOrDefaultAsync(s => s.OwnerId == ownerId && s.FileName.ToLower() == needle);
+                .FirstOrDefaultAsync(s => s.FileName.ToLower() == needle);
 
             if (existing == null)
             {
                 var sheet = new Sheet
                 {
-                    OwnerId = ownerId,
                     FileName = fileName,
                     GameSystemID = gameSystemId,
                     DateUploaded = now,
@@ -90,19 +87,18 @@ namespace GM_Toolbox.Services
                 });
 
                 _context.Sheets.Add(sheet);
-                await _context.SaveChangesAsync();
-
-                await WriteFileAsync(sheet.ID, 1, bytes);
+                await SaveWithFileAsync(sheet, 1, bytes);
 
                 return (null, new SheetUploadResult { Sheet = sheet, Outcome = SheetUploadOutcome.Created, Version = 1 });
             }
 
+            existing.GameSystemID = gameSystemId;
             var currentVersion = existing.Versions.Single(v => v.Version == existing.CurrentVersion);
             if (currentVersion.Checksum == checksum)
             {
-                // Same content, same filename: not a real change. DateUpdated should mean
-                // "content changed", not "someone re-uploaded the same bytes", so it is
-                // deliberately left untouched here.
+                // Same content, same filename: not a new version. DateUpdated means "content changed",
+                // so only the game system is saved.
+                await _context.SaveChangesAsync();
                 return (null, new SheetUploadResult { Sheet = existing, Outcome = SheetUploadOutcome.Unchanged, Version = existing.CurrentVersion });
             }
 
@@ -119,8 +115,7 @@ namespace GM_Toolbox.Services
             existing.CurrentVersion = newVersionNumber;
             existing.DateUpdated = now;
 
-            await _context.SaveChangesAsync();
-            await WriteFileAsync(existing.ID, newVersionNumber, bytes);
+            await SaveWithFileAsync(existing, newVersionNumber, bytes);
 
             return (null, new SheetUploadResult { Sheet = existing, Outcome = SheetUploadOutcome.NewVersion, Version = newVersionNumber });
         }
@@ -134,7 +129,7 @@ namespace GM_Toolbox.Services
 
         public string GetFilePath(int sheetId, int version)
         {
-            return Path.Combine(SheetsRoot, sheetId.ToString(), $"{version}.pdf");
+            return Path.Combine(_sheetsRoot, sheetId.ToString(), $"{version}.pdf");
         }
 
         public Task<byte[]> ReadVersionAsync(int sheetId, int version)
@@ -144,7 +139,7 @@ namespace GM_Toolbox.Services
 
         public void DeleteSheetFiles(int sheetId)
         {
-            var folder = Path.Combine(SheetsRoot, sheetId.ToString());
+            var folder = Path.Combine(_sheetsRoot, sheetId.ToString());
             if (Directory.Exists(folder))
             {
                 Directory.Delete(folder, recursive: true);
@@ -160,11 +155,14 @@ namespace GM_Toolbox.Services
             }
         }
 
-        private async Task WriteFileAsync(int sheetId, int version, byte[] bytes)
+        // The row and its file are saved together: if the file can't be written, the row is rolled back.
+        private async Task SaveWithFileAsync(Sheet sheet, int version, byte[] bytes)
         {
-            var folder = Path.Combine(SheetsRoot, sheetId.ToString());
-            Directory.CreateDirectory(folder);
-            await System.IO.File.WriteAllBytesAsync(Path.Combine(folder, $"{version}.pdf"), bytes);
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            await _context.SaveChangesAsync();
+            Directory.CreateDirectory(Path.Combine(_sheetsRoot, sheet.ID.ToString()));
+            await System.IO.File.WriteAllBytesAsync(GetFilePath(sheet.ID, version), bytes);
+            await transaction.CommitAsync();
         }
     }
 }

@@ -42,10 +42,9 @@ namespace GM_Toolbox.Services
         /// <summary>One page of flows, each loaded whole so its "needs setup" badge uses the same rules as a run.</summary>
         public static async Task<PagedList<FlowListItem>> ToPagedListAsync(
             IQueryable<Flow> flows,
-            int page,
-            int pageSize = PagedList<FlowListItem>.DefaultPageSize)
+            int page)
         {
-            var loaded = await PagedList<Flow>.CreateAsync(flows.OrderBy(f => f.Name), WithStepsAndOracles, page, pageSize);
+            var loaded = await PagedList<Flow>.CreateAsync(flows.OrderBy(f => f.Name), WithStepsAndOracles, page);
             return loaded.WithItems(loaded.Items.Select(f => new FlowListItem
             {
                 ID = f.ID,

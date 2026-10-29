@@ -26,6 +26,13 @@
                 <span asp-validation-for="Password" class="text-danger"></span>
             </div>
         }
+        else
+        {
+            <div class="form-check mb-3">
+                <input asp-for="Confirm" class="form-check-input" />
+                <label asp-for="Confirm" class="form-check-label">Yes, delete my account and everything in it</label>
+            </div>
+        }
         <button class="w-100 btn btn-lg btn-danger" type="submit">Delete my account</button>
     </form>
 </div>

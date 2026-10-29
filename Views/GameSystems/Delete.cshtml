@@ -4,15 +4,15 @@
     ViewData["Title"] = "Delete Game System";
     var oracleCount = (int)(ViewData["OracleCount"] ?? 0);
     var flowCount = (int)(ViewData["FlowCount"] ?? 0);
+    var sheetCount = (int)(ViewData["SheetCount"] ?? 0);
 
     var uses = new List<string>();
     if (oracleCount > 0) { uses.Add($"{oracleCount} oracle(s)"); }
     if (flowCount > 0) { uses.Add($"{flowCount} flow(s)"); }
+    if (sheetCount > 0) { uses.Add($"{sheetCount} sheet(s)"); }
 }
 
 <h1>Delete Game System</h1>
-
-<div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
 <h3>Are you sure you want to delete this?</h3>
 <div>

@@ -3,8 +3,8 @@
 namespace GM_Toolbox.Models.Transfer
 {
     /// <summary>
-    /// The whole export file — one of these is what gets serialised to the .json
-    /// the user downloads, and what an uploaded .json is read back into.
+    /// The whole export file: what is serialised to the .json the user downloads, and what an uploaded
+    /// .json is read back into.
     ///
     /// Deliberately carries no database IDs and no owner, so it imports into any toolbox.
     /// </summary>
@@ -22,19 +22,12 @@ namespace GM_Toolbox.Models.Transfer
         public List<FlowDto> Flows { get; set; } = new List<FlowDto>();
     }
 
-    /// <summary>
-    /// One game system, as it appears in the file.
-    /// </summary>
     public class GameSystemDto
     {
         public string Name { get; set; } = string.Empty;
         public string Genre { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// One oracle, as it appears in the file.
-    ///
-    /// </summary>
     public class OracleDto
     {
         public string Name { get; set; } = string.Empty;
@@ -61,9 +54,6 @@ namespace GM_Toolbox.Models.Transfer
         public string? CardLabel { get; set; }
     }
 
-    /// <summary>
-    /// One flow, as it appears in the file.
-    /// </summary>
     public class FlowDto
     {
         public string Name { get; set; } = string.Empty;
@@ -74,11 +64,7 @@ namespace GM_Toolbox.Models.Transfer
 
     public class FlowStepDto
     {
-        /// <summary>
-        /// A per-file id, its position in the flow, unique within the flow. PickedAtStep and
-        /// GoToStep reference it. Older files number steps by SortOrder instead, and the
-        /// importer maps those across.
-        /// </summary>
+        /// <summary>A per-file id, unique within the flow. PickedAtStep and GoToStep reference it.</summary>
         public int? Id { get; set; }
 
         /// <summary>Position in the flow. Informational (order is document order).</summary>
@@ -92,28 +78,19 @@ namespace GM_Toolbox.Models.Transfer
 
         public string? Question { get; set; }
 
-        /// <summary>The step a RollChosen step takes its oracle from: its Id, or SortOrder in older files.</summary>
+        /// <summary>The Id of the step a RollChosen step takes its oracle from.</summary>
         public int? PickedAtStep { get; set; }
-
-        /// <summary>Read only, from older files: the labels on a retired Fields step (now a Text question).</summary>
-        public List<string>? Fields { get; set; }
-
-        /// <summary>Read only, from older files: steps nested inside a retired Loop (now kept in sequence).</summary>
-        public List<FlowStepDto>? Steps { get; set; }
 
         public List<FlowChoiceOptionDto>? Options { get; set; }
 
         public List<FlowBranchDto>? Branches { get; set; }
     }
 
-    /// <summary>
-    /// One entry in a dropdown question, as it appears in the file.
-    /// </summary>
     public class FlowChoiceOptionDto
     {
         public int SortOrder { get; set; }
 
-        /// <summary>The step this option routes to: its Id, or SortOrder in older files. Null carries on.</summary>
+        /// <summary>The Id of the step this option routes to. Null carries on.</summary>
         public int? GoToStep { get; set; }
 
         public bool? EndsFlow { get; set; }
@@ -138,7 +115,7 @@ namespace GM_Toolbox.Models.Transfer
         /// <summary>The table this outcome picks for a later RollChosen step.</summary>
         public OracleRefDto? PicksOracle { get; set; }
 
-        /// <summary>Advanced: the step to jump to -- its Id, or SortOrder in older files. Null carries on.</summary>
+        /// <summary>Advanced: the Id of the step to jump to. Null carries on.</summary>
         public int? GoToStep { get; set; }
 
         /// <summary>Advanced: this outcome ends the run.</summary>

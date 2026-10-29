@@ -92,6 +92,53 @@ public sealed class OwnershipTests : IDisposable
     }
 
     [Fact]
+    public async Task Nobody_sees_another_accounts_entries_steps_or_versions()
+    {
+        await EverythingOf("alice");
+
+        await using var bob = As("bob");
+        Assert.False(await bob.OracleEntries.AnyAsync());
+        Assert.False(await bob.FlowSteps.AnyAsync());
+        Assert.False(await bob.SheetVersions.AnyAsync());
+    }
+
+    [Fact]
+    public async Task A_branch_cannot_use_another_accounts_outcome()
+    {
+        var (_, aliceOracle, _) = await EverythingOf("alice");
+        var aliceEntry = aliceOracle.OracleEntries.Single();
+        var (_, _, bobFlow) = await EverythingOf("bob");
+
+        await using var bob = As("bob");
+        var step = await bob.FlowSteps.SingleAsync(s => s.FlowID == bobFlow.ID);
+        bob.FlowBranches.Add(new FlowBranch { FlowStepID = step.ID, OracleEntryID = aliceEntry.ID });
+        await Assert.ThrowsAsync<OwnershipException>(() => bob.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task A_step_cannot_be_moved_out_of_another_accounts_flow()
+    {
+        var (_, _, aliceFlow) = await EverythingOf("alice");
+        var (_, _, bobFlow) = await EverythingOf("bob");
+
+        await using var bob = As("bob");
+        var aliceStep = await bob.FlowSteps.IgnoreQueryFilters().SingleAsync(s => s.FlowID == aliceFlow.ID);
+        aliceStep.FlowID = bobFlow.ID;
+        aliceStep.OracleID = null;
+        await Assert.ThrowsAsync<OwnershipException>(() => bob.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task The_plain_save_checks_too()
+    {
+        var (system, _, _) = await EverythingOf("alice");
+
+        await using var bob = As("bob");
+        bob.Oracles.Add(new Oracle { Name = "Stolen", GameSystemID = system.ID, DiceCount = 1, DiceFaces = 6 });
+        Assert.Throws<OwnershipException>(() => bob.SaveChanges());
+    }
+
+    [Fact]
     public async Task Clearing_your_oracles_and_flows_leaves_everyone_elses()
     {
         await EverythingOf("alice");

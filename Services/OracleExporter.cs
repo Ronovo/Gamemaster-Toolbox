@@ -7,10 +7,10 @@ namespace GM_Toolbox.Services
     /// <summary>
     /// Turns loaded Oracle entities into the portable file shape.
     ///
-    /// Pure — no DbContext and no database access. The caller loads the oracles
+    /// Pure - no DbContext and no database access. The caller loads the oracles
     /// (with their entries) and hands them over.
     /// </summary>
-    public class OracleExporter
+    public static class OracleExporter
     {
         public static OracleExportFile Build(List<Oracle> oracles)
         {

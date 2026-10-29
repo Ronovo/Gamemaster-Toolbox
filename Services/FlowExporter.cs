@@ -5,7 +5,7 @@ using GM_Toolbox.Models.Transfer;
 namespace GM_Toolbox.Services
 {
     /// <summary>
-    /// Turns loaded Flow entities into the portable file shape (format version 10).
+    /// Turns loaded Flow entities into the portable file shape.
     ///
     /// Pure -- no DbContext and no database access, like OracleExporter. The caller loads the
     /// flows with their steps, branches, options and each referenced oracle with its entries,
@@ -14,7 +14,7 @@ namespace GM_Toolbox.Services
     /// A flow is a flat list of steps, each with a per-file <c>id</c> (its position) that
     /// <c>pickedAtStep</c> and <c>goToStep</c> point at.
     /// </summary>
-    public class FlowExporter
+    public static class FlowExporter
     {
         public static List<FlowDto> Build(List<Flow> flows)
         {

@@ -1,7 +1,7 @@
 namespace GM_Toolbox.Models.ViewModels
 {
     /// <summary>
-    /// The shared result panel — the big number, the caption and the outcome text — as rendered
+    /// The shared result panel - the big number, the caption and the outcome text - as rendered
     /// by Views/Shared/_RollPanel.cshtml for both Oracles/Roll and Flows/Run.
     /// </summary>
     public class RollPanelModel

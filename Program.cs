@@ -18,6 +18,12 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 // forgotten password is reset with the account's security question (SecurityQuestions).
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>();
+// Flow runs and card decks live in the session, so the next person on this browser starts clean.
+builder.Services.ConfigureApplicationCookie(options => options.Events.OnSigningOut = context =>
+{
+    context.HttpContext.Session.Clear();
+    return Task.CompletedTask;
+});
 // Every page needs a login unless it is marked [AllowAnonymous]: About, the login pages and portfolio login.
 builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
@@ -78,17 +84,18 @@ if (app.Configuration.GetValue<bool>("ForceHttps"))
 }
 app.UseRouting();
 
-// Two-factor sign-in is not offered, so the Identity UI's own pages for it are closed off.
-string[] twoFactorPages =
-[
-    "/Identity/Account/Manage/TwoFactorAuthentication", "/Identity/Account/Manage/EnableAuthenticator",
-    "/Identity/Account/Manage/Disable2fa", "/Identity/Account/Manage/GenerateRecoveryCodes",
-    "/Identity/Account/Manage/ResetAuthenticator", "/Identity/Account/Manage/ShowRecoveryCodes",
-    "/Identity/Account/LoginWith2fa", "/Identity/Account/LoginWithRecoveryCode"
-];
+// Only the account pages this app offers are open. The rest of the Identity UI (two-factor sign-in, email,
+// external logins, the personal data download) is closed off.
+string[] managePages = ["/Index", "/ChangePassword", "/SetPassword", "/PersonalData", "/DeletePersonalData"];
+string[] closedPages = ["/Identity/Account/LoginWith2fa", "/Identity/Account/LoginWithRecoveryCode"];
 app.Use(async (context, next) =>
 {
-    if (twoFactorPages.Any(page => context.Request.Path.StartsWithSegments(page, StringComparison.OrdinalIgnoreCase)))
+    var path = context.Request.Path;
+    var closed = closedPages.Any(page => path.StartsWithSegments(page, StringComparison.OrdinalIgnoreCase))
+        || (path.StartsWithSegments("/Identity/Account/Manage", StringComparison.OrdinalIgnoreCase, out var rest)
+            && rest.HasValue && rest.Value != "/"
+            && !managePages.Any(page => rest.StartsWithSegments(page, StringComparison.OrdinalIgnoreCase)));
+    if (closed)
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return;

@@ -275,7 +275,7 @@ window.GmRoll = (function () {
 
     // Intercepts a form submit, posts it, and hands the parsed JSON to onData.
     //
-    // Any failure at all — a non-OK response, a network error, unparseable JSON — falls back to
+    // Any failure at all - a non-OK response, a network error, unparseable JSON - falls back to
     // submitting the form normally, which the server answers with a redirect. That is the whole
     // reason both response shapes exist.
     function bind(form, handlers) {

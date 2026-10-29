@@ -667,7 +667,7 @@ public class FlowsController : Controller
             {
                 var key = x.Entry?.KeyLabel() ?? "?";
                 var result = x.Entry?.Result;
-                var outcome = string.IsNullOrWhiteSpace(result) ? key : $"{key} — {result}";
+                var outcome = string.IsNullOrWhiteSpace(result) ? key : $"{key} - {result}";
 
                 var parts = new List<string>();
                 if (x.Branch.Oracle != null)
@@ -866,8 +866,8 @@ public class FlowsController : Controller
             {
                 o.ID,
                 Text = o.NeedsSetup
-                    ? $"{o.Name} — {o.GameSystemName} (needs setup)"
-                    : $"{o.Name} — {o.GameSystemName}"
+                    ? $"{o.Name} - {o.GameSystemName} (needs setup)"
+                    : $"{o.Name} - {o.GameSystemName}"
             })
             .ToList();
 

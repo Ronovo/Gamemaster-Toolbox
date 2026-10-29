@@ -51,7 +51,7 @@ public class SheetsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(IFormFile? file, int? gameSystemId)
     {
-        var (error, result) = await _storage.SaveUploadAsync(file, gameSystemId, _context.CurrentUserId!);
+        var (error, result) = await _storage.SaveUploadAsync(file, gameSystemId);
 
         if (error != null)
         {
@@ -64,7 +64,7 @@ public class SheetsController : Controller
         {
             SheetUploadOutcome.Created => $"Uploaded \"{result.Sheet.FileName}\" as version 1.",
             SheetUploadOutcome.NewVersion => $"\"{result.Sheet.FileName}\" updated to version {result.Version}.",
-            SheetUploadOutcome.Unchanged => $"\"{result.Sheet.FileName}\" is unchanged — still at version {result.Version}.",
+            SheetUploadOutcome.Unchanged => $"\"{result.Sheet.FileName}\" is unchanged, still at version {result.Version}.",
             _ => null
         };
 
@@ -153,8 +153,6 @@ public class SheetsController : Controller
         var sheet = await _context.Sheets.Include(s => s.Versions).FirstOrDefaultAsync(s => s.ID == id);
         if (sheet == null) return RedirectToAction(nameof(Index));
 
-        // A sheet must always have a current version -- deleting it should go through
-        // "Delete" for the whole sheet instead.
         if (version == sheet.CurrentVersion)
         {
             TempData["DetailsError"] = "The current version can't be deleted on its own. Delete the whole sheet instead.";

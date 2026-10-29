@@ -123,7 +123,7 @@
                     {
                         var entry = entries.TryGetValue(branch.OracleEntryID, out var found) ? found : null;
                         <div class="small text-muted">
-                            @(entry?.KeyLabel() ?? "?")@(string.IsNullOrWhiteSpace(entry?.Result) ? "" : $" — {entry!.Result}")
+                            @(entry?.KeyLabel() ?? "?")@(string.IsNullOrWhiteSpace(entry?.Result) ? "" : $" - {entry!.Result}")
                             @if (branch.Oracle != null)
                             {
                                 <text>&rarr; picks @branch.Oracle.Name</text>

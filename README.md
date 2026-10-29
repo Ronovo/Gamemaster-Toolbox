@@ -3,31 +3,32 @@
 A web-based toolkit for tabletop gamemasters.
 
 Built as an ASP.NET Core MVC application on .NET 10, with Entity Framework Core and SQLite.
-There is no database server to install: your whole toolbox is one file at
-`App_Data/gmtoolbox.db`.
+There is no database server to install: everything lives in `App_Data/`, the database
+`gmtoolbox.db` plus the uploaded sheet PDFs in `Sheets/`.
 
 ## Features
 
 - **Game Systems**
 - **Oracle Builder**
 - **Rolling and Drawing**
-- **Flows** — chain oracles together and run them a step at a time. Steps run in order, each
+- **Flows** - chain oracles together and run them a step at a time. Steps run in order, each
 once; any outcome can carry a *branch* that sends the run to another step or stops it early,
 so a flow can fork, skip ahead, loop back, or end. A step can also **ask you something**
-rather than roll — a dropdown you author, or a line of text — and a dropdown answer can
+rather than roll - a dropdown you author, or a line of text - and a dropdown answer can
 decide which table the *next* step rolls on.
-- **Sheets** — upload character sheet PDFs, with a version history when you upload a new copy
+- **Sheets** - upload character sheet PDFs, with a version history when you upload a new copy
 under the same file name. **Export All** zips your sheets.
-- **Export / Import** — download your oracles and flows as a single versioned JSON file to your
+- **Export / Import** - download your oracles and flows as a single versioned JSON file to your
 computer, and upload one back in. The format carries no database IDs, so a file exported from one
 account or instance imports cleanly into another. Nothing is kept on the server: the file is yours.
-- **Accounts** — a username and password, plus a security question picked when registering.
+- **Accounts** - a username and password, plus a security question picked when registering.
 "Forgot your password?" resets it with the answer; five wrong answers lock resets for 15
-minutes. Logged out, only the About and login pages open; everything else needs an account.
-- **Private by design** — every game system, oracle, flow and sheet belongs to the account that
+minutes. Logged out, only the About and login pages open; everything else needs an account. An
+account made through portfolio login has no password here and no security question.
+- **Private by design** - every game system, oracle, flow and sheet belongs to the account that
 made it, and nobody else can see or use it. To share, export the file and send it. Deleting your
 account (under your account's **Personal data**) deletes everything in it, sheet files included.
-- **Log in with a portfolio account** — with `PORTFOLIO_SSO_URL` (the portfolio's address) and
+- **Log in with a portfolio account** - with `PORTFOLIO_SSO_URL` (the portfolio's address) and
 `PORTFOLIO_SSO_PUBLIC_KEY` (from the portfolio's `python sso.py`) set, the login page offers to log in
 with a portfolio account. It reads **Log in as** and the portfolio username when this browser is logged in
 to the portfolio. The first portfolio login here asks whether to link an account the player already has,
@@ -38,7 +39,7 @@ login opens the linked account. Without them the app runs on its own accounts.
 
 ## Getting started
 
-Two ways in. Pick whichever you already have installed — you get the same app on
+Two ways in. Pick whichever you already have installed - you get the same app on
 **[http://localhost:9000](http://localhost:9000)** either way.
 
 ### With Docker (To Host Locally)
@@ -83,7 +84,7 @@ code it already has.
 ### Letting other people in
 
 Use the Docker. It publishes the port on every network interface, so anyone on the same
-network reaches it at `http://<your-machine's-ip>:9000` — same port, just your machine's
+network reaches it at `http://<your-machine's-ip>:9000` - same port, just your machine's
 address instead of `localhost`. Windows will most likely ask you to allow it through the
 firewall the first time, and if you dismiss that prompt it keeps working for you and silently
 fails for everyone else.
@@ -114,7 +115,7 @@ something to try.
 ### How an oracle is put together
 
 An `Oracle` is a name, a `GameSystem`, and an `OracleSubtype`. The subtype is just the
-kind of oracle — `Dice`, `PlayingCards` or `TarotCards`. `Category()` folds that to dice
+kind of oracle - `Dice`, `PlayingCards` or `TarotCards`. `Category()` folds that to dice
 or cards, and that in turn decides how its `OracleEntry` rows are shaped:
 
 
@@ -124,20 +125,21 @@ or cards, and that in turn decides how its `OracleEntry` rows are shaped:
 | Cards    | `CardCode` / `CardLabel`  | `DeckFactory`, which builds the whole deck                                   |
 
 
-Every dice oracle stores its die in two columns, `DiceCount` and `DiceFaces` — a plain d8
+Every dice oracle stores its die in two columns, `DiceCount` and `DiceFaces` - a plain d8
 is `1` and `8`, a 2d6 is `2` and `6`. They are the single source of truth for the die
 (null only on the two card kinds); the type picker's "d4…d100" presets are just a shortcut
 that fills them in. `DiceSpec` is the one place they are read, and it also answers what a
 set of dice can roll: a 2d6 has a minimum of 2, a maximum of 12 and eleven distinct
 totals, so eleven outcomes fit on it and the first band has to start at 2 rather than 1.
-A card draw deals off a shuffled list of that oracle's entries held in your browser session.
+A card draw deals off a shuffled list of that oracle's entries held in your session on the
+server, in memory, so a restart reshuffles every deck.
 Which cards are left is per-person and per-sitting, and is never exported, imported or saved to the database.
 
 ### How a flow is put together
 
 A `Flow` is a name, a `GameSystem`, and an ordered list of `FlowStep` rows. Every step carries a
-`Label` — what the flow calls that step, for when "d6 Encounter Table" reads better as
-"Encounter Type" in this particular chain — and a `Kind`, which decides what the step actually
+`Label` - what the flow calls that step, for when "d6 Encounter Table" reads better as
+"Encounter Type" in this particular chain - and a `Kind`, which decides what the step actually
 does and therefore which of its other fields apply:
 
 
@@ -146,7 +148,7 @@ does and therefore which of its other fields apply:
 | `Roll`       | Rolls the oracle it names, once. Each outcome can also **pick a table** for a later `RollChosen` step. |
 | `Choice`     | Asks a question and offers a dropdown of options you author. An option can name an oracle. |
 | `Text`       | Asks a question and takes a typed answer (including a number). |
-| `RollChosen` | Rolls whichever oracle an earlier step picked — a `Choice` option or a `Roll` outcome. |
+| `RollChosen` | Rolls whichever oracle an earlier step picked - a `Choice` option or a `Roll` outcome. |
 | `Loop`       | Asks how many times (1-50) to roll the next step, which must be a `Roll` or `RollChosen`. The last roll decides branches and picked tables. |
 
 
@@ -155,7 +157,7 @@ rolls or is answered the run moves to the next one. That fall-through is the who
 default behaviour: a flow with three `Roll` steps and nothing else set up is simply those
 three oracles, rolled in order.
 
-**A dependent chain** — roll A, then roll whatever A landed on — is two steps. Give the first
+**A dependent chain** - roll A, then roll whatever A landed on - is two steps. Give the first
 `Roll` a `FlowBranch` on each outcome that names the table that outcome should lead to, then a
 `RollChosen` pointed back at that step.
 
@@ -170,11 +172,6 @@ is advanced; picking a table is the ordinary use):
 
 A run still stops after 200 steps whatever it is doing, so a branch that points backwards
 cannot loop forever.
-
-An older file still imports. `"kind": "Number"` and `"kind": "Fields"` both become `Text` (a
-Fields step's labels become the question text); an old `"kind": "Loop"` with nested `steps` is
-dropped and its body steps kept in sequence; `times`, `countMode` and `countDice` are ignored. A version 6 or 7
-file (flat `steps`, `blockEnd` spans, `goToStep` by position) imports the same way.
 
 ### JSON export format
 
@@ -245,10 +242,8 @@ file (flat `steps`, `blockEnd` spans, `goToStep` by position) imports the same w
 Every oracle a flow names must be in the same file or already in your toolbox; the two
 `Hustle` oracles above stand for ones you already have.
 
-Version 10 makes a flow a flat list: `steps` no longer nest, every step has a per-file `id`
-(its position) that `pickedAtStep` and `goToStep` point at, and the nested `Loop` / `Fields`
-kinds and `times` / `countMode` / `countDice` fields are gone. How older files import is
-covered under **How a flow is put together**.
+Only version 10 files import. A flow is a flat list of steps, and every step has a per-file
+`id` that `pickedAtStep` and `goToStep` point at.
 
 
 
@@ -263,11 +258,12 @@ things around.
 | `ConnectionStrings:DefaultConnection` | `Data Source=App_Data/gmtoolbox.db` | Where the database file lives. A relative path is resolved against the app's content root, so it lands in `App_Data/` no matter which folder you launched from. An absolute path is respected as-is.                                                                                                                            |
 | `PORTFOLIO_SSO_URL`                   | unset                               | The portfolio's address. With `PORTFOLIO_SSO_PUBLIC_KEY`, turns on logging in with a portfolio account. |
 | `PORTFOLIO_SSO_PUBLIC_KEY`            | unset                               | Checks the portfolio's login tokens. The portfolio's `python sso.py` prints it. |
-| `ForceHttps`                          | `false`                             | Off, because the default setup has no certificate to redirect to — the container serves plain HTTP, and bouncing to a port nothing is listening on would just break it. Turn it on only where the app itself holds a certificate. Leave it off behind a reverse proxy that terminates TLS, which has already done the redirect. |
+| `SheetsRoot`                          | `App_Data/Sheets`                   | Where uploaded sheet PDFs are kept. |
+| `ForceHttps`                          | `false`                             | Off, because the default setup has no certificate to redirect to - the container serves plain HTTP, and bouncing to a port nothing is listening on would just break it. Turn it on only where the app itself holds a certificate. Leave it off behind a reverse proxy that terminates TLS, which has already done the redirect. |
 
 
-Change either by editing `appsettings.json`, or without touching the file, with an environment
-variable — `ForceHttps=true`, or `ConnectionStrings__DefaultConnection` (two underscores, which
+Change any of them by editing `appsettings.json`, or without touching the file, with an environment
+variable - `ForceHttps=true`, or `ConnectionStrings__DefaultConnection` (two underscores, which
 is how `:` is written in an environment variable). `dotnet user-secrets` works too, but only
 when running with the SDK, not in the container.
 
@@ -277,12 +273,12 @@ when running with the SDK, not in the container.
 Controllers/     HomeController, OraclesController (all oracle CRUD, export, import),
                  FlowsController (flow CRUD, the step builder, branches, running a flow),
                  GameSystemsController, SheetsController, PortfolioController (portfolio login)
-Models/          Oracle, OracleEntry, Flow, FlowStep, FlowBranch, FlowChoiceOption,
-                 enums, view models, JSON transfer DTOs
+Models/          GameSystem, Oracle, OracleEntry, Flow, FlowStep, FlowBranch, FlowChoiceOption,
+                 Sheet, SheetVersion, IOwned, enums, view models, JSON transfer DTOs
 Services/        OracleConfigurator (entry reconciliation), DeckFactory (deck generation),
                  OracleExporter / OracleImporter / FlowExporter / FlowImporter / OracleJson
                  (file round-trip), OracleRoller and FlowRunner (rolling, answering, the walk),
-                 FlowConfigurator (the step list: order, options, branches),
+                 FlowConfigurator (the step list: order, options, branches), FlowText,
                  OracleListQuery / FlowListQuery / SheetListQuery / FilterSelectLists (list pages),
                  SheetStorageService / SheetFileValidator (sheet PDFs), SecurityQuestions,
                  PortfolioLogin
@@ -290,7 +286,8 @@ Data/            ApplicationDbContext, OwnershipRules and EF Core migrations
 Filters/         OwnershipExceptionFilter
 Views/           Razor views for Home, Oracles, Flows, GameSystems, Sheets and Portfolio, plus the
                  shared _RollPanel partial
-Areas/Identity/  Scaffolded ASP.NET Core Identity UI
+Areas/Identity/  Login, Register, ForgotPassword, SecurityQuestion and DeletePersonalData; the rest
+                 of the Identity UI this app doesn't use is closed off
 App_Data/        gmtoolbox.db (the database) and Sheets/
 ExportTemplate/  The example file the Import page offers to download
 Tests/           xUnit tests: privacy rules, the importer, and the pages through a test server

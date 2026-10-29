@@ -3,9 +3,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GM_Toolbox.Models
 {
-    /// <summary>
-    /// The Core Oracle Object
-    /// </summary>
     public class Oracle : IValidatableObject, IOwned
     {
         public int ID { get; set; }

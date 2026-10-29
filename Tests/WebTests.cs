@@ -1,10 +1,14 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using GM_Toolbox.Data;
+using GM_Toolbox.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GM_Toolbox.Tests;
@@ -12,6 +16,8 @@ namespace GM_Toolbox.Tests;
 public sealed class AppFactory : WebApplicationFactory<Program>
 {
     private readonly string _folder = Directory.CreateTempSubdirectory("gm-toolbox-tests-").FullName;
+
+    public string SheetsRoot => Path.Combine(_folder, "Sheets");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -22,6 +28,30 @@ public sealed class AppFactory : WebApplicationFactory<Program>
         }
         builder.UseContentRoot(repo);
         builder.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={Path.Combine(_folder, "test.db")};Pooling=False");
+        builder.UseSetting("SheetsRoot", SheetsRoot);
+    }
+
+    public T Query<T>(Func<ApplicationDbContext, T> read)
+    {
+        using var scope = Services.CreateScope();
+        return read(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
+    }
+
+    public static async Task<HttpResponseMessage> AddSystemAsync(HttpClient client, string name) =>
+        await client.PostAsync("/GameSystems/Create",
+            await FormAsync(client, "/GameSystems/Create", new() { ["Name"] = name, ["Genre"] = "Horror" }));
+
+    public static async Task<HttpResponseMessage> UploadSheetAsync(HttpClient client, int? gameSystemId)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new StringContent(await TokenAsync(client, "/Sheets/Upload")), "__RequestVerificationToken" },
+            { new StringContent(gameSystemId?.ToString() ?? ""), "gameSystemId" }
+        };
+        var content = new ByteArrayContent("%PDF-1.4 test sheet"u8.ToArray());
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        form.Add(content, "file", "hero.pdf");
+        return await client.PostAsync("/Sheets/Upload", form);
     }
 
     public async Task<HttpClient> LoggedInAsync(string userName)
@@ -127,6 +157,10 @@ public class WebTests(AppFactory app) : IClassFixture<AppFactory>
     {
         var dave = await app.LoggedInAsync("dave");
         await AppFactory.ImportAsync(dave, await dave.GetByteArrayAsync("/Oracles/ExampleFile"));
+        await AppFactory.UploadSheetAsync(dave, null);
+        var daveId = app.Query(db => db.Users.Single(u => u.UserName == "dave").Id);
+        var sheetId = app.Query(db => db.Sheets.IgnoreQueryFilters().Single(s => s.OwnerId == daveId).ID);
+        Assert.True(Directory.Exists(Path.Combine(app.SheetsRoot, sheetId.ToString())));
 
         var page = "/Identity/Account/Manage/DeletePersonalData";
         Assert.Contains("Delete my account", await dave.GetStringAsync(page));
@@ -134,8 +168,90 @@ public class WebTests(AppFactory app) : IClassFixture<AppFactory>
 
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
         Assert.DoesNotContain("Hello dave!", await deleted.Content.ReadAsStringAsync());
+        Assert.Null(app.Query(db => db.Users.SingleOrDefault(u => u.UserName == "dave")));
+        Assert.False(app.Query(db => db.Oracles.IgnoreQueryFilters().Any(o => o.OwnerId == daveId)));
+        Assert.False(app.Query(db => db.Sheets.IgnoreQueryFilters().Any(s => s.OwnerId == daveId)));
+        Assert.False(Directory.Exists(Path.Combine(app.SheetsRoot, sheetId.ToString())));
+    }
+
+    [Fact]
+    public async Task Another_accounts_items_are_not_found()
+    {
+        var alice = await app.LoggedInAsync("hana");
+        await AppFactory.ImportAsync(alice, await alice.GetByteArrayAsync("/Oracles/ExampleFile"));
+        await AppFactory.UploadSheetAsync(alice, null);
+        var aliceId = app.Query(db => db.Users.Single(u => u.UserName == "hana").Id);
+        var oracleId = app.Query(db => db.Oracles.IgnoreQueryFilters().First(o => o.OwnerId == aliceId).ID);
+        var stepId = app.Query(db => db.FlowSteps.IgnoreQueryFilters().First(s => s.Flow!.OwnerId == aliceId).ID);
+        var sheetId = app.Query(db => db.Sheets.IgnoreQueryFilters().First(s => s.OwnerId == aliceId).ID);
+
+        var bob = await app.LoggedInAsync("ivan");
+        foreach (var page in new[] { $"/Oracles/Details/{oracleId}", $"/Oracles/Edit/{oracleId}", $"/Flows/EditStep/{stepId}", $"/Sheets/Download/{sheetId}" })
+        {
+            Assert.Equal(HttpStatusCode.NotFound, (await bob.GetAsync(page)).StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task A_flow_can_branch_on_an_oracle_you_already_have()
+    {
+        var jack = await app.LoggedInAsync("jack");
+        var example = await jack.GetByteArrayAsync("/Oracles/ExampleFile");
+        await AppFactory.ImportAsync(jack, example);
+
+        var flowsOnly = JsonNode.Parse(Encoding.UTF8.GetString(example).TrimStart('﻿'))!;
+        flowsOnly["oracles"] = new JsonArray();
+        flowsOnly["gameSystems"] = new JsonArray();
+        var response = await AppFactory.ImportAsync(jack, Encoding.UTF8.GetBytes(flowsOnly.ToJsonString()));
+
+        Assert.Contains("Imported", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task A_game_system_used_by_a_sheet_is_not_deleted()
+    {
+        var kate = await app.LoggedInAsync("kate");
+        await AppFactory.AddSystemAsync(kate, "Mothership");
+        var systemId = app.Query(db => db.GameSystems.IgnoreQueryFilters().Single(g => g.Name == "Mothership").ID);
+        await AppFactory.UploadSheetAsync(kate, systemId);
+
+        var page = $"/GameSystems/Delete/{systemId}";
+        var response = await kate.PostAsync(page, await AppFactory.FormAsync(kate, "/GameSystems/Create", new() { ["ID"] = systemId.ToString() }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("1 sheet(s)", await response.Content.ReadAsStringAsync());
+        Assert.True(app.Query(db => db.GameSystems.IgnoreQueryFilters().Any(g => g.ID == systemId)));
+    }
+
+    [Fact]
+    public async Task An_account_with_no_password_cannot_set_a_security_question()
+    {
+        var lena = await app.LoggedInAsync("lena");
+        using (var scope = app.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            await users.RemovePasswordAsync((await users.FindByNameAsync("lena"))!);
+        }
+
+        Assert.Contains("has no password here", await lena.GetStringAsync("/Identity/Account/SecurityQuestion"));
+    }
+
+    [Fact]
+    public async Task Wrong_answers_lock_password_resets()
+    {
         using var scope = app.Services.CreateScope();
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>().FindByNameAsync("dave"));
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var questions = scope.ServiceProvider.GetRequiredService<SecurityQuestions>();
+        var mona = new IdentityUser("mona");
+        await users.CreateAsync(mona, "Passw0rd!");
+        await questions.SetAsync(mona, SecurityQuestions.All[0], "blue");
+
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.NotNull(await questions.ResetAsync("mona", "red", "NewPassw0rd!"));
+        }
+        Assert.NotNull(await questions.ResetAsync("mona", "blue", "NewPassw0rd!"));
+        Assert.True(await users.CheckPasswordAsync((await users.FindByNameAsync("mona"))!, "Passw0rd!"));
     }
 
     [Fact]

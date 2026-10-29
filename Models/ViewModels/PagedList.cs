@@ -11,7 +11,7 @@ namespace GM_Toolbox.Models.ViewModels
 
         public List<T> Items { get; set; } = new();
         public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = DefaultPageSize;
+        public int PageSize => DefaultPageSize;
         public int TotalCount { get; set; }
 
         public int TotalPages => TotalCount <= 0
@@ -28,18 +28,18 @@ namespace GM_Toolbox.Models.ViewModels
         /// One page of an ordered query, run through project so only that page's rows are read.
         /// </summary>
         public static async Task<PagedList<T>> CreateAsync<TSource>(IOrderedQueryable<TSource> ordered,
-            Func<IQueryable<TSource>, IQueryable<T>> project, int page, int pageSize = DefaultPageSize)
+            Func<IQueryable<TSource>, IQueryable<T>> project, int page)
         {
             var totalCount = await ordered.CountAsync();
-            page = ClampPage(page, totalCount, pageSize);
-            var items = await project(ordered.Skip((page - 1) * pageSize).Take(pageSize)).ToListAsync();
-            return new PagedList<T> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            page = ClampPage(page, totalCount);
+            var items = await project(ordered.Skip((page - 1) * DefaultPageSize).Take(DefaultPageSize)).ToListAsync();
+            return new PagedList<T> { Items = items, Page = page, TotalCount = totalCount };
         }
 
         public PagedList<TOut> WithItems<TOut>(List<TOut> items) =>
-            new() { Items = items, Page = Page, PageSize = PageSize, TotalCount = TotalCount };
+            new() { Items = items, Page = Page, TotalCount = TotalCount };
 
-        public static int ClampPage(int page, int totalCount, int pageSize = DefaultPageSize)
+        private static int ClampPage(int page, int totalCount)
         {
             if (page < 1)
             {
@@ -48,7 +48,7 @@ namespace GM_Toolbox.Models.ViewModels
 
             var totalPages = totalCount <= 0
                 ? 1
-                : (int)Math.Ceiling(totalCount / (double)pageSize);
+                : (int)Math.Ceiling(totalCount / (double)DefaultPageSize);
 
             return page > totalPages ? totalPages : page;
         }
