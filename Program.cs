@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using GM_Toolbox.Filters;
 using GM_Toolbox.Services;
 
@@ -82,6 +83,14 @@ if (app.Configuration.GetValue<bool>("ForceHttps"))
     app.UseHsts();
     app.UseHttpsRedirection();
 }
+
+// The test coverage reports the image builds. Like the About page, they are open to everyone.
+var coverageDir = app.Configuration["CoverageDir"] ?? Path.Combine(app.Environment.ContentRootPath, "coverage");
+if (Directory.Exists(coverageDir))
+{
+    app.UseFileServer(new FileServerOptions { FileProvider = new PhysicalFileProvider(coverageDir), RequestPath = "/coverage" });
+}
+
 app.UseRouting();
 
 // Only the account pages this app offers are open. The rest of the Identity UI (two-factor sign-in, email,

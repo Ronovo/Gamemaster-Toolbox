@@ -112,7 +112,7 @@ namespace GM_Toolbox.Services
                     break;
 
                 case FlowStepKind.RollChosen:
-                    var sourceError = ValidateSource(flow, sourceStepId);
+                    var sourceError = ValidateSource(flow, sourceStepId, step);
                     if (sourceError != null)
                     {
                         return sourceError;
@@ -134,12 +134,10 @@ namespace GM_Toolbox.Services
                 return "That step is no longer part of this flow.";
             }
 
-            _context.FlowSteps.Remove(step);
-            flow.Steps.Remove(step);
-
             // References are by ID, so they only break when the step they name is actually
-            // gone. Clear those and count them for the notice the caller shows.
-            foreach (var survivor in flow.Steps)
+            // gone. Clear those and count them for the notice the caller shows, before the
+            // step is removed: removing it has EF Core clear them without counting.
+            foreach (var survivor in flow.Steps.Where(s => s != step))
             {
                 if (survivor.SourceStepID == stepId)
                 {
@@ -159,6 +157,9 @@ namespace GM_Toolbox.Services
                     orphaned++;
                 }
             }
+
+            _context.FlowSteps.Remove(step);
+            flow.Steps.Remove(step);
 
             flow.Steps.OrderBy(s => s.SortOrder).ToList().Renumber();
             return null;
@@ -182,6 +183,13 @@ namespace GM_Toolbox.Services
             if (target < 0 || target >= ordered.Count)
             {
                 return null;
+            }
+
+            // Steps only swap with a neighbour, so the order breaks only when the two are a step
+            // and the source it rolls from.
+            if (ordered[index].SourceStepID == ordered[target].ID || ordered[target].SourceStepID == ordered[index].ID)
+            {
+                return SourceComesFirst;
             }
 
             (ordered[index], ordered[target]) = (ordered[target], ordered[index]);
@@ -446,7 +454,10 @@ namespace GM_Toolbox.Services
             return null;
         }
 
-        private static string? ValidateSource(Flow flow, int? sourceStepId)
+        private const string SourceComesFirst = "A step can only take its oracle from a step that comes before it.";
+
+        /// <summary>Checks the source of a step that rolls what another picks; a null step is a new last step.</summary>
+        private static string? ValidateSource(Flow flow, int? sourceStepId, FlowStep? step = null)
         {
             if (sourceStepId == null)
             {
@@ -461,6 +472,10 @@ namespace GM_Toolbox.Services
             if (source.Kind != FlowStepKind.Choice && source.Kind != FlowStepKind.Roll)
             {
                 return "This step takes its oracle from a dropdown question or a roll.";
+            }
+            if (step != null && source.SortOrder > step.SortOrder)
+            {
+                return SourceComesFirst;
             }
 
             return null;

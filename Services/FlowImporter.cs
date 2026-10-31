@@ -108,10 +108,14 @@ namespace GM_Toolbox.Services
                     var kindError = ResolveKind(dto.Kind, where, out var kind);
                     if (kindError != null) return kindError;
 
+                    var label = string.IsNullOrWhiteSpace(dto.Label) ? null : dto.Label.Trim();
+                    if (FlowText.LabelProblem(label, "A step label") is string labelProblem)
+                        return $"{where}: {labelProblem}";
+
                     var step = new FlowStep
                     {
                         Kind = kind,
-                        Label = string.IsNullOrWhiteSpace(dto.Label) ? null : dto.Label.Trim(),
+                        Label = label,
                         SortOrder = ++_order
                     };
 
@@ -142,6 +146,8 @@ namespace GM_Toolbox.Services
                         return $"{_where}: a \"roll on another oracle\" step has no source.";
                     if (step.SourceStep.Kind != FlowStepKind.Choice && step.SourceStep.Kind != FlowStepKind.Roll)
                         return $"{_where}: a \"roll on another oracle\" step takes its oracle from a step that is neither a dropdown question nor a roll.";
+                    if (step.SourceStep.SortOrder > step.SortOrder)
+                        return $"{_where}: a \"roll on another oracle\" step takes its oracle from a step that comes after it.";
                 }
 
                 _flow.Steps.OrderBy(s => s.SortOrder).ToList().Renumber();

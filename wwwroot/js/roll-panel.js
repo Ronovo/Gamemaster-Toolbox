@@ -96,6 +96,7 @@ window.GmRoll = (function () {
                 if (many) {
                     fillList(items);
                 } else {
+                    /* v8 ignore next - a single result always has its first item */
                     fillItem(items[0] || data);
                 }
 
@@ -215,6 +216,7 @@ window.GmRoll = (function () {
         function render() {
             var totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
             if (page > totalPages) page = totalPages;
+            /* v8 ignore next - nothing ever lowers the page below 1 */
             if (page < 1) page = 1;
 
             var start = (page - 1) * pageSize;
@@ -296,15 +298,20 @@ window.GmRoll = (function () {
 
             postForm(form, button)
                 .then(function (response) {
-                    if (!response.ok) { form.submit(); return null; }
+                    if (!response.ok) throw new Error(form.action + " returned " + response.status);
                     return response.json();
                 })
                 .then(function (data) {
-                    if (!data) return;
-                    if (data.error) { onError(data.error); return; }
-                    onData(data);
+                    if (data.error) onError(data.error);
+                    else onData(data);
+                }, function () {
+                    // No usable answer came back, so the form posts the normal way instead.
+                    form.submit();
                 })
-                .catch(function () { form.submit(); })
+                .catch(function (error) {
+                    // The server has already rolled by now, so posting again would roll twice.
+                    console.error(error);
+                })
                 .finally(function () { if (button) button.disabled = false; });
         });
     }

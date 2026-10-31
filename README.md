@@ -66,6 +66,23 @@ To stop it: press Ctrl+C.
 
 To run the tests: `dotnet test Tests/GM_Toolbox.Tests.csproj`.
 
+The browser scripts in `wwwroot/js` have their own tests in `Tests/js`, run with Vitest on Node.js. From
+`Tests/js`, run `npm install` once, then `npm test`.
+
+#### Coverage
+
+```
+dotnet test Tests/GM_Toolbox.Tests.csproj --collect:"XPlat Code Coverage" --results-directory TestResults
+dotnet tool install dotnet-reportgenerator-globaltool --version 5.5.11 --tool-path .tools
+.tools/reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:coverage/dotnet -reporttypes:Html
+cd Tests/js && npm run coverage
+```
+
+The HTML reports go to `coverage/dotnet` and `coverage/js`; the JavaScript one fails below 100%. The Docker image
+builds both reports and serves them at `/coverage/`, open to everyone, under the landing page in
+`coverage-index/`, the `ronovos-coverage-index` submodule, with this repo's `coverage-reports.json`. Failing tests
+or low coverage don't stop the image build; the reports show what is missing.
+
 ### Updates in Docker
 
 On every start the container runs `docker/git-sync.sh` before the app. It fetches the latest
@@ -290,7 +307,10 @@ Areas/Identity/  Login, Register, ForgotPassword, SecurityQuestion and DeletePer
                  of the Identity UI this app doesn't use is closed off
 App_Data/        gmtoolbox.db (the database) and Sheets/
 ExportTemplate/  The example file the Import page offers to download
-Tests/           xUnit tests: privacy rules, the importer, and the pages through a test server
+Tests/           xUnit tests: privacy rules, the importer, and the pages through a test server; js/ holds
+                 the browser scripts' Vitest tests
+coverage-index/  The test coverage landing page, the ronovos-coverage-index submodule
+coverage-reports.json  This repo's entry for that page: its name and reports
 docker/          git-sync.sh, which updates the container from GitHub on start
 wwwroot/        Static assets (Bootstrap, jQuery, site CSS/JS, roll-panel.js)
 ```

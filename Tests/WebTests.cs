@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace GM_Toolbox.Tests;
 
-public sealed class AppFactory : WebApplicationFactory<Program>
+public class AppFactory : WebApplicationFactory<Program>
 {
     private readonly string _folder = Directory.CreateTempSubdirectory("gm-toolbox-tests-").FullName;
 
@@ -37,20 +37,56 @@ public sealed class AppFactory : WebApplicationFactory<Program>
         return read(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
     }
 
+    private readonly Dictionary<HttpClient, int> _systems = new();
+
+    public async Task<int> SystemIdAsync(HttpClient client)
+    {
+        if (_systems.TryGetValue(client, out var id)) return id;
+        var name = $"System {Guid.NewGuid():N}";
+        await AddSystemAsync(client, name);
+        id = Query(db => db.GameSystems.IgnoreQueryFilters().Where(g => g.Name == name).Select(g => g.ID).Single());
+        _systems[client] = id;
+        return id;
+    }
+
+    public async Task<int> CreateOracleAsync(HttpClient client, string name, string subtype = "Dice", int count = 1, int faces = 6)
+    {
+        var response = await client.PostAsync("/Oracles/Create", await FormAsync(client, "/Oracles/Create", new()
+        {
+            ["Name"] = name, ["OracleSubtype"] = subtype, ["GameSystemID"] = (await SystemIdAsync(client)).ToString(),
+            ["DiceCount"] = count.ToString(), ["DiceFaces"] = faces.ToString(),
+        }));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return int.Parse(response.RequestMessage!.RequestUri!.Segments[^1]);
+    }
+
+    public List<int> EntryIds(int oracleId) =>
+        Query(db => db.OracleEntries.IgnoreQueryFilters().Where(e => e.OracleID == oracleId)
+            .OrderBy(e => e.SortOrder).Select(e => e.ID).ToList());
+
+    public static async Task<HttpResponseMessage> PostAsync(HttpClient client, string url, string tokenPage,
+        Dictionary<string, string> fields, bool ajax = false)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = await FormAsync(client, tokenPage, fields) };
+        if (ajax) request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        return await client.SendAsync(request);
+    }
+
     public static async Task<HttpResponseMessage> AddSystemAsync(HttpClient client, string name) =>
         await client.PostAsync("/GameSystems/Create",
             await FormAsync(client, "/GameSystems/Create", new() { ["Name"] = name, ["Genre"] = "Horror" }));
 
-    public static async Task<HttpResponseMessage> UploadSheetAsync(HttpClient client, int? gameSystemId)
+    public static async Task<HttpResponseMessage> UploadSheetAsync(HttpClient client, int? gameSystemId,
+        string fileName = "hero.pdf", string contents = "%PDF-1.4 test sheet")
     {
         var form = new MultipartFormDataContent
         {
             { new StringContent(await TokenAsync(client, "/Sheets/Upload")), "__RequestVerificationToken" },
             { new StringContent(gameSystemId?.ToString() ?? ""), "gameSystemId" }
         };
-        var content = new ByteArrayContent("%PDF-1.4 test sheet"u8.ToArray());
+        var content = new ByteArrayContent(Encoding.UTF8.GetBytes(contents));
         content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
-        form.Add(content, "file", "hero.pdf");
+        form.Add(content, "file", fileName);
         return await client.PostAsync("/Sheets/Upload", form);
     }
 

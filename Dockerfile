@@ -1,3 +1,17 @@
+# The coverage report only shows what the tests reach, so failing tests or low coverage still build the image.
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS coverage
+WORKDIR /src
+RUN dotnet tool install dotnet-reportgenerator-globaltool --version 5.5.11 --tool-path /tools
+COPY . .
+RUN dotnet test Tests/GM_Toolbox.Tests.csproj --collect:"XPlat Code Coverage" --results-directory /tmp/results ;     /tools/reportgenerator -reports:"/tmp/results/**/coverage.cobertura.xml" -targetdir:coverage/dotnet -reporttypes:Html ;     mkdir -p coverage/dotnet
+
+FROM node:24-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS js-coverage
+WORKDIR /src
+COPY Tests/js/package.json Tests/js/package-lock.json Tests/js/
+RUN cd Tests/js && npm ci --no-audit --no-fund
+COPY . .
+RUN cd Tests/js && npx vitest run --coverage ; mkdir -p /src/coverage/js ; cat /src/coverage-index/istanbul.css >> /src/coverage/js/base.css
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
@@ -20,6 +34,10 @@ ENV REPO_URL=https://github.com/Ronovo/Gamemaster-Toolbox.git \
 COPY docker/git-sync.sh /usr/local/bin/git-sync
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY coverage-index/index.html coverage/
+COPY coverage-reports.json coverage/reports.json
+COPY --from=coverage /src/coverage/dotnet coverage/dotnet
+COPY --from=js-coverage /src/coverage/js coverage/js
 
 # The database file and the uploaded sheets both live here. Without a mount they would sit
 # in the container's writable layer and be destroyed along with the container.

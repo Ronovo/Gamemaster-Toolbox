@@ -100,3 +100,8 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *~
+
+# Test coverage output
+coverage/
+TestResults/
+.tools/

@@ -106,6 +106,7 @@
         if (!results) return;
 
         var timer = null;
+        var latest = 0;
         var partial = root.getAttribute("data-partial") || "1";
         var pageParam = root.getAttribute("data-page-param") || "page";
 
@@ -122,15 +123,21 @@
             var target = new URL(url, window.location.origin);
             if (resetPage) target.searchParams.delete(pageParam);
             target.searchParams.set("partial", partial);
+            // Only the latest request's answer is shown, whatever order they come back in.
+            var request = ++latest;
 
             fetch(target.toString(), { headers: { "X-Requested-With": "fetch" } })
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
+                    if (request !== latest) return;
                     results.innerHTML = html;
                     bindPager();
                     results.dispatchEvent(new CustomEvent("gm:list-updated", { bubbles: true }));
 
                     var shown = new URL(window.location.href);
+                    readParams(root).forEach(function (v, k) {
+                        if (!v) shown.searchParams.delete(k);
+                    });
                     target.searchParams.forEach(function (v, k) {
                         if (k === "partial") return;
                         if (v) shown.searchParams.set(k, v);
@@ -225,7 +232,14 @@
             add: add,
             remove: remove,
             addAll: function (ids) { ids.forEach(add); },
-            removeAll: function (ids) { ids.forEach(remove); },
+            removeAll: function (ids) {
+                ids.forEach(remove);
+                // syncVisible adopts ticked boxes, so the removed ones are unticked first.
+                var removed = ids.map(String);
+                document.querySelectorAll(checkboxSelector).forEach(function (cb) {
+                    if (removed.indexOf(cb.value) !== -1) cb.checked = false;
+                });
+            },
             syncVisible: syncVisible
         };
     }
