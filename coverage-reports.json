@@ -1,0 +1,10 @@
+{
+  "title": "Gamemaster Toolbox",
+  "source": "https://github.com/Ronovo/Gamemaster-Toolbox",
+  "reports": [
+    { "label": "C# and Razor", "path": "dotnet/", "summary": "main.js", "format": "reportgenerator",
+      "about": "The ASP.NET app: controllers, services, models and views, measured with coverlet over xUnit and reported with ReportGenerator" },
+    { "label": "JavaScript", "path": "js/", "summary": "coverage-summary.json", "format": "istanbul",
+      "about": "wwwroot/js/site.js and roll-panel.js, measured with Vitest" }
+  ]
+}
