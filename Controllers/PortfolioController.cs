@@ -16,6 +16,8 @@ public class PortfolioController : Controller
     private const string PendingSub = "PortfolioPendingSub";
     private const string PendingName = "PortfolioPendingName";
     private const string PendingExpires = "PortfolioPendingExpires";
+    private const string PendingReturnUrl = "PortfolioReturnUrl";
+    private const string LoginPage = "/Identity/Account/Login";
 
     private readonly PortfolioLogin _portfolio;
     private readonly UserManager<IdentityUser> _users;
@@ -29,11 +31,19 @@ public class PortfolioController : Controller
     }
 
     [HttpGet("login")]
-    public IActionResult Login()
+    public IActionResult Login(string? returnUrl = null)
     {
         if (!_portfolio.Enabled)
         {
             return NotFound();
+        }
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            HttpContext.Session.SetString(PendingReturnUrl, returnUrl);
+        }
+        else
+        {
+            HttpContext.Session.Remove(PendingReturnUrl);
         }
         var state = RandomNumberGenerator.GetHexString(32);
         Response.Cookies.Append(StateCookie, state, new CookieOptions
@@ -62,18 +72,18 @@ public class PortfolioController : Controller
         if (string.IsNullOrEmpty(expected) || state == null ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(state)))
         {
-            return BadRequest();
+            return LoginAgain("Your portfolio login expired. Try again.");
         }
         if (await _portfolio.VerifyAsync(token) is not var (sub, name))
         {
-            return BadRequest();
+            return LoginAgain("That portfolio login didn't check out. Try again.");
         }
 
         var user = await _users.FindByLoginAsync(PortfolioLogin.Provider, sub);
         if (user != null)
         {
             await _signIn.SignInAsync(user, isPersistent: true);
-            return Redirect("/");
+            return Finish();
         }
         HttpContext.Session.SetString(PendingSub, sub);
         HttpContext.Session.SetString(PendingName, name);
@@ -101,14 +111,12 @@ public class PortfolioController : Controller
         }
         if (choice == "cancel")
         {
-            ClearPending();
-            return Redirect("/Identity/Account/Login");
+            return LoginAgain();
         }
         if (choice == "new")
         {
-            ClearPending();
             await _signIn.SignInAsync(await CreateUserAsync(sub, name), isPersistent: true);
-            return Redirect("/");
+            return Finish();
         }
 
         var model = new PortfolioLinkModel { Name = name, UserName = userName ?? "" };
@@ -135,9 +143,8 @@ public class PortfolioController : Controller
             return View(model);
         }
 
-        ClearPending();
         await _signIn.SignInAsync(user!, isPersistent: true);
-        return Redirect("/");
+        return Finish();
     }
 
     private (string Sub, string Name)? Pending()
@@ -156,12 +163,24 @@ public class PortfolioController : Controller
         HttpContext.Session.Remove(PendingSub);
         HttpContext.Session.Remove(PendingName);
         HttpContext.Session.Remove(PendingExpires);
+        HttpContext.Session.Remove(PendingReturnUrl);
     }
 
-    private IActionResult LoginAgain()
+    private IActionResult LoginAgain(string? message = null)
     {
         ClearPending();
-        return Redirect("/Identity/Account/Login");
+        if (message != null)
+        {
+            TempData["LoginMessage"] = message;
+        }
+        return Redirect(LoginPage);
+    }
+
+    private IActionResult Finish()
+    {
+        var returnUrl = HttpContext.Session.GetString(PendingReturnUrl);
+        ClearPending();
+        return Redirect(Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
     }
 
     // A new account linked to a portfolio account and named after it. It has no password, so logging in

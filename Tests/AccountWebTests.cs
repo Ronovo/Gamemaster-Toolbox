@@ -51,6 +51,15 @@ public class AccountWebTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
+    public async Task The_profile_page_shows_the_username_and_no_phone_number()
+    {
+        var client = await app.LoggedInAsync("profiled");
+        var page = await client.GetStringAsync("/Identity/Account/Manage/Index");
+        Assert.Contains("value=\"profiled\"", page);
+        Assert.DoesNotContain("phone", page, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task A_forgotten_password_is_reset_with_the_security_answer()
     {
         var setup = app.CreateClient();

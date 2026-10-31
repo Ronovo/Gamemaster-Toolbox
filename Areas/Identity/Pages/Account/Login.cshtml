@@ -8,9 +8,13 @@
 <h1>@ViewData["Title"]</h1>
 <div class="row">
     <div class="col-md-4">
+        @if (TempData["LoginMessage"] is string loginMessage)
+        {
+            <div class="alert alert-warning" role="alert">@loginMessage</div>
+        }
         @if (Portfolio.Enabled)
         {
-            <p><a class="w-100 btn btn-lg btn-primary portfolio-button" href="/sso/login" data-portfolio-url="@Portfolio.Url">Log in with portfolio account</a></p>
+            <p><a class="w-100 btn btn-lg btn-primary portfolio-button" asp-area="" asp-controller="Portfolio" asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl" data-portfolio-url="@Portfolio.Url">Log in with portfolio account</a></p>
         }
         <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>

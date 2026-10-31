@@ -24,26 +24,23 @@ public sealed class PortfolioAppFactory : AppFactory
 
 public class PortfolioWebTests(PortfolioAppFactory app, AppFactory plain) : IClassFixture<PortfolioAppFactory>, IClassFixture<AppFactory>
 {
-    // A login is refused as a replay when the same person's token carries the same issue time (in whole seconds), so
-    // each token here is issued a second before the last, counted back from a fixed start rather than from now.
-    private static readonly DateTime Start = DateTime.UtcNow;
-    private static int _issued;
+    private const string LoginPage = "/Identity/Account/Login";
 
-    private static string Token(string sub, string name) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+    private static string Token(string sub, string name, DateTime? issuedAt = null) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
     {
         Issuer = "portfolio",
         Audience = "gm-toolbox",
-        Subject = new ClaimsIdentity([new Claim("sub", sub), new Claim("name", name)]),
-        IssuedAt = Start.AddSeconds(-Interlocked.Increment(ref _issued)),
+        Subject = new ClaimsIdentity([new Claim("sub", sub), new Claim("name", name), new Claim("jti", Guid.NewGuid().ToString("N"))]),
+        IssuedAt = issuedAt,
         Expires = DateTime.UtcNow.AddMinutes(5),
         SigningCredentials = new SigningCredentials(new RsaSecurityKey(PortfolioAppFactory.Key), SecurityAlgorithms.RsaSha256),
     });
 
     private HttpClient Browser() => app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-    private static async Task<string> StartAsync(HttpClient browser)
+    private static async Task<string> StartAsync(HttpClient browser, string? returnUrl = null)
     {
-        var login = await browser.GetAsync("/sso/login");
+        var login = await browser.GetAsync(returnUrl == null ? "/sso/login" : $"/sso/login?returnUrl={Uri.EscapeDataString(returnUrl)}");
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
         var location = login.Headers.Location!;
         Assert.StartsWith("http://portfolio.test/sso/authorize?", location.ToString());
@@ -80,15 +77,55 @@ public class PortfolioWebTests(PortfolioAppFactory app, AppFactory plain) : ICla
         Assert.Equal(HttpStatusCode.NotFound, (await CallbackAsync(browser, "x", "y")).StatusCode);
     }
 
-    [Fact]
-    public async Task The_callback_refuses_a_wrong_state_a_missing_cookie_and_a_bad_token()
+    private static async Task AssertRefusedAsync(HttpResponseMessage callback, HttpClient browser, string message)
     {
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal(LoginPage, callback.Headers.Location!.ToString());
+        Assert.Contains(message, WebUtility.HtmlDecode(await browser.GetStringAsync(LoginPage)));
+        Assert.DoesNotContain(message, WebUtility.HtmlDecode(await browser.GetStringAsync(LoginPage)));
+    }
+
+    [Fact]
+    public async Task The_callback_sends_a_wrong_state_a_missing_cookie_and_a_bad_token_back_to_log_in()
+    {
+        const string expired = "Your portfolio login expired. Try again.";
         var browser = Browser();
         await StartAsync(browser);
-        Assert.Equal(HttpStatusCode.BadRequest, (await CallbackAsync(browser, "wrong", Token("1", "one"))).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await CallbackAsync(Browser(), null, Token("1", "one"))).StatusCode);
+        await AssertRefusedAsync(await CallbackAsync(browser, "wrong", Token("1", "one")), browser, expired);
+        var fresh = Browser();
+        await AssertRefusedAsync(await CallbackAsync(fresh, null, Token("1", "one")), fresh, expired);
         var state = await StartAsync(browser);
-        Assert.Equal(HttpStatusCode.BadRequest, (await CallbackAsync(browser, state, "not-a-token")).StatusCode);
+        await AssertRefusedAsync(await CallbackAsync(browser, state, "not-a-token"), browser, "That portfolio login didn't check out. Try again.");
+    }
+
+    [Fact]
+    public async Task A_portfolio_login_goes_back_to_the_page_it_started_from()
+    {
+        var browser = Browser();
+        Assert.Contains("href=\"/sso/login?returnUrl=%2FSheets\"", await browser.GetStringAsync($"{LoginPage}?returnUrl=/Sheets"));
+        await CallbackAsync(browser, await StartAsync(browser, "/Sheets"), Token("700", "Returner"));
+        var made = await LinkAsync(browser, new() { ["choice"] = "new" });
+        Assert.Equal("/Sheets", made.Headers.Location!.ToString());
+        Assert.True(await SignedInAsync(browser));
+
+        var again = Browser();
+        var back = await CallbackAsync(again, await StartAsync(again, "/Flows"), Token("700", "Returner"));
+        Assert.Equal("/Flows", back.Headers.Location!.ToString());
+
+        var away = Browser();
+        var home = await CallbackAsync(away, await StartAsync(away, "http://evil.test/"), Token("700", "Returner"));
+        Assert.Equal("/", home.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task Two_tokens_issued_in_the_same_second_both_log_in()
+    {
+        var issuedAt = DateTime.UtcNow;
+        foreach (var browser in new[] { Browser(), Browser() })
+        {
+            var callback = await CallbackAsync(browser, await StartAsync(browser), Token("800", "Twin", issuedAt));
+            Assert.Equal("/sso/link", callback.Headers.Location!.ToString());
+        }
     }
 
     [Fact]

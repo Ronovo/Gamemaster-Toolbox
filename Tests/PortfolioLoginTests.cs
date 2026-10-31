@@ -18,11 +18,12 @@ public class PortfolioLoginTests
         ["PORTFOLIO_SSO_PUBLIC_KEY"] = Convert.ToBase64String(_key.ExportSubjectPublicKeyInfo())
     }).Build(), NullLogger<PortfolioLogin>.Instance);
 
-    private string Token(string audience = "gm-toolbox") => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+    private string Token(string audience = "gm-toolbox", DateTime? issuedAt = null, string jti = "1") => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
     {
         Issuer = "portfolio",
         Audience = audience,
-        Subject = new ClaimsIdentity([new Claim("sub", "7"), new Claim("name", "player7")]),
+        Subject = new ClaimsIdentity([new Claim("sub", "7"), new Claim("name", "player7"), new Claim("jti", jti)]),
+        IssuedAt = issuedAt,
         Expires = DateTime.UtcNow.AddMinutes(5),
         SigningCredentials = new SigningCredentials(new RsaSecurityKey(_key), SecurityAlgorithms.RsaSha256)
     });
@@ -35,6 +36,20 @@ public class PortfolioLoginTests
 
         Assert.Equal(("7", "player7"), await login.VerifyAsync(token));
         Assert.Null(await login.VerifyAsync(token));
+    }
+
+    [Fact]
+    public async Task Two_tokens_issued_in_the_same_second_each_log_in_once()
+    {
+        var login = Login();
+        var issuedAt = DateTime.UtcNow;
+        var first = Token(issuedAt: issuedAt, jti: "a");
+        var second = Token(issuedAt: issuedAt, jti: "b");
+
+        Assert.NotNull(await login.VerifyAsync(first));
+        Assert.NotNull(await login.VerifyAsync(second));
+        Assert.Null(await login.VerifyAsync(first));
+        Assert.Null(await login.VerifyAsync(second));
     }
 
     [Fact]

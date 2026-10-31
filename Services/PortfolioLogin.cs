@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
@@ -77,8 +78,8 @@ public class PortfolioLogin
         {
             _used.TryRemove(expired);
         }
-        var issued = result.SecurityToken is JsonWebToken jwt ? jwt.IssuedAt.Ticks : 0;
-        if (!_used.TryAdd($"{sub}:{issued}", result.SecurityToken.ValidTo + ClockSkew))
+        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+        if (!_used.TryAdd(key, result.SecurityToken.ValidTo + ClockSkew))
         {
             return null;
         }
